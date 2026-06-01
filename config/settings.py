@@ -9,7 +9,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-local')
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
-
+CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
