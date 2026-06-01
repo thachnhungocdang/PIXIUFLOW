@@ -1,0 +1,193 @@
+﻿{% extends 'core/base.html' %}
+{% load format_utils %}
+{% load static %}
+
+{% block title %}Bảng theo dõi - Pixiu Flow{% endblock %}
+
+{% block content %}
+<div class="dashboard-page">
+    <header class="dashboard-topbar">
+        <div>
+            <h1>Bảng theo dõi</h1>
+            <p>Theo dõi doanh thu, chi phí, lợi nhuận và dòng tiền theo thời gian thực</p>
+        </div>
+        <div class="topbar-actions">
+            <button type="button" class="icon-btn" aria-label="Thông báo"><i data-lucide="bell"></i></button>
+            <div class="topbar-user">
+                <div><strong>Kiều Xuân Thuý</strong><span>Chủ doanh nghiệp</span></div>
+                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+            </div>
+        </div>
+    </header>
+
+    <section class="dashboard-content">
+        {% if not onboarding_complete %}
+        <section class="quick-start-panel">
+            <div class="quick-start-head">
+                <div><span>Bắt đầu nhanh</span><h2>3 bước để bắt đầu</h2></div>
+                <a href="/onboarding/" class="quick-start-help"><i data-lucide="circle-help"></i> Xem hướng dẫn</a>
+            </div>
+            <div class="quick-start-list">
+                <a href="/products/create/" class="quick-start-item {% if has_products %}is-done{% endif %}"><b>1</b><span>Thêm sản phẩm đầu tiên</span><i data-lucide="{% if has_products %}check-circle-2{% else %}arrow-right{% endif %}"></i></a>
+                <a href="/sales/create/" class="quick-start-item {% if has_transactions %}is-done{% endif %}"><b>2</b><span>Ghi nhận giao dịch đầu tiên</span><i data-lucide="{% if has_transactions %}check-circle-2{% else %}arrow-right{% endif %}"></i></a>
+                <a href="/report/" class="quick-start-item {% if has_viewed_report %}is-done{% endif %}"><b>3</b><span>Xem báo cáo đầu tiên</span><i data-lucide="{% if has_viewed_report %}check-circle-2{% else %}arrow-right{% endif %}"></i></a>
+            </div>
+        </section>
+        {% else %}
+        <a href="/onboarding/" class="dashboard-guide-link"><i data-lucide="circle-help"></i> Xem hướng dẫn</a>
+        {% endif %}
+
+        {% if out_of_stock_products or low_stock_products %}
+        <div class="stock-alert">
+            <div>
+                <strong>Cảnh báo: có {{ alert_count }} mặt hàng sắp hết hoặc đã hết hàng</strong>
+                <span>Hãy kiểm tra kho hàng và nhập thêm để không bị gián đoạn bán hàng.</span>
+            </div>
+            <a href="/inventory/">Xem kho hàng</a>
+        </div>
+        {% endif %}
+
+        {% if customer_payment_alerts or supplier_payment_alerts %}
+        <section class="payment-alert-panel">
+            <div class="payment-alert-head">
+                <div>
+                    <h2>Cảnh báo chưa thanh toán</h2>
+                    <p>Hiển thị các khoản quá hạn hoặc còn trong {{ payment_warning_days }} ngày đến hạn.</p>
+                </div>
+                <form method="post" class="payment-warning-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_payment_warning">
+                    <label>Cảnh báo trước <input type="number" name="payment_warning_days" min="0" max="60" value="{{ payment_warning_days }}"> ngày</label>
+                    <button type="submit">Lưu</button>
+                </form>
+            </div>
+            <div class="payment-alert-list">
+                {% if customer_payment_alerts %}
+                <div class="payment-alert-section">
+                    <h3>Khách chưa thanh toán</h3>
+                    {% for alert in customer_payment_alerts %}
+                    <article class="payment-alert-item payment-alert-item--{{ alert.status.key }}">
+                        <div class="payment-alert-main">
+                            <strong>{{ alert.title|truncatechars:28 }} <em>{{ alert.status.label }}</em></strong>
+                            <span data-payment-due-text>{{ alert.detail|truncatechars:34 }} · {% if alert.due_date %}Hạn {{ alert.due_date|date:"d/m/Y" }}{% else %}Chưa có hạn{% endif %}</span>
+                        </div>
+                        <b>{{ alert.amount|vnd }}</b>
+                        <div class="payment-alert-actions">
+                            <a href="{{ alert.url }}">Xem giao dịch</a>
+                            <button type="button" data-payment-extend data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-due="{{ alert.due_date|date:'Y-m-d' }}"><i data-lucide="calendar-plus"></i> Đổi hạn thanh toán</button>
+                            <button type="button" data-payment-paid data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-action-label="Đã thu"><i data-lucide="check"></i> Đã thu</button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if supplier_payment_alerts %}
+                <div class="payment-alert-section">
+                    <h3>Cần trả NCC / chi phí</h3>
+                    {% for alert in supplier_payment_alerts %}
+                    <article class="payment-alert-item payment-alert-item--{{ alert.status.key }}">
+                        <div class="payment-alert-main">
+                            <strong>{{ alert.title|truncatechars:28 }} <em>{{ alert.status.label }}</em></strong>
+                            <span data-payment-due-text>{{ alert.detail|truncatechars:34 }} · {% if alert.due_date %}Hạn {{ alert.due_date|date:"d/m/Y" }}{% else %}Chưa có hạn{% endif %}</span>
+                        </div>
+                        <b>{{ alert.amount|vnd }}</b>
+                        <div class="payment-alert-actions">
+                            <a href="{{ alert.url }}">Xem GD</a>
+                            <button type="button" data-payment-extend data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-due="{{ alert.due_date|date:'Y-m-d' }}"><i data-lucide="calendar-plus"></i> Đổi hạn</button>
+                            <button type="button" data-payment-paid data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-action-label="Đã trả"><i data-lucide="check"></i> Đã trả</button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        <form method="get" class="filter-bar filter-bar--global">
+            <span>Bộ lọc dữ liệu cho toàn bộ bảng:</span><a href="?{{ all_query }}">Tất cả</a><a href="?{{ today_query }}">Hôm nay</a><a href="?{{ week_query }}">7 ngày</a><a href="?{{ month_query }}">Tháng này</a>
+            <div class="date-range"><i data-lucide="calendar-days"></i><input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" aria-label="Ngày bắt đầu"><span>-</span><input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" aria-label="Ngày kết thúc"></div>
+            <button type="submit" class="apply-btn">Áp dụng</button>
+        </form>
+
+        <div class="metric-grid">
+            <article class="metric-card">
+                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="trending-up"></i></span><span class="metric-change {% if income_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if income_change < 0 %}↘{% else %}↗{% endif %} {{ income_change }}%</span></div>
+                <h3>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là số tiền bạn đã bán được theo các giao dịch đã ghi trong khoảng này. Nếu khách mua hàng nhưng chưa trả tiền, hệ thống vẫn tính vào đây vì việc bán hàng đã xảy ra. Chỉ số này không dùng để xem tiền thật đã thu.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ total_income|vnd }}{% endif %}</strong>
+                <small class="metric-help">Khoảng {{ date_range_label }}. Đã bán/đã ghi đơn, kể cả khách còn nợ.</small>
+            </article>
+            <article class="metric-card">
+                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="receipt-text"></i></span><span class="metric-change {% if expense_change > 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if expense_change > 0 %}↗{% else %}↘{% endif %} {{ expense_change }}%</span></div>
+                <h3>Chi phí ghi nhận <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là chi phí dùng để xem kinh doanh lời hay lỗ trong khoảng này. Mua thiết bị lâu dài không bị trừ hết một lần: số tiền được chia dần theo vòng đời bạn nhập.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ total_expense_all|vnd }}{% endif %}</strong>
+                <small class="metric-help">Khoảng {{ date_range_label }}. Chi phí đã chia khấu hao thiết bị.</small>
+            </article>
+            <article class="metric-card">
+                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="wallet-cards"></i></span><span class="metric-change {% if profit_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if profit_change < 0 %}↘{% else %}↗{% endif %} {{ profit_change }}%</span></div>
+                <h3>Lợi nhuận ghi nhận <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Công thức là Doanh thu ghi nhận trừ Chi phí ghi nhận. Số này trả lời: trong khoảng này kinh doanh lời hay lỗ. Nó có thể khác tiền mặt vì khách/NCC có thể chưa thanh toán.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ estimated_profit|vnd }}{% endif %}</strong>
+                <small class="metric-help">Khoảng {{ date_range_label }}. Kết quả kinh doanh của kỳ này.</small>
+            </article>
+            <article class="metric-card metric-card--cash">
+                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="banknote-arrow-up"></i></span></div>
+                <h3>Tiền vào <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là số tiền thật sự đã thu được trong khoảng này. Nếu đã ghi doanh thu nhưng khách còn nợ, khoản đó chưa tính vào Tiền vào.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ cash_income|vnd }}{% endif %}</strong>
+                <small class="metric-help">Khoảng {{ date_range_label }}. Chỉ tính khoản khách đã trả tiền.</small>
+            </article>
+            <article class="metric-card metric-card--cash">
+                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="banknote-arrow-down"></i></span></div>
+                <h3>Tiền ra <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là số tiền thật sự đã chi trong khoảng này. Nếu đã ghi chi phí nhưng còn nợ/chưa thanh toán, khoản đó chưa tính vào Tiền ra cho đến khi xác nhận đã thanh toán.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ cash_outflow|vnd }}{% endif %}</strong>
+                <small class="metric-help">Khoảng {{ date_range_label }}. Chỉ tính khoản đã trả tiền thật.</small>
+            </article>
+            <article class="metric-card">
+                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="banknote-arrow-down"></i></span><span class="metric-change {% if cash_flow_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if cash_flow_change < 0 %}↘{% else %}↗{% endif %} {{ cash_flow_change }}%</span></div>
+                <h3>Dòng tiền thuần <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là Tiền vào trừ Tiền ra. Nếu dương, tiền thật tăng trong khoảng này; nếu âm, tiền thật giảm. Chỉ số này không phải lợi nhuận vì còn phụ thuộc khách đã trả tiền và bạn đã chi tiền hay chưa.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ net_cash_flow|vnd }}{% endif %}</strong>
+                <small class="metric-help">Khoảng {{ date_range_label }}. Tiền vào trừ tiền ra.</small>
+            </article>
+        </div>
+
+        <div class="dashboard-grid">
+            <section class="chart-panel">
+                <div class="panel-heading"><div><h2>Biểu đồ xu hướng</h2><p>Dữ liệu tài chính trong khoảng {{ date_range_label }}</p></div><div class="chart-tabs" id="chartTabs"><button type="button" class="active" data-chart-metric="income">Doanh thu ghi nhận</button><button type="button" data-chart-metric="expense">Tiền ra</button><button type="button" data-chart-metric="profit">Dòng tiền thuần</button></div></div>
+                <div class="chart-box" aria-label="Biểu đồ dữ liệu tài chính">
+                    <svg viewBox="0 0 760 430" role="img"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#b21919" stop-opacity="0.35"/><stop offset="100%" stop-color="#b21919" stop-opacity="0"/></linearGradient></defs><g class="grid-lines"><line x1="70" y1="50" x2="730" y2="50"/><line x1="70" y1="135" x2="730" y2="135"/><line x1="70" y1="220" x2="730" y2="220"/><line x1="70" y1="305" x2="730" y2="305"/><line x1="70" y1="390" x2="730" y2="390"/></g><g class="chart-labels" id="chartLabels"></g><path class="area-line-fill" id="chartArea"></path><path class="area-line" id="chartLine"></path><text class="chart-empty" id="chartEmpty" x="380" y="220" text-anchor="middle">Chưa có dữ liệu trong khoảng này</text></svg>
+                </div>
+            </section>
+            <aside class="dashboard-side">
+                <section class="side-panel quick-stats"><h2>Thống kê nhanh</h2><div><span>Doanh thu trung bình/ngày</span><strong>{{ avg_income_per_day|vnd }}</strong></div><div><span>Chi phí lãi/lỗ trung bình/ngày</span><strong>{{ avg_expense_per_day|vnd }}</strong></div><div><span>Tiền ra trung bình/ngày</span><strong>{{ avg_cash_out_per_day|vnd }}</strong></div><div><span>Biên lợi nhuận</span><strong>{{ gross_margin }}%</strong></div><div><span>Số lượng giao dịch</span><strong>{{ total_transactions }} đơn</strong></div></section>
+                <section class="insight-card"><h2>Phân tích chuyên sâu</h2><p>Xem chi tiết doanh thu, chi phí, lợi nhuận và khác biệt giữa dòng tiền với lãi/lỗ.</p><a href="/report/?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}">Xem phân tích <i data-lucide="chevron-right"></i></a></section>
+            </aside>
+        </div>
+    </section>
+
+    <footer class="dashboard-footer"><span>© 2026 PIXIU FLOW - NỀN TẢNG QUẢN LÝ TÀI CHÍNH DOANH NGHIỆP THÔNG MINH. PHIÊN BẢN 1.0-BETA</span><nav><a href="#">Hỗ trợ</a><a href="#">Điều khoản</a><a href="#">Bảo mật</a></nav></footer>
+</div>
+
+{{ chart_data|json_script:"dashboard-chart-data" }}
+<script>
+(function () {
+    const data = JSON.parse(document.getElementById('dashboard-chart-data').textContent);
+    const labels = document.getElementById('chartLabels');
+    const line = document.getElementById('chartLine');
+    const area = document.getElementById('chartArea');
+    const empty = document.getElementById('chartEmpty');
+    const tabs = document.querySelectorAll('[data-chart-metric]');
+    const left = 70, right = 730, top = 50, bottom = 390;
+    const width = right - left, height = bottom - top;
+    function formatMoney(value) { const abs = Math.abs(value); if (abs >= 1000000) return `${(value / 1000000).toFixed(abs >= 10000000 ? 0 : 1)}M`; if (abs >= 1000) return `${(value / 1000).toFixed(0)}K`; return `${Math.round(value)}`; }
+    function pointPath(points) { if (!points.length) return ''; if (points.length === 1) return `M${points[0].x} ${points[0].y}`; return points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' '); }
+    function draw(metric) {
+        labels.innerHTML = '';
+        const values = data.map(item => Number(item[metric]) || 0);
+        const maxValue = Math.max(...values, 0), minValue = Math.min(...values, 0);
+        const hasData = values.some(value => value !== 0), range = maxValue === minValue ? 1 : maxValue - minValue;
+        for (let i = 0; i <= 4; i += 1) { const value = maxValue - ((range / 4) * i); const text = document.createElementNS('http://www.w3.org/2000/svg', 'text'); text.setAttribute('x', '24'); text.setAttribute('y', String(top + (height / 4) * i + 4)); text.textContent = formatMoney(value); labels.appendChild(text); }
+        const step = Math.max(1, Math.ceil(data.length / 6));
+        data.forEach((item, index) => { if (index % step !== 0 && index !== data.length - 1) return; const text = document.createElementNS('http://www.w3.org/2000/svg', 'text'); const x = data.length <= 1 ? left : left + (width * index) / (data.length - 1); text.setAttribute('x', String(x - 14)); text.setAttribute('y', '420'); text.textContent = item.label; labels.appendChild(text); });
+        if (!hasData || data.length === 0) { line.setAttribute('d', ''); area.setAttribute('d', ''); empty.style.display = 'block'; return; }
+        empty.style.display = 'none';
+        const points = values.map((value, index) => { const x = data.length <= 1 ? (left + right) / 2 : left + (width * index) / (data.length - 1); const y = bottom - ((value - minValue) / range) * height; return { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }; });
+        const d = pointPath(points); line.setAttribute('d', d); area.setAttribute('d', `${d} L${points[points.length - 1].x} ${bottom} L${points[0].x} ${bottom} Z`);
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => { tabs.forEach(item => item.classList.remove('active')); tab.classList.add('active'); draw(tab.dataset.chartMetric); }));
+    draw('income');
+})();
+</script>
+{% endblock %}

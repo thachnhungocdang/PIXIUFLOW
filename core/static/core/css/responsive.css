@@ -1,0 +1,453 @@
+﻿@media (max-width: 1180px) {
+    .metric-grid,
+    .dashboard-grid,
+    .payment-alert-grid,
+    .analytics-content {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-alert-head,
+    .payment-alert-item {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-alert-head {
+        display: grid;
+    }
+
+    .payment-alert-actions,
+    .payment-warning-form {
+        justify-content: flex-start;
+    }
+
+    .analytics-topbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        padding: 18px 24px;
+    }
+
+    .analytics-filters {
+        flex-wrap: wrap;
+    }
+
+    .analytics-rank h2 {
+        margin-top: 0;
+    }
+
+    .chart-panel {
+        min-height: auto;
+    }
+
+    .dashboard-side {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .insight-card {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 900px) {
+    .history-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .history-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .history-primary-action {
+        width: 100%;
+    }
+
+    .history-actions-group {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .history-actions-group .history-primary-action {
+        width: 100%;
+    }
+}
+
+@media (max-width: 1360px) and (min-width: 1025px) {
+    .mobile-topbar {
+        display: flex;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+    }
+
+    .sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .transaction-content {
+        padding: 22px 28px 72px;
+    }
+
+    .transaction-layout--compact {
+        grid-template-columns: minmax(0, 1fr);
+        max-width: 100%;
+    }
+
+    .transaction-card--sale {
+        width: 100%;
+        order: 2;
+    }
+
+    .transaction-layout--compact .transaction-side {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+        padding-top: 0;
+        order: 1;
+    }
+
+    .expense-top-insights .transaction-side {
+        order: initial;
+    }
+
+    .transaction-layout--compact .bulk-suggestion-card {
+        grid-column: 1 / -1;
+    }
+
+    .transaction-layout--compact .transaction-mascot,
+    .transaction-layout--compact .recent-mini {
+        display: none;
+    }
+
+    .sale-top-grid,
+    .sale-bottom-grid {
+        gap: 18px 24px;
+        padding-left: 30px;
+        padding-right: 30px;
+    }
+
+    .order-box--items {
+        margin-left: 30px;
+        margin-right: 30px;
+    }
+
+    .sale-item-head,
+    .sale-item-row,
+    .expense-purchase-head,
+    .expense-purchase-row {
+        grid-template-columns: 34px minmax(220px, 1.5fr) minmax(140px, 0.9fr) minmax(96px, 0.58fr) minmax(150px, 0.95fr) 32px;
+        gap: 10px;
+    }
+
+    .expense-other-head,
+    .expense-other-row {
+        grid-template-columns: 34px minmax(220px, 0.95fr) minmax(180px, 0.75fr) minmax(260px, 1.25fr) 32px;
+        gap: 10px;
+    }
+
+    .expense-other-head.has-equipment-lifetime,
+    .expense-other-row.has-equipment-lifetime {
+        grid-template-columns: 34px minmax(190px, 0.9fr) minmax(210px, 1fr) minmax(160px, 0.75fr) minmax(180px, 0.8fr) 32px;
+    }
+
+    .sale-item-row select,
+    .sale-item-row input,
+    .expense-purchase-row select,
+    .expense-purchase-row input,
+    .expense-other-row select,
+    .expense-other-row input {
+        font-size: 16px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .bulk-toolbar,
+    .bulk-footer {
+        grid-template-columns: 1fr;
+        flex-wrap: wrap;
+    }
+
+    .bulk-toolbar div {
+        width: 100%;
+        margin-right: 0;
+    }
+
+    .bulk-footer {
+        display: grid;
+        grid-template-columns: 76px minmax(220px, 1fr) minmax(104px, auto) minmax(126px, auto) minmax(190px, auto);
+        position: static;
+        overflow-x: auto;
+    }
+
+    .bulk-footer div {
+        min-width: 220px;
+    }
+}
+
+@media (max-width: 1180px) {
+    .transaction-layout {
+        grid-template-columns: 1fr;
+        max-width: none;
+    }
+
+    .transaction-layout--compact {
+        grid-template-columns: 1fr;
+        max-width: none;
+    }
+
+    .transaction-card--sale {
+        max-width: none;
+    }
+
+    .transaction-side {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        padding-top: 0;
+    }
+
+    .transaction-mascot,
+    .recent-mini {
+        display: none;
+    }
+}
+
+@media (max-width: 1024px) {
+    .mobile-topbar {
+        display: flex;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+    }
+
+    .sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .dashboard-topbar,
+    .dashboard-footer,
+    .stock-alert,
+    .filter-bar,
+    .panel-heading {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .dashboard-topbar,
+    .dashboard-content,
+    .dashboard-footer {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .topbar-actions {
+        justify-content: space-between;
+    }
+
+    .topbar-user {
+        border-left: none;
+        padding-left: 0;
+    }
+
+    .metric-grid,
+    .dashboard-side {
+        grid-template-columns: 1fr;
+    }
+
+    .date-range {
+        margin-left: 0;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .filter-bar a,
+    .filter-bar button {
+        width: 100%;
+    }
+
+    .chart-tabs,
+    .action-grid {
+        grid-template-columns: 1fr;
+        width: 100%;
+    }
+
+    .chart-tabs {
+        display: grid;
+    }
+
+    .transaction-topbar,
+    .transaction-tabs,
+    .transaction-card__footer {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .transaction-content {
+        padding: 20px 18px 60px;
+    }
+
+    .transaction-form-grid,
+    .transaction-side,
+    .expense-top-insights .transaction-side {
+        grid-template-columns: 1fr;
+    }
+
+    .sale-top-grid,
+    .sale-bottom-grid,
+    .sale-item-head,
+    .sale-item-row,
+    .expense-purchase-head,
+    .expense-purchase-row,
+    .expense-other-head,
+    .expense-other-row,
+    .expense-other-grid,
+    .expense-mode-box > div {
+        grid-template-columns: 1fr;
+    }
+
+    .sale-item-head,
+    .expense-purchase-head,
+    .expense-other-head {
+        display: none;
+    }
+
+    .expense-other-row .sale-item-index,
+    .expense-other-row .other-expense-type,
+    .expense-other-row .other-expense-note,
+    .expense-other-row .other-expense-amount,
+    .expense-other-row .equipment-lifetime-field,
+    .expense-other-row .equipment-note-row,
+    .expense-other-row .sale-remove-row,
+    .expense-other-row.has-equipment-lifetime .other-expense-note,
+    .expense-other-row.has-equipment-lifetime .other-expense-amount,
+    .expense-other-row.has-equipment-lifetime .equipment-note-row {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    .sale-remove-row {
+        width: 100%;
+    }
+
+    .sale-product-draft {
+        grid-column: auto;
+    }
+
+    .product-modal-grid {
+        grid-template-columns: 1fr;
+        padding: 20px;
+    }
+
+    .product-modal-head,
+    .product-modal-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .product-modal-actions button,
+    .product-modal-actions a {
+        width: 100%;
+    }
+
+    .transaction-tabs span {
+        margin-left: 0;
+    }
+
+    .order-box {
+        margin-left: 18px;
+        margin-right: 18px;
+    }
+
+    .transaction-form-grid,
+    .transaction-card__footer,
+    .transaction-tabs {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .bulk-content {
+        padding: 22px 18px 70px;
+    }
+
+    .product-create-content {
+        padding: 22px 18px 70px;
+    }
+
+    .product-form-section,
+    .product-form-grid,
+    .initial-stock-box,
+    .category-level-row {
+        grid-template-columns: 1fr;
+    }
+
+    .product-form-footer {
+        flex-direction: column;
+    }
+
+    .product-form-footer a,
+    .product-form-footer button {
+        width: 100%;
+    }
+
+    .analytics-content {
+        padding: 22px 18px 70px;
+    }
+
+    .analytics-card {
+        padding: 22px 18px;
+    }
+
+    .analytics-card-head,
+    .analytics-small-head,
+    .analytics-filters {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .analytics-filters label,
+    .analytics-filter-btn,
+    .analytics-export-btn,
+    .analytics-switch span {
+        width: 100%;
+    }
+
+    .analytics-revenue-grid,
+    .analytics-expense-grid,
+    .analytics-bottom-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .analytics-combo-chart {
+        grid-template-columns: 52px 1fr;
+    }
+
+    .combo-month {
+        width: 34px;
+    }
+
+    .bulk-toolbar button,
+    .bulk-footer a,
+    .bulk-footer button {
+        width: 100%;
+    }
+}

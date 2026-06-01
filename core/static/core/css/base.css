@@ -1,0 +1,134 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap&subset=vietnamese');
+
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --red: #8b1010;
+    --red-dark: #760b0b;
+    --red-soft: #a92a2a;
+    --gold: #ffbb00;
+    --cream: #fff6da;
+    --cream-soft: #fffaf0;
+    --toolbar: #faedc3;
+    --border: #f2bf4b;
+    --text: #222222;
+    --muted: #6b7280;
+}
+
+body {
+    margin: 0;
+    font-family: "Inter", Arial, sans-serif;
+    background: #ffffff;
+    color: var(--text);
+}
+
+a {
+    color: inherit;
+}
+
+.payment-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    background: rgba(17, 24, 39, 0.42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.payment-modal-overlay[hidden] {
+    display: none;
+}
+
+.payment-modal-card {
+    width: min(540px, 100%);
+    border: 1px solid #d9dfe9;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 28px 32px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.payment-modal-card h2 {
+    margin: 0 0 6px;
+    color: #111827;
+    font-size: 24px;
+    line-height: 1.35;
+}
+
+.payment-modal-card p {
+    margin: 0 0 24px;
+    color: #4b5563;
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.payment-modal-field {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 18px;
+    color: #3f3f46;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.payment-modal-field input,
+.payment-modal-field select,
+.payment-modal-field textarea {
+    width: 100%;
+    border: 1px solid #d9dfe9;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111827;
+    padding: 0 14px;
+    font: inherit;
+    font-size: 17px;
+    outline: none;
+}
+
+.payment-modal-field input,
+.payment-modal-field select {
+    height: 56px;
+}
+
+.payment-modal-field textarea {
+    min-height: 110px;
+    padding-top: 14px;
+    resize: vertical;
+}
+
+.payment-modal-error {
+    margin: 0 0 14px;
+    color: #b42318;
+    font-weight: 800;
+}
+
+.payment-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.payment-modal-actions button {
+    min-width: 100px;
+    min-height: 46px;
+    border: 1px solid #cfd6e2;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111827;
+    font: inherit;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.payment-modal-actions button[type="submit"] {
+    background: var(--red);
+    border-color: var(--red);
+    color: #ffffff;
+}
+

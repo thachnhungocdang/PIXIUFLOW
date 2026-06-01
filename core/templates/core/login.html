@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - PixiuFlow</title>
+    <link rel="stylesheet" href="{% static 'core/css/login.css' %}">
+</head>
+<body>
+
+<div class="auth-bg">
+    <div class="layout-split">
+
+        <!-- LEFT: Dark red brand panel -->
+        <div class="panel-left">
+            <div class="panel-left__inner">
+                <!-- Logo row -->
+                <div class="brand-logo-row">
+                    <div class="brand-logo-icon">
+                        <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Pixiu icon" class="logo-icon-img">
+                    </div>
+                    <span class="brand-name">PIXIU FLOW</span>
+                </div>
+
+                <!-- Hero text -->
+                <div class="hero-text">
+                    <h1>Quản lý doanh thu &amp; lợi nhuận doanh nghiệp dễ dàng hơn</h1>
+                    <p class="hero-sub">
+                        Theo dõi tài chính, giao dịch và hiệu quả kinh doanh
+                        trong một nền tảng duy nhất. Giải pháp tối ưu cho sự
+                        tăng trưởng bền vững của doanh nghiệp Việt.
+                    </p>
+                </div>
+
+                <!-- Feature pills -->
+                <div class="feature-pills">
+                    <span class="pill">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                        Bảo mật dữ liệu
+                    </span>
+                    <span class="pill">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FEF3C7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                        Phân tích chính xác
+                    </span>
+                </div>
+
+                <!-- Mascot -->
+                <div class="mascot-container">
+                    <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Pixiu mascot" class="mascot-img">
+                </div>
+
+                <!-- Footer -->
+                <p class="panel-footer">© 2026 PIXIU FLOW – Nền tảng quản lý tài chính doanh nghiệp thông minh. Phiên bản 1.0-beta</p>
+            </div>
+        </div>
+
+        <!-- RIGHT: White/light form area -->
+        <div class="panel-right">
+            <div class="form-card">
+                <h2 class="form-heading">Đăng nhập</h2>
+                <p class="form-sub">Chào mừng bạn quay trở lại.</p>
+
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+
+                    <div class="field-group">
+                        <label for="username">Tên đăng nhập / Email / Số điện thoại</label>
+                        <div class="input-icon-wrap">
+                            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                            <input type="text" id="username" name="username" autocomplete="username"
+                                   placeholder="username hoặc email@company.com">
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <div class="label-row">
+                            <label for="password">Mật khẩu</label>
+                            <a href="#" class="forgot-link">Quên mật khẩu?</a>
+                        </div>
+                        <div class="input-icon-wrap">
+                            <svg class="input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            <input type="password" id="password" name="password" autocomplete="current-password"
+                                   placeholder="••••••••">
+                            <button type="button" class="password-toggle" aria-label="Hiển thị mật khẩu">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="remember-row">
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="remember" id="remember" checked>
+                            <span class="checkbox-custom"></span>
+                            Ghi nhớ đăng nhập
+                        </label>
+                    </div>
+
+                    {% if form.errors %}
+                    <div class="form-error">Tên đăng nhập hoặc mật khẩu không đúng.</div>
+                    {% endif %}
+
+                    <button type="submit" class="submit-btn">
+                        Đăng nhập &nbsp;→
+                    </button>
+                </form>
+
+                <div class="divider">
+                    <span>HOẶC ĐĂNG NHẬP VỚI</span>
+                </div>
+
+                <button type="button" class="google-btn">
+                    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+                    Tiếp tục với Google
+                </button>
+
+                <p class="switch-link">
+                    Chưa có tài khoản? <a href="{% url 'signup' %}">Đăng ký ngay &nbsp;›</a>
+                </p>
+            </div>
+
+            <div class="panel-right__footer">
+                <a href="#">Điều khoản dịch vụ</a>
+                <a href="#">Chính sách bảo mật</a>
+                <a href="#">Hỗ trợ khách hàng</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const passwordInput = document.getElementById('password');
+        const toggleButton = document.querySelector('.password-toggle');
+        if (passwordInput && toggleButton) {
+            toggleButton.addEventListener('click', function () {
+                const isHidden = passwordInput.type === 'password';
+                passwordInput.type = isHidden ? 'text' : 'password';
+                this.querySelector('svg').style.opacity = isHidden ? '1' : '0.4';
+            });
+        }
+    });
+</script>
+</body>
+</html>

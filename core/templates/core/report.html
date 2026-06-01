@@ -1,0 +1,742 @@
+﻿{% extends 'core/base.html' %}
+{% load format_utils %}
+{% load static %}
+
+{% block title %}Phân tích chuyên sâu - Pixiu Flow{% endblock %}
+
+{% block content %}
+<div class="analytics-page">
+    <header class="analytics-topbar">
+        <div>
+            <h1>Phân tích chuyên sâu</h1>
+            <p>Doanh thu, lợi nhuận, dòng tiền và chất lượng tồn kho</p>
+        </div>
+        <div class="topbar-user analytics-user">
+            <div>
+                <strong>Kiều Xuân Thuý</strong>
+                <span>Chủ doanh nghiệp</span>
+            </div>
+            <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+        </div>
+    </header>
+
+    <section class="analytics-content">
+        <form method="get" class="analytics-period-bar">
+            <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+            <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+            <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+            <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
+            <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
+            <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
+            <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+            <span class="analytics-period-label">Kỳ xem <small>Áp dụng cho toàn trang</small></span>
+            <div class="analytics-period-presets">
+                <a href="?start_date={{ preset_1w_start|date:'Y-m-d' }}&end_date={{ period_end_for_presets|date:'Y-m-d' }}&{{ preserved_filter_query }}">1 tuần</a>
+                <a href="?start_date={{ preset_1m_start|date:'Y-m-d' }}&end_date={{ period_end_for_presets|date:'Y-m-d' }}&{{ preserved_filter_query }}">1 tháng</a>
+                <a href="?start_date={{ preset_3m_start|date:'Y-m-d' }}&end_date={{ period_end_for_presets|date:'Y-m-d' }}&{{ preserved_filter_query }}">3 tháng</a>
+                <a href="?start_date={{ preset_6m_start|date:'Y-m-d' }}&end_date={{ period_end_for_presets|date:'Y-m-d' }}&{{ preserved_filter_query }}">6 tháng</a>
+                <a href="?start_date={{ preset_12m_start|date:'Y-m-d' }}&end_date={{ period_end_for_presets|date:'Y-m-d' }}&{{ preserved_filter_query }}">12 tháng</a>
+            </div>
+            <label>
+                <input type="date" name="start_date" value="{{ start_date|default:'' }}">
+            </label>
+            <span>→</span>
+            <label>
+                <input type="date" name="end_date" value="{{ end_date|default:'' }}">
+            </label>
+            <button type="submit">Áp dụng</button>
+        </form>
+        <main class="analytics-main">
+            <section class="analytics-card analytics-cash-accounting-card">
+                <div class="analytics-card-head">
+                    <h2><i data-lucide="scale"></i> Dòng tiền và lãi/lỗ</h2>
+                    <span>Hai góc nhìn khác nhau cho cùng kỳ báo cáo</span>
+                </div>
+                <div class="analytics-dual-metrics">
+                    <article>
+                        <span>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Số tiền đã bán/đã ghi đơn trong kỳ. Khách chưa trả tiền vẫn tính ở đây vì việc bán hàng đã xảy ra. Dùng để hiểu kỳ này cửa hàng tạo ra bao nhiêu doanh thu, không phải tiền thật đã thu.">?</span></span>
+                        <strong>{{ total_income|vnd }}</strong>
+                        <small>Đã bán/đã ghi đơn, kể cả khách còn nợ.</small>
+                    </article>
+                    <article>
+                        <span>Chi phí ghi nhận <span class="metric-info" data-tooltip="Chi phí dùng để xem kỳ này lời hay lỗ. Chi phí phát sinh vẫn được tính dù bạn chưa trả tiền. Mua thiết bị lâu dài được chia dần theo vòng đời, nên không làm một kỳ bị lỗ nặng chỉ vì mua tài sản lớn.">?</span></span>
+                        <strong>{{ accounting_outflow|vnd }}</strong>
+                        <small>Chi phí của kỳ này, đã chia khấu hao thiết bị.</small>
+                    </article>
+                    <article>
+                        <span>Lợi nhuận ghi nhận <span class="metric-info" data-tooltip="Công thức: Doanh thu ghi nhận trừ Chi phí ghi nhận. Chỉ số này cho biết hoạt động kinh doanh kỳ này lời hay lỗ, không phụ thuộc tiền đã thu hoặc đã trả chưa.">?</span></span>
+                        <strong>{{ profit|vnd }}</strong>
+                        <small>Kết quả kinh doanh của kỳ này.</small>
+                    </article>
+                    <article>
+                        <span>Tiền vào <span class="metric-info" data-tooltip="Số tiền thật sự đã thu trong kỳ. Nếu khách còn nợ, khoản đó chưa được tính vào đây. Dùng để xem tiền đang chảy vào cửa hàng.">?</span></span>
+                        <strong>{{ cash_income|vnd }}</strong>
+                        <small>Chỉ gồm khoản khách đã trả tiền.</small>
+                    </article>
+                    <article>
+                        <span>Tiền ra <span class="metric-info" data-tooltip="Số tiền thật sự đã chi trong kỳ. Nếu bạn còn nợ NCC hoặc chưa trả một khoản chi phí, khoản đó chưa tính vào đây cho đến khi xác nhận đã thanh toán.">?</span></span>
+                        <strong>{{ cash_outflow|vnd }}</strong>
+                        <small>Chỉ gồm khoản đã trả tiền thật.</small>
+                    </article>
+                    <article>
+                        <span>Dòng tiền thuần <span class="metric-info" data-tooltip="Công thức: Tiền vào trừ Tiền ra. Số này cho biết trong kỳ tiền thật tăng hay giảm. Nó khác lợi nhuận: bạn có thể bán có lời nhưng dòng tiền vẫn âm nếu khách chưa trả tiền hoặc bạn vừa chi nhiều tiền.">?</span></span>
+                        <strong>{{ net_cash_flow|vnd }}</strong>
+                        <small>Tiền vào trừ tiền ra.</small>
+                    </article>
+                </div>
+            </section>
+
+            <section class="analytics-card analytics-revenue-card">
+                <div class="analytics-card-head">
+                    <h2><i data-lucide="trending-up"></i> Doanh thu & lợi nhuận ghi nhận</h2>
+                    <span style="font-size: 0.875rem; color: var(--text-light); font-weight: 500;">Doanh thu ghi nhận: {{ total_income|vnd }}</span>
+                </div>
+                <form method="get" class="analytics-profit-controls analytics-local-controls">
+                    <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                    <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                    <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
+                    <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
+                    <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                    <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
+                    <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                    <span>Phân tách theo</span>
+                    <select name="revenue_view" data-auto-submit>
+                        <option value="category" {% if revenue_view_mode == 'category' %}selected{% endif %}>Danh mục</option>
+                        <option value="product" {% if revenue_view_mode == 'product' %}selected{% endif %}>Sản phẩm</option>
+                    </select>
+
+                    <input type="hidden" name="revenue_category" id="revenueCategoryInput" value="{{ revenue_category_filter }}">
+                    <div class="analytics-category-picker" id="revenueCategoryPicker">
+                        <button type="button" class="analytics-category-picker__trigger" id="revenueCategoryTrigger">
+                            {% if revenue_category_filter %}{{ revenue_category_filter }}{% else %}Tất cả danh mục{% endif %}
+                        </button>
+                        <div class="analytics-category-picker__menu" id="revenueCategoryMenu" hidden>
+                            <button type="button" class="analytics-category-option" data-category-value="">Tất cả danh mục</button>
+                            {% for node in category_option_tree %}
+                            <div class="analytics-category-node analytics-category-node--level-1">
+                                <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                <button type="button" class="analytics-category-option" data-category-value="{{ node.path }}">{{ node.name }}</button>
+                            </div>
+                            <div class="analytics-category-children" hidden>
+                                {% for child in node.children_list %}
+                                <div class="analytics-category-node analytics-category-node--level-2">
+                                    <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                    <button type="button" class="analytics-category-option" data-category-value="{{ child.path }}">{{ child.name }}</button>
+                                </div>
+                                <div class="analytics-category-children" hidden>
+                                    {% for grandchild in child.children_list %}
+                                    <div class="analytics-category-node analytics-category-node--level-3">
+                                        <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                        <button type="button" class="analytics-category-option" data-category-value="{{ grandchild.path }}">{{ grandchild.name }}</button>
+                                    </div>
+                                    <div class="analytics-category-children" hidden>
+                                        {% for leaf in grandchild.children_list %}
+                                        <div class="analytics-category-node analytics-category-node--level-4">
+                                            <span></span>
+                                            <button type="button" class="analytics-category-option" data-category-value="{{ leaf.path }}">{{ leaf.name }}</button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <button type="submit">Áp dụng</button>
+                </form>
+                <div class="analytics-revenue-grid">
+                    <div class="analytics-combo-chart">
+                        <canvas id="reportChart"></canvas>
+                        {{ chart_labels|json_script:"chart-labels" }}
+                        {{ chart_income|json_script:"chart-income" }}
+                        {{ chart_purchase|json_script:"chart-purchase" }}
+                        {{ chart_expense|json_script:"chart-expense" }}
+                        {{ chart_profit|json_script:"chart-profit" }}
+                    </div>
+
+                    <div class="analytics-revenue-table-panel">
+                        <form method="get" class="analytics-profit-controls analytics-table-controls">
+                            <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                            <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                            <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
+                            <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
+                            <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                            <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
+                            <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+                            <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                            <span>Hiển thị trong bảng</span>
+                            <select name="revenue_rank" data-auto-submit>
+                                <option value="all" {% if revenue_rank == 'all' %}selected{% endif %}>Tất cả</option>
+                                <option value="top10" {% if revenue_rank == 'top10' %}selected{% endif %}>Top 10</option>
+                                <option value="bottom10" {% if revenue_rank == 'bottom10' %}selected{% endif %}>Bottom 10</option>
+                            </select>
+
+                            <button type="submit">Áp dụng</button>
+                        </form>
+
+                        {% if revenue_view_mode == 'category' %}
+                        <div class="analytics-tree-actions">
+                            <button type="button" id="expandRevenueTree">Mở tất cả</button>
+                            <button type="button" id="collapseRevenueTree">Thu gọn</button>
+                        </div>
+                        {% endif %}
+                        <table class="analytics-mini-table">
+                            <thead>
+                                <tr>
+                                    <th>{% if revenue_view_mode == 'product' %}Sản phẩm{% else %}Danh mục{% endif %}</th>
+                                    <th>Doanh thu</th>
+                                    <th>Lợi nhuận</th>
+                                    <th>Tăng trưởng</th>
+                                </tr>
+                            </thead>
+                            <tbody class="analytics-revenue-tree">
+                            {% if revenue_view_mode == 'category' %}
+                            {% for node in revenue_roots %}
+                            <tr data-revenue-row="{{ node.path }}" data-revenue-level="1">
+                                <td><button type="button" class="profit-tree-toggle" data-revenue-toggle="{{ node.path }}">+</button>{{ node.name }}</td>
+                                <td><b>{{ node.total|vnd }}</b></td>
+                                <td class="{% if node.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ node.profit|vnd }}</b></td>
+                                <td class="{% if node.growth < 0 %}negative{% else %}positive{% endif %}">{{ node.growth }}%</td>
+                            </tr>
+                                {% for child in node.children_list %}
+                                <tr data-revenue-row="{{ child.path }}" data-revenue-parent="{{ node.path }}" data-revenue-level="2" hidden>
+                                    <td><button type="button" class="profit-tree-toggle" data-revenue-toggle="{{ child.path }}">+</button>{{ child.name }}</td>
+                                    <td><b>{{ child.total|vnd }}</b></td>
+                                    <td class="{% if child.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ child.profit|vnd }}</b></td>
+                                    <td class="{% if child.growth < 0 %}negative{% else %}positive{% endif %}">{{ child.growth }}%</td>
+                                </tr>
+                                    {% for grandchild in child.children_list %}
+                                    <tr data-revenue-row="{{ grandchild.path }}" data-revenue-parent="{{ child.path }}" data-revenue-level="3" hidden>
+                                        <td><button type="button" class="profit-tree-toggle" data-revenue-toggle="{{ grandchild.path }}">+</button>{{ grandchild.name }}</td>
+                                        <td><b>{{ grandchild.total|vnd }}</b></td>
+                                        <td class="{% if grandchild.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ grandchild.profit|vnd }}</b></td>
+                                        <td class="{% if grandchild.growth < 0 %}negative{% else %}positive{% endif %}">{{ grandchild.growth }}%</td>
+                                    </tr>
+                                        {% for leaf in grandchild.children_list %}
+                                        <tr data-revenue-row="{{ leaf.path }}" data-revenue-parent="{{ grandchild.path }}" data-revenue-level="4" hidden>
+                                            <td><span class="profit-tree-spacer"></span>{{ leaf.name }}</td>
+                                            <td><b>{{ leaf.total|vnd }}</b></td>
+                                            <td class="{% if leaf.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ leaf.profit|vnd }}</b></td>
+                                            <td class="{% if leaf.growth < 0 %}negative{% else %}positive{% endif %}">{{ leaf.growth }}%</td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% endfor %}
+                                {% endfor %}
+                            {% empty %}
+                            <tr><td colspan="4">Chưa có dữ liệu.</td></tr>
+                            {% endfor %}
+                            {% else %}
+                            {% for item in revenue_by_category %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td><b>{{ item.total|vnd }}</b></td>
+                                <td class="{% if item.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ item.profit|vnd }}</b></td>
+                                <td class="{% if item.growth < 0 %}negative{% else %}positive{% endif %}">{{ item.growth }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4">Chưa có dữ liệu.</td></tr>
+                            {% endfor %}
+                            {% endif %}
+                            <tr class="analytics-total-row">
+                                <td>Tổng cộng</td>
+                                <td><b>{{ total_income|vnd }}</b></td>
+                                <td class="{% if profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ profit|vnd }}</b></td>
+                                <td class="{% if revenue_total_growth < 0 %}negative{% else %}positive{% endif %}">{{ revenue_total_growth }}%</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="analytics-card analytics-cashflow-card">
+                <div class="analytics-card-head">
+                    <h2><i data-lucide="banknote"></i> Phân tích dòng tiền</h2>
+                    <span>Chỉ tính tiền thật đã thu và đã chi</span>
+                </div>
+                <form method="get" class="analytics-profit-controls analytics-local-controls">
+                    <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                    <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                    <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+                    <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                    <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                    <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
+                    <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
+                    <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                    <span>Gom theo</span>
+                    <select name="cash_granularity" data-auto-submit>
+                        <option value="month" {% if cash_granularity == 'month' %}selected{% endif %}>Tháng</option>
+                        <option value="week" {% if cash_granularity == 'week' %}selected{% endif %}>Tuần</option>
+                        <option value="day" {% if cash_granularity == 'day' %}selected{% endif %}>Ngày</option>
+                    </select>
+                    <button type="submit">Áp dụng</button>
+                </form>
+                <div class="analytics-revenue-grid">
+                    <div class="analytics-combo-chart">
+                        <canvas id="cashFlowChart"></canvas>
+                        {{ cash_chart_labels|json_script:"cash-chart-labels" }}
+                        {{ cash_chart_in|json_script:"cash-chart-in" }}
+                        {{ cash_chart_out|json_script:"cash-chart-out" }}
+                        {{ cash_chart_net|json_script:"cash-chart-net" }}
+                    </div>
+                    <div class="analytics-revenue-table-panel">
+                        <table class="analytics-mini-table">
+                            <thead>
+                                <tr><th>Kỳ</th><th>Tiền vào</th><th>Tiền ra</th><th>Thuần</th><th>Số dư tích lũy</th><th>Tỉ lệ thu hồi</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for row in cash_chart_rows %}
+                                <tr>
+                                    <td>{{ row.label }}</td>
+                                    <td><b>{{ row.cash_in|vnd }}</b></td>
+                                    <td>{{ row.cash_out|vnd }}</td>
+                                    <td class="{% if row.net < 0 %}negative{% else %}positive{% endif %}"><b>{{ row.net|vnd }}</b></td>
+                                    <td class="{% if row.running_balance < 0 %}negative{% else %}positive{% endif %}"><b>{{ row.running_balance|vnd }}</b></td>
+                                    <td>{% if row.collection_rate == None %}--{% else %}{{ row.collection_rate }}%{% endif %}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6">Chưa có dòng tiền trong kỳ.</td></tr>
+                                {% endfor %}
+                                <tr class="analytics-total-row">
+                                    <td>Tổng cộng</td>
+                                    <td><b>{{ cash_income|vnd }}</b></td>
+                                    <td>{{ cash_outflow|vnd }}</td>
+                                    <td class="{% if net_cash_flow < 0 %}negative{% else %}positive{% endif %}"><b>{{ net_cash_flow|vnd }}</b></td>
+                                    <td class="{% if net_cash_flow < 0 %}negative{% else %}positive{% endif %}"><b>{{ net_cash_flow|vnd }}</b></td>
+                                    <td>{% if total_income %}{{ cash_income|percentage_of:total_income }}{% else %}--{% endif %}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section class="analytics-card analytics-expense-card">
+                <div class="analytics-card-head">
+                    <h2><i data-lucide="pie-chart"></i> Phân tích chi phí</h2>
+                    <div class="analytics-switch">
+                        <b>VND</b>
+                        <em>%</em>
+                    </div>
+                </div>
+
+                <div class="analytics-expense-grid">
+                    <div class="analytics-donut">
+                        <canvas id="expenseChart"></canvas>
+                        <div class="donut-center">
+                            <span>Chi phí lãi/lỗ</span>
+                            <strong>{{ total_outflow|vnd }}</strong>
+                        </div>
+                        <script id="expense-labels" type="application/json">
+                            [{% for item in expense_breakdown %}"{{ item.name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}]
+                        </script>
+                        <script id="expense-values" type="application/json">
+                            [{% for item in expense_breakdown %}{{ item.total|stringformat:"f" }}{% if not forloop.last %},{% endif %}{% endfor %}]
+                        </script>
+                    </div>
+
+                    <table class="analytics-mini-table">
+                        <thead>
+                            <tr><th>Chi phí</th><th>Giá trị</th><th>%</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for item in expense_breakdown %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.total|vnd }}</td>
+                                <td>{{ item.share }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3">Chưa có dữ liệu chi phí.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <div class="analytics-bottom-grid">
+                <section class="analytics-card analytics-profit-card">
+                    <div class="analytics-small-head">
+                        <h2>Phân tích lợi nhuận</h2>
+                        <span>Lãi gộp: {{ gross_profit|vnd }}</span>
+                    </div>
+                    <form method="get" class="analytics-profit-controls">
+                        <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                        <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                        <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
+                        <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+                        <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                        <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                        <select name="profit_view">
+                            <option value="category" {% if profit_view_mode == 'category' %}selected{% endif %}>Theo danh mục</option>
+                            <option value="product" {% if profit_view_mode == 'product' %}selected{% endif %}>Theo sản phẩm</option>
+                        </select>
+                        <input type="hidden" name="profit_category" id="profitCategoryInput" value="{{ profit_category_filter }}">
+                        <div class="analytics-category-picker" id="profitCategoryPicker">
+                            <button type="button" class="analytics-category-picker__trigger" id="profitCategoryTrigger">
+                                {% if profit_category_filter %}{{ profit_category_filter }}{% else %}Tất cả danh mục{% endif %}
+                            </button>
+                            <div class="analytics-category-picker__menu" id="profitCategoryMenu" hidden>
+                                <button type="button" class="analytics-category-option" data-category-value="">Tất cả danh mục</button>
+                                {% for node in category_option_tree %}
+                                <div class="analytics-category-node analytics-category-node--level-1">
+                                    <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                    <button type="button" class="analytics-category-option" data-category-value="{{ node.path }}">{{ node.name }}</button>
+                                </div>
+                                <div class="analytics-category-children" hidden>
+                                    {% for child in node.children_list %}
+                                    <div class="analytics-category-node analytics-category-node--level-2">
+                                        <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                        <button type="button" class="analytics-category-option" data-category-value="{{ child.path }}">{{ child.name }}</button>
+                                    </div>
+                                    <div class="analytics-category-children" hidden>
+                                        {% for grandchild in child.children_list %}
+                                        <div class="analytics-category-node analytics-category-node--level-3">
+                                            <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                            <button type="button" class="analytics-category-option" data-category-value="{{ grandchild.path }}">{{ grandchild.name }}</button>
+                                        </div>
+                                        <div class="analytics-category-children" hidden>
+                                            {% for leaf in grandchild.children_list %}
+                                            <div class="analytics-category-node analytics-category-node--level-4">
+                                                <span></span>
+                                                <button type="button" class="analytics-category-option" data-category-value="{{ leaf.path }}">{{ leaf.name }}</button>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <select name="profit_rank">
+                            <option value="top10" {% if profit_rank == 'top10' %}selected{% endif %}>Top 10</option>
+                            <option value="bottom10" {% if profit_rank == 'bottom10' %}selected{% endif %}>Bottom 10</option>
+                            <option value="all" {% if profit_rank == 'all' %}selected{% endif %}>Tất cả</option>
+                        </select>
+                        <button type="submit">Áp dụng</button>
+                    </form>
+                    <div class="analytics-profit-layout">
+                        <div class="analytics-profit-table-panel">
+                            <table class="analytics-mini-table analytics-profit-table">
+                                <thead><tr><th>Danh mục</th><th>Doanh thu</th><th>Lợi nhuận</th><th>Biên LN</th></tr></thead>
+                                <tbody class="analytics-profit-tree">
+                                    {% for node in profit_roots %}
+                                    <tr data-profit-row="{{ node.path }}" data-profit-level="1">
+                                        <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ node.path }}">+</button>{{ node.name }}</td>
+                                        <td>{{ node.revenue|vnd }}</td>
+                                        <td><b>{{ node.profit|vnd }}</b></td>
+                                        <td>{{ node.margin }}% {% if node.margin < 0 %}<span class="metric-info analytics-margin-help" data-tooltip="Biên lợi nhuận âm nghĩa là chi phí phân bổ cho nhóm này đang cao hơn doanh thu trong kỳ. Thường do nhập hàng nhiều trong kỳ, chi phí mặt bằng/lương/thiết bị được phân bổ vào kỳ này, hoặc doanh thu của nhóm còn thấp.">?</span>{% endif %}</td>
+                                    </tr>
+                                        {% for child in node.children_list %}
+                                        <tr data-profit-row="{{ child.path }}" data-profit-parent="{{ node.path }}" data-profit-level="2" hidden>
+                                            <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ child.path }}">+</button>{{ child.name }}</td>
+                                            <td>{{ child.revenue|vnd }}</td>
+                                            <td><b>{{ child.profit|vnd }}</b></td>
+                                            <td>{{ child.margin }}% {% if child.margin < 0 %}<span class="metric-info analytics-margin-help" data-tooltip="Biên lợi nhuận âm nghĩa là chi phí phân bổ cho nhóm này đang cao hơn doanh thu trong kỳ. Thường do nhập hàng nhiều trong kỳ, chi phí mặt bằng/lương/thiết bị được phân bổ vào kỳ này, hoặc doanh thu của nhóm còn thấp.">?</span>{% endif %}</td>
+                                        </tr>
+                                            {% for grandchild in child.children_list %}
+                                            <tr data-profit-row="{{ grandchild.path }}" data-profit-parent="{{ child.path }}" data-profit-level="3" hidden>
+                                                <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ grandchild.path }}">+</button>{{ grandchild.name }}</td>
+                                                <td>{{ grandchild.revenue|vnd }}</td>
+                                                <td><b>{{ grandchild.profit|vnd }}</b></td>
+                                                <td>{{ grandchild.margin }}% {% if grandchild.margin < 0 %}<span class="metric-info analytics-margin-help" data-tooltip="Biên lợi nhuận âm nghĩa là chi phí phân bổ cho nhóm này đang cao hơn doanh thu trong kỳ. Thường do nhập hàng nhiều trong kỳ, chi phí mặt bằng/lương/thiết bị được phân bổ vào kỳ này, hoặc doanh thu của nhóm còn thấp.">?</span>{% endif %}</td>
+                                            </tr>
+                                                {% for leaf in grandchild.children_list %}
+                                                <tr data-profit-row="{{ leaf.path }}" data-profit-parent="{{ grandchild.path }}" data-profit-level="4" hidden>
+                                                    <td><span class="profit-tree-spacer"></span>{{ leaf.name }}</td>
+                                                    <td>{{ leaf.revenue|vnd }}</td>
+                                                    <td><b>{{ leaf.profit|vnd }}</b></td>
+                                                    <td>{{ leaf.margin }}% {% if leaf.margin < 0 %}<span class="metric-info analytics-margin-help" data-tooltip="Biên lợi nhuận âm nghĩa là chi phí phân bổ cho nhóm này đang cao hơn doanh thu trong kỳ. Thường do nhập hàng nhiều trong kỳ, chi phí mặt bằng/lương/thiết bị được phân bổ vào kỳ này, hoặc doanh thu của nhóm còn thấp.">?</span>{% endif %}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            {% endfor %}
+                                        {% endfor %}
+                                    {% empty %}
+                                    <tr><td colspan="4">Chưa có dữ liệu.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="analytics-profit-bar-panel">
+                            <div class="profit-chart-head">
+                                <div class="profit-chart-legend" aria-label="Chú thích biểu đồ lợi nhuận">
+                                    <span><b class="profit-legend-profit"></b>Lợi nhuận dương</span>
+                                    <span><b class="profit-legend-loss"></b>Lợi nhuận âm</span>
+                                    <span><b class="profit-legend-margin"></b>Biên lợi nhuận</span>
+                                </div>
+                                <small>Bar = lợi nhuận, chấm = biên LN.</small>
+                            </div>
+                            {% for item in profit_chart_rows %}
+                            <div class="profit-bar-row">
+                                <span class="profit-bar-label">{{ item.name|truncatechars:28 }}</span>
+                                <div class="profit-bar-track" style="--bar-width: {{ item.bar_width }}%; --margin-pos: {{ item.margin_position }}%;">
+                                    <span class="profit-margin-axis"></span>
+                                    <span class="profit-bar {% if item.is_negative %}is-negative{% endif %}"></span>
+                                    <span class="profit-bar-data-label {% if item.is_negative %}is-negative{% endif %}">{{ item.profit|vnd }}</span>
+                                    <span class="profit-margin-marker {% if item.margin < 0 %}is-negative{% endif %}">
+                                        <i></i>
+                                        <b>{{ item.margin }}%</b>
+                                    </span>
+                                    <span class="profit-tooltip" role="tooltip">
+                                        <strong>{{ item.name }}</strong>
+                                        <span><i class="profit-tooltip-revenue"></i>Doanh thu: {{ item.revenue|vnd }}</span>
+                                        <span><i class="{% if item.is_negative %}profit-tooltip-loss{% else %}profit-tooltip-profit{% endif %}"></i>Lợi nhuận: {{ item.profit|vnd }}</span>
+                                        <span><i class="profit-tooltip-margin"></i>Biên lợi nhuận: {{ item.margin }}%</span>
+                                        {% if item.margin < 0 %}<small>Biên âm: chi phí kỳ này cao hơn doanh thu. Kiểm tra nhập hàng, mặt bằng/lương, thiết bị khấu hao hoặc doanh thu thấp.</small>{% endif %}
+                                    </span>
+                                </div>
+                                <div class="profit-bar-values">
+                                    <strong class="{% if item.is_negative %}negative{% endif %}">{{ item.profit|vnd }}</strong>
+                                    <em>{{ item.margin }}% {% if item.margin < 0 %}<span class="metric-info analytics-margin-help" data-tooltip="Biên lợi nhuận âm vì chi phí kỳ này cao hơn doanh thu của nhóm/sản phẩm. Có thể do nhập hàng nhiều, chi phí cố định như mặt bằng/lương cao, chi phí thiết bị được phân bổ, hoặc doanh thu kỳ này còn thấp.">?</span>{% endif %}</em>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="analytics-empty">Chưa có dữ liệu lợi nhuận.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="analytics-card">
+                    <div class="analytics-small-head">
+                        <h2>Chất lượng hàng tồn kho</h2>
+                        <span>Sắp hết: {{ alert_stock_count }} mặt hàng</span>
+                    </div>
+                    <div class="analytics-inventory-quality">
+                        <article>
+                            <span>Số ngày tồn kho trung bình <span class="metric-info" data-tooltip="Ước tính với tốc độ bán hiện tại, hàng trong kho đủ bán thêm bao nhiêu ngày. Công thức: giá trị tồn kho chia cho giá vốn bán trung bình mỗi ngày trong kỳ.">?</span></span>
+                            <strong>{% if inventory_days == None %}Chưa đủ dữ liệu{% else %}{{ inventory_days }} ngày{% endif %}</strong>
+                            <small>Với tốc độ bán hiện tại, hàng trong kho đủ bán thêm khoảng này.</small>
+                        </article>
+                        <article>
+                            <span>Giá vốn bán/ngày</span>
+                            <strong>{{ daily_cogs|vnd }}</strong>
+                            <small>Tính từ giá vốn các sản phẩm đã bán trong {{ report_days }} ngày.</small>
+                        </article>
+                        <article>
+                            <span>Tiền đang nằm trong kho</span>
+                            <strong>{{ inventory_value|vnd }}</strong>
+                            <small>Ước tính theo đơn giá nhập gần nhất của từng sản phẩm.</small>
+                        </article>
+                    </div>
+                    <table class="analytics-mini-table analytics-stock-table">
+                        <thead><tr><th>Hàng chậm luân chuyển</th><th>Số lượng tồn</th><th>Giá trị tồn</th><th>Đủ bán thêm</th></tr></thead>
+                        <tbody>
+                            {% for product in slow_inventory_rows %}
+                            <tr>
+                                <td>{{ product.name|truncatechars:24 }}{% if product.category %}<small>{{ product.category }}</small>{% endif %}</td>
+                                <td>{{ product.stock_quantity }} sp</td>
+                                <td><b>{{ product.stock_value|vnd }}</b></td>
+                                <td>{% if product.days_cover == None %}Chưa bán trong kỳ{% else %}{{ product.days_cover }} ngày{% endif %}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4">Chưa có dữ liệu.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+        </main>
+
+        <aside class="analytics-rank">
+            <h2>Thông tin xếp hạng</h2>
+            <div class="analytics-rank-card">
+                <article>
+                    <span>Sản phẩm bán chạy nhất</span>
+                    <b>{% if top_product %}{{ top_product.units }} đơn{% else %}0 đơn{% endif %}</b>
+                    <strong>{% if top_product %}{{ top_product.product__name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
+                </article>
+                <article>
+                    <span>Danh mục biên lợi nhuận cao</span>
+                    <b>{% if profit_by_category %}{{ profit_by_category.0.margin }}%{% else %}0%{% endif %}</b>
+                    <strong>{% if profit_by_category %}{{ profit_by_category.0.name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
+                </article>
+                <article>
+                    <span>Sản phẩm tồn kho nhiều nhất</span>
+                    <b>{% if slow_product %}{{ slow_product.stock_quantity }} sp{% else %}0 sp{% endif %}</b>
+                    <strong>{% if slow_product %}{{ slow_product.name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
+                </article>
+                <article>
+                    <span>Dòng tiền thuần</span>
+                    <b class="rank-pill">Ổn định</b>
+                    <strong>{{ net_cash_flow|vnd }}</strong>
+                </article>
+                <article>
+                    <span>Lãi/lỗ theo khấu hao</span>
+                    <b>Kế toán</b>
+                    <strong>{{ profit|vnd }}</strong>
+                </article>
+                <article>
+                    <span>Đối tác cung cấp lớn nhất</span>
+                    <b>{% if biggest_supplier %}{{ biggest_supplier.total|vnd }}{% else %}0 đ{% endif %}</b>
+                    <strong>{% if biggest_supplier %}{{ biggest_supplier.supplier_name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
+                </article>
+            </div>
+        </aside>
+    </section>
+</div>
+<script>
+(function () {
+    async function loadReportUrl(url, options = {}) {
+        const scrollY = window.scrollY;
+        const content = document.querySelector('.analytics-content');
+        if (!content) return;
+        content.classList.add('is-loading');
+        try {
+            const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const html = await response.text();
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nextContent = doc.querySelector('.analytics-content');
+            if (!nextContent) throw new Error('Không tải được dữ liệu phân tích.');
+            content.replaceWith(nextContent);
+            if (options.replace) history.replaceState({}, '', url);
+            else history.pushState({}, '', url);
+            initReportInteractions(nextContent);
+            if (window.initAnalyticsCharts) window.initAnalyticsCharts();
+            if (window.lucide) lucide.createIcons();
+            window.scrollTo({ top: scrollY, left: 0, behavior: options.smooth ? 'smooth' : 'auto' });
+        } catch (error) {
+            window.location.href = url;
+        }
+    }
+
+    function submitReportForm(form) {
+        const params = new URLSearchParams(new FormData(form));
+        const action = form.getAttribute('action') || window.location.pathname;
+        const url = `${action}?${params.toString()}`;
+        loadReportUrl(url);
+    }
+
+    const setupPicker = (root, pickerId, triggerId, menuId, inputId) => {
+        const picker = root.querySelector(`#${pickerId}`);
+        const trigger = root.querySelector(`#${triggerId}`);
+        const menu = root.querySelector(`#${menuId}`);
+        const input = root.querySelector(`#${inputId}`);
+        if (!picker || !trigger || !menu || !input) return;
+
+        trigger.addEventListener('click', () => {
+            menu.hidden = !menu.hidden;
+        });
+
+        menu.querySelectorAll('[data-category-toggle]').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                const childBlock = button.closest('.analytics-category-node')?.nextElementSibling;
+                if (!childBlock || !childBlock.classList.contains('analytics-category-children')) return;
+                childBlock.hidden = !childBlock.hidden;
+                button.textContent = childBlock.hidden ? '+' : '-';
+            });
+        });
+
+        menu.querySelectorAll('[data-category-value]').forEach(button => {
+            button.addEventListener('click', () => {
+                input.value = button.dataset.categoryValue || '';
+                trigger.textContent = button.textContent.trim();
+                menu.hidden = true;
+                
+                // Auto-submit if it's within a form
+                const form = picker.closest('form');
+                if (form) submitReportForm(form);
+            });
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest(`#${pickerId}`) && !menu.hidden) menu.hidden = true;
+        });
+    };
+
+    function initReportInteractions(root = document) {
+        root.querySelectorAll('[data-auto-submit]').forEach(input => {
+            input.addEventListener('change', () => {
+                const form = input.closest('form');
+                if (form) submitReportForm(form);
+            });
+        });
+
+        root.querySelectorAll('form').forEach(form => {
+            if (!form.closest('.analytics-page')) return;
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                submitReportForm(form);
+            });
+        });
+
+        root.querySelectorAll('.analytics-period-presets a').forEach(link => {
+            link.addEventListener('click', event => {
+                event.preventDefault();
+                loadReportUrl(link.href);
+            });
+        });
+
+        setupPicker(root, 'profitCategoryPicker', 'profitCategoryTrigger', 'profitCategoryMenu', 'profitCategoryInput');
+        setupPicker(root, 'revenueCategoryPicker', 'revenueCategoryTrigger', 'revenueCategoryMenu', 'revenueCategoryInput');
+
+        function hideDescendants(path) {
+            root.querySelectorAll(`[data-profit-parent^="${CSS.escape(path)}"]`).forEach(row => {
+                row.hidden = true;
+                const toggle = row.querySelector('[data-profit-toggle]');
+                if (toggle) toggle.textContent = '+';
+                hideDescendants(row.dataset.profitRow);
+            });
+        }
+        root.querySelectorAll('[data-profit-toggle]').forEach(button => {
+            const path = button.dataset.profitToggle;
+            const children = Array.from(root.querySelectorAll(`[data-profit-parent="${CSS.escape(path)}"]`));
+            if (!children.length) {
+                button.classList.add('is-empty');
+                button.textContent = '';
+                return;
+            }
+            button.addEventListener('click', () => {
+                const opening = children.every(row => row.hidden);
+                children.forEach(row => row.hidden = !opening);
+                button.textContent = opening ? '-' : '+';
+                if (!opening) hideDescendants(path);
+            });
+        });
+
+        function hideRevenueDescendants(path) {
+            root.querySelectorAll(`[data-revenue-parent^="${CSS.escape(path)}"]`).forEach(row => {
+                row.hidden = true;
+                const toggle = row.querySelector('[data-revenue-toggle]');
+                if (toggle) toggle.textContent = '+';
+                hideRevenueDescendants(row.dataset.revenueRow);
+            });
+        }
+        root.querySelectorAll('[data-revenue-toggle]').forEach(button => {
+            const path = button.dataset.revenueToggle;
+            const children = Array.from(root.querySelectorAll(`[data-revenue-parent="${CSS.escape(path)}"]`));
+            if (!children.length) {
+                button.classList.add('is-empty');
+                button.textContent = '';
+                return;
+            }
+            button.addEventListener('click', () => {
+                const opening = children.every(row => row.hidden);
+                children.forEach(row => row.hidden = !opening);
+                button.textContent = opening ? '-' : '+';
+                if (!opening) hideRevenueDescendants(path);
+            });
+        });
+
+        root.querySelector('#expandRevenueTree')?.addEventListener('click', () => {
+            root.querySelectorAll('[data-revenue-parent]').forEach(row => row.hidden = false);
+            root.querySelectorAll('[data-revenue-toggle]:not(.is-empty)').forEach(button => button.textContent = '-');
+        });
+        root.querySelector('#collapseRevenueTree')?.addEventListener('click', () => {
+            root.querySelectorAll('[data-revenue-parent]').forEach(row => row.hidden = true);
+            root.querySelectorAll('[data-revenue-toggle]:not(.is-empty)').forEach(button => button.textContent = '+');
+        });
+    }
+
+    window.addEventListener('popstate', () => loadReportUrl(window.location.href, { replace: true }));
+    initReportInteractions(document);
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'core/js/chart.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,243 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pixiu Flow{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'core/css/styles.css' %}">
+    {% block extra_css %}{% endblock %}
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="mobile-topbar">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-label="Mở menu">
+            <i data-lucide="menu"></i>
+        </button>
+        <div class="mobile-topbar-title">PIXIU FLOW</div>
+    </div>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="app-layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-logo">
+                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Pixiu" class="sidebar-logo-img">
+                <span>PIXIU FLOW</span>
+            </div>
+
+            <nav class="sidebar-menu">
+                <a href="/" class="menu-item {% if request.path == '/' %}active{% endif %}">
+                    <i data-lucide="layout-grid"></i>
+                    <span>Trang chủ</span>
+                </a>
+
+                <a href="/dashboard/" class="menu-item {% if '/dashboard/' in request.path %}active{% endif %}">
+                    <i data-lucide="clipboard-list"></i>
+                    <span>Bảng theo dõi</span>
+                </a>
+
+                <div class="menu-group">
+                    <a href="/transactions/history/" class="menu-item {% if '/transactions/' in request.path %}active-parent{% endif %}">
+                        <i data-lucide="users-round"></i>
+                        <span>Giao dịch</span>
+                    </a>
+                    <a href="/transactions/history/" class="submenu-item">-> Lịch sử giao dịch</a>
+                    <a href="/transactions/create/" class="submenu-item">-> Ghi nhận giao dịch lẻ</a>
+                    <a href="/transactions/bulk-create/" class="submenu-item">-> Ghi nhận nhiều giao dịch</a>
+                </div>
+
+                <a href="/inventory/" class="menu-item {% if '/inventory/' in request.path or '/products/' in request.path %}active{% endif %}">
+                    <i data-lucide="package"></i>
+                    <span>Sản phẩm & tồn kho</span>
+                </a>
+
+                <a href="/report/" class="menu-item {% if '/report/' in request.path %}active{% endif %}">
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Phân tích thêm</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <a href="#" class="menu-item">
+                    <i data-lucide="settings"></i>
+                    <span>Cài đặt</span>
+                </a>
+                <a href="#" class="menu-item">
+                    <i data-lucide="log-out"></i>
+                    <span>Đăng xuất</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <div class="payment-modal-overlay" id="paymentModalOverlay" hidden>
+        <form class="payment-modal-card" id="paymentModalForm">
+            {% csrf_token %}
+            <h2 id="paymentModalTitle">Xác nhận thanh toán</h2>
+            <p id="paymentModalSubtitle"></p>
+            <input type="hidden" name="kind" id="paymentModalKind">
+            <input type="hidden" name="pk" id="paymentModalPk">
+            <input type="hidden" name="mode" id="paymentModalMode">
+
+            <label class="payment-modal-field payment-paid-field">
+                <span>Ngày thanh toán</span>
+                <input type="date" name="payment_date" id="paymentPaidDate">
+            </label>
+            <label class="payment-modal-field payment-paid-field">
+                <span>Hình thức</span>
+                <select name="payment_method" id="paymentPaidMethod">
+                    <option value="cash">Tiền mặt</option>
+                    <option value="transfer">Chuyển khoản</option>
+                </select>
+            </label>
+
+            <label class="payment-modal-field payment-extend-field">
+                <span>Hạn mới</span>
+                <input type="date" name="new_due_date" id="paymentNewDueDate">
+            </label>
+
+            <label class="payment-modal-field">
+                <span id="paymentNoteLabel">Ghi chú (không bắt buộc)</span>
+                <textarea name="note" id="paymentModalNote" rows="4" placeholder="VD: chuyển khoản VCB lúc 9:30..."></textarea>
+            </label>
+            <div class="payment-modal-error" id="paymentModalError" hidden></div>
+            <div class="payment-modal-actions">
+                <button type="button" id="paymentModalCancel">Hủy</button>
+                <button type="submit" id="paymentModalSubmit">Xác nhận</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        function openSidebar() {
+            sidebar.classList.add('sidebar-open');
+            sidebarOverlay.classList.add('show');
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('sidebar-open');
+            sidebarOverlay.classList.remove('show');
+        }
+
+        if (menuToggle) {
+            menuToggle.addEventListener('click', function () {
+                if (sidebar.classList.contains('sidebar-open')) closeSidebar();
+                else openSidebar();
+            });
+        }
+
+        if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+        window.addEventListener('resize', function () {
+            if (window.innerWidth > 1024) closeSidebar();
+        });
+
+        (function () {
+            const overlay = document.getElementById('paymentModalOverlay');
+            const form = document.getElementById('paymentModalForm');
+            if (!overlay || !form) return;
+            const title = document.getElementById('paymentModalTitle');
+            const subtitle = document.getElementById('paymentModalSubtitle');
+            const kindInput = document.getElementById('paymentModalKind');
+            const pkInput = document.getElementById('paymentModalPk');
+            const modeInput = document.getElementById('paymentModalMode');
+            const paidDate = document.getElementById('paymentPaidDate');
+            const paidMethod = document.getElementById('paymentPaidMethod');
+            const newDueDate = document.getElementById('paymentNewDueDate');
+            const note = document.getElementById('paymentModalNote');
+            const noteLabel = document.getElementById('paymentNoteLabel');
+            const submit = document.getElementById('paymentModalSubmit');
+            const errorBox = document.getElementById('paymentModalError');
+            const today = new Date().toISOString().slice(0, 10);
+
+            function setMode(mode, button) {
+                const isPaid = mode === 'paid';
+                modeInput.value = mode;
+                kindInput.value = button.dataset.kind || '';
+                pkInput.value = button.dataset.id || '';
+                title.textContent = isPaid ? 'Xác nhận đã thanh toán' : 'Đổi hạn thanh toán';
+                subtitle.textContent = `${button.dataset.title || ''} · ${button.dataset.amount || ''}`;
+                submit.textContent = isPaid ? (button.dataset.actionLabel || 'Xác nhận') : 'Lưu';
+                paidDate.value = today;
+                paidMethod.value = 'cash';
+                newDueDate.value = button.dataset.due || today;
+                newDueDate.min = today;
+                note.value = '';
+                note.placeholder = isPaid ? 'VD: chuyển khoản VCB lúc 9:30...' : 'VD: khách xin gia hạn thêm 1 tuần...';
+                noteLabel.textContent = isPaid ? 'Ghi chú (không bắt buộc)' : 'Lý do (không bắt buộc)';
+                errorBox.hidden = true;
+                form.querySelectorAll('.payment-paid-field').forEach(item => item.hidden = !isPaid);
+                form.querySelectorAll('.payment-extend-field').forEach(item => item.hidden = isPaid);
+                overlay.hidden = false;
+                (isPaid ? paidDate : newDueDate).focus();
+            }
+
+            function closeModal() {
+                overlay.hidden = true;
+            }
+
+            document.addEventListener('click', event => {
+                const paidButton = event.target.closest('[data-payment-paid]');
+                const extendButton = event.target.closest('[data-payment-extend]');
+                if (paidButton) setMode('paid', paidButton);
+                if (extendButton) setMode('extend', extendButton);
+            });
+
+            document.getElementById('paymentModalCancel').addEventListener('click', closeModal);
+            overlay.addEventListener('click', event => {
+                if (event.target === overlay) closeModal();
+            });
+
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const mode = modeInput.value;
+                const kind = kindInput.value;
+                const pk = pkInput.value;
+                const url = mode === 'paid'
+                    ? `/transactions/${kind}/${pk}/mark-paid/`
+                    : `/transactions/${kind}/${pk}/extend-due/`;
+                const body = new FormData(form);
+                submit.disabled = true;
+                errorBox.hidden = true;
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        body,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.ok) throw new Error(data.error || 'Không lưu được thay đổi.');
+                    const source = document.querySelector(`[data-kind="${kind}"][data-id="${pk}"][data-payment-${mode === 'paid' ? 'paid' : 'extend'}]`);
+                    const row = source ? source.closest('.payment-alert-item, .inventory-urgent-item') : null;
+                    if (mode === 'paid' && row) {
+                        row.remove();
+                    } else if (mode === 'extend' && row) {
+                        const dueText = row.querySelector('[data-payment-due-text]');
+                        if (dueText) dueText.textContent = dueText.textContent.replace(/Hạn \d{2}\/\d{2}\/\d{4}|Chưa có hạn/g, `Hạn ${data.due_date_display}`);
+                        row.querySelectorAll('[data-payment-extend]').forEach(btn => btn.dataset.due = data.due_date);
+                    }
+                    closeModal();
+                    if (window.lucide) lucide.createIcons();
+                } catch (error) {
+                    errorBox.textContent = error.message;
+                    errorBox.hidden = false;
+                } finally {
+                    submit.disabled = false;
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

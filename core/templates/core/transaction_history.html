@@ -1,0 +1,682 @@
+﻿{% extends 'core/base.html' %}
+{% load format_utils %}
+{% load static %}
+
+{% block title %}Lịch sử giao dịch - Pixiu Flow{% endblock %}
+
+{% block content %}
+<div class="transaction-page">
+    <header class="transaction-topbar transaction-topbar--history">
+        <div class="transaction-heading transaction-heading--topbar">
+            <h1>Lịch sử giao dịch</h1>
+            <p>Xem lại toàn bộ doanh thu, chi phí và nhập hàng. Có thể sửa hoặc xóa để cập nhật dữ liệu ngay.</p>
+        </div>
+        <div class="topbar-actions">
+            <button type="button" class="icon-btn" aria-label="Thông báo">
+                <i data-lucide="bell"></i>
+            </button>
+            <div class="topbar-user">
+                <div>
+                    <strong>Kiều Xuân Thuý</strong>
+                    <span>Chủ doanh nghiệp</span>
+                </div>
+                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+            </div>
+        </div>
+    </header>
+
+    <section class="history-content">
+        <div class="history-create-row">
+            <a href="/transactions/create/" class="history-primary-action">
+                Thêm giao dịch lẻ
+            </a>
+            <a href="/transactions/bulk-create/" class="history-primary-action">
+                Thêm nhiều giao dịch
+            </a>
+        </div>
+
+        <form method="get" class="history-time-filter">
+            <input type="hidden" name="type" value="{{ tx_type }}">
+            <input type="hidden" name="q" value="{{ query }}">
+            <input type="hidden" name="sort" value="{{ sort_field }}">
+            <input type="hidden" name="dir" value="{{ sort_dir }}">
+            {% if show_product_codes %}<input type="hidden" name="show_codes" value="1">{% endif %}
+            {% for value in description_filters %}<input type="hidden" name="description_filter" value="{{ value }}">{% endfor %}
+            {% for value in partner_filters %}<input type="hidden" name="partner_filter" value="{{ value }}">{% endfor %}
+            {% for value in payment_filters %}<input type="hidden" name="payment_filter" value="{{ value }}">{% endfor %}
+            {% for value in type_filters %}<input type="hidden" name="type_filter" value="{{ value }}">{% endfor %}
+            <input type="hidden" name="quantity_filter_mode" value="{{ quantity_filter_mode }}">
+            <input type="hidden" name="quantity_value" value="{{ quantity_value }}">
+            <input type="hidden" name="quantity_min" value="{{ quantity_min }}">
+            <input type="hidden" name="quantity_max" value="{{ quantity_max }}">
+            <input type="hidden" name="amount_filter_mode" value="{{ amount_filter_mode }}">
+            <input type="hidden" name="amount_value" value="{{ amount_value }}">
+            <input type="hidden" name="amount_min" value="{{ amount_min }}">
+            <input type="hidden" name="amount_max" value="{{ amount_max }}">
+            <span class="history-time-label">Bộ lọc dữ liệu cho toàn bộ bảng:</span>
+            <a href="{{ history_all_query }}" class="{% if history_period == 'all' %}active{% endif %}">Tất cả</a>
+            <a href="{{ history_today_query }}" class="{% if history_period == 'today' %}active{% endif %}">Hôm nay</a>
+            <a href="{{ history_week_query }}" class="{% if history_period == 'week' %}active{% endif %}">7 ngày</a>
+            <a href="{{ history_month_query }}" class="{% if history_period == 'month' %}active{% endif %}">Tháng này</a>
+            <div class="history-date-range">
+                <label>
+                    <i data-lucide="calendar-days"></i>
+                    <input type="date" name="date_from" value="{{ date_from }}">
+                </label>
+                <span>-</span>
+                <label>
+                    <input type="date" name="date_to" value="{{ date_to }}">
+                    <i data-lucide="calendar-days"></i>
+                </label>
+                <button type="submit">Áp dụng</button>
+            </div>
+        </form>
+
+        <form method="get" class="history-detail-search">
+            <input type="hidden" name="type" value="{{ tx_type }}">
+            <input type="hidden" name="sort" value="{{ sort_field }}">
+            <input type="hidden" name="dir" value="{{ sort_dir }}">
+            {% for value in description_filters %}<input type="hidden" name="description_filter" value="{{ value }}">{% endfor %}
+            {% for value in partner_filters %}<input type="hidden" name="partner_filter" value="{{ value }}">{% endfor %}
+            {% for value in payment_filters %}<input type="hidden" name="payment_filter" value="{{ value }}">{% endfor %}
+            {% for value in type_filters %}<input type="hidden" name="type_filter" value="{{ value }}">{% endfor %}
+            <input type="hidden" name="date_filter_mode" value="{{ date_filter_mode }}">
+            <input type="hidden" name="date_value" value="{{ date_value }}">
+            <input type="hidden" name="date_start" value="{{ date_start }}">
+            <input type="hidden" name="date_end" value="{{ date_end }}">
+            <input type="hidden" name="quantity_filter_mode" value="{{ quantity_filter_mode }}">
+            <input type="hidden" name="quantity_value" value="{{ quantity_value }}">
+            <input type="hidden" name="quantity_min" value="{{ quantity_min }}">
+            <input type="hidden" name="quantity_max" value="{{ quantity_max }}">
+            <input type="hidden" name="amount_filter_mode" value="{{ amount_filter_mode }}">
+            <input type="hidden" name="amount_value" value="{{ amount_value }}">
+            <input type="hidden" name="amount_min" value="{{ amount_min }}">
+            <input type="hidden" name="amount_max" value="{{ amount_max }}">
+            <label class="history-search-field">
+                <span>Tìm kiếm chi tiết</span>
+                <input type="search" name="q" value="{{ query }}" placeholder="Sản phẩm, mã SP, đối tác, khách hàng, giá trị...">
+            </label>
+            <label class="history-code-toggle">
+                <input type="checkbox" name="show_codes" value="1" {% if show_product_codes %}checked{% endif %} data-auto-submit>
+                <span>Hiện mã sản phẩm</span>
+            </label>
+            <button type="submit"><i data-lucide="search"></i> Tìm kiếm</button>
+            <a href="{{ clear_filter_urls.all }}" class="history-clear-filter">Xóa tất cả lọc</a>
+        </form>
+
+        <div class="history-summary">
+            <article class="history-summary--in">
+                <span>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Số tiền đã bán/đã ghi đơn trong các giao dịch đang hiển thị. Khách chưa trả tiền vẫn tính ở đây vì việc bán hàng đã xảy ra. Chỉ số này không phải tiền thật đã thu.">?</span></span>
+                <strong>{{ recognized_income|vnd }}</strong>
+            </article>
+            <article class="history-summary--out">
+                <span>Chi phí ghi nhận <span class="metric-info" data-tooltip="Chi phí dùng để xem các giao dịch đang hiển thị lời hay lỗ. Khoản mua thiết bị được chia khấu hao theo vòng đời, không trừ hết một lần. Khoản chưa trả vẫn có thể tính ở đây nếu chi phí đã phát sinh.">?</span></span>
+                <strong>{{ recognized_out|vnd }}</strong>
+            </article>
+            <article class="{% if recognized_profit < 0 %}history-summary--loss{% else %}history-summary--profit{% endif %}">
+                <span>Lợi nhuận ghi nhận <span class="metric-info" data-tooltip="Công thức: Doanh thu ghi nhận trừ Chi phí ghi nhận. Chỉ số này cho biết các giao dịch đang hiển thị lời hay lỗ, không phụ thuộc tiền đã thu hoặc đã trả chưa.">?</span></span>
+                <strong>{{ recognized_profit|vnd }}</strong>
+            </article>
+            <article class="history-summary--in">
+                <span>Tiền đã thu <span class="metric-info" data-tooltip="Số tiền thật sự đã thu trong các giao dịch đang hiển thị. Giao dịch khách còn nợ chưa được tính vào đây.">?</span></span>
+                <strong>{{ cash_income|vnd }}</strong>
+            </article>
+            <article class="history-summary--out">
+                <span>Tiền đã chi <span class="metric-info" data-tooltip="Số tiền thật sự đã chi trong các giao dịch đang hiển thị. Khoản còn nợ nhà cung cấp hoặc chi phí chưa thanh toán chưa được tính vào đây.">?</span></span>
+                <strong>{{ cash_out|vnd }}</strong>
+            </article>
+            <article class="{% if cash_net < 0 %}history-summary--loss{% else %}history-summary--profit{% endif %}">
+                <span>Dòng tiền thuần <span class="metric-info" data-tooltip="Công thức: Tiền đã thu trừ Tiền đã chi. Số này cho biết tiền thật tăng hay giảm trong nhóm giao dịch đang hiển thị. Nó có thể khác lợi nhuận ghi nhận.">?</span></span>
+                <strong>{{ cash_net|vnd }}</strong>
+            </article>
+        </div>
+
+        <div class="history-panel">
+            <div class="history-toolbar">
+                <div class="history-tabs">
+                    <a href="{{ type_links.all }}" class="{% if tx_type == 'all' and not type_filters %}active{% endif %}" data-type-tab="all">Tất cả</a>
+                    <a href="{{ type_links.income }}" class="{% if tx_type == 'income' or 'income' in type_filters %}active{% endif %}" data-type-tab="income">Doanh thu</a>
+                    <a href="{{ type_links.purchase }}" class="{% if tx_type == 'purchase' or 'purchase' in type_filters %}active{% endif %}" data-type-tab="purchase">Nhập hàng</a>
+                    <a href="{{ type_links.expense }}" class="{% if tx_type == 'expense' or 'expense' in type_filters %}active{% endif %}" data-type-tab="expense">Chi phí khác</a>
+                    <small class="history-tabs-hint" title="Bấm một loại để lọc riêng loại đó. Giữ Shift và bấm thêm loại khác để chọn nhiều loại cùng lúc.">Giữ Shift + click để chọn nhiều loại</small>
+                </div>
+            </div>
+
+            <div class="history-table-wrap">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            {% for column in sort_columns %}
+                            <th class="history-column-head">
+                                <span>{{ column.label }}</span>
+                                <button type="button" class="history-column-menu-btn {% if column.active %}is-active{% endif %} {% if column.filter_active %}is-filtered{% endif %}" data-column-menu="{{ column.field }}" title="{{ column.tooltip }}" aria-label="{{ column.tooltip }}">
+                                    <i data-lucide="chevron-down"></i>
+                                </button>
+                                {% if column.filter_active %}
+                                <small class="history-filter-badge" title="Đang lọc: {{ column.filter_label }}">{{ column.filter_label }}</small>
+                                {% endif %}
+                                <div class="history-column-menu" data-column-menu-panel="{{ column.field }}" hidden>
+                                    <a href="{{ column.asc_url }}">{% if column.field == 'description' or column.field == 'partner' or column.field == 'type' %}Sắp xếp A-Z{% elif column.field == 'date' %}Sắp xếp cũ đến mới{% else %}Sắp xếp tăng dần{% endif %}</a>
+                                    <a href="{{ column.desc_url }}">{% if column.field == 'description' or column.field == 'partner' or column.field == 'type' %}Sắp xếp Z-A{% elif column.field == 'date' %}Sắp xếp mới đến cũ{% else %}Sắp xếp giảm dần{% endif %}</a>
+                                    <a href="{{ column.clear_url }}">Bỏ sắp xếp</a>
+                                    {% if column.field == 'type' or column.field == 'description' or column.field == 'partner' or column.field == 'payment' %}
+                                    <form method="get" class="history-column-filter">
+                                        {% if column.field != 'type' %}<input type="hidden" name="type" value="{{ tx_type }}">{% endif %}
+                                        <input type="hidden" name="q" value="{{ query }}">
+                                        <input type="hidden" name="date_from" value="{{ date_from }}">
+                                        <input type="hidden" name="date_to" value="{{ date_to }}">
+                                        <input type="hidden" name="date_filter_mode" value="{{ date_filter_mode }}">
+                                        <input type="hidden" name="date_value" value="{{ date_value }}">
+                                        <input type="hidden" name="date_start" value="{{ date_start }}">
+                                        <input type="hidden" name="date_end" value="{{ date_end }}">
+                                        {% if show_product_codes %}<input type="hidden" name="show_codes" value="1">{% endif %}
+                                        <input type="hidden" name="quantity_filter_mode" value="{{ quantity_filter_mode }}">
+                                        <input type="hidden" name="quantity_value" value="{{ quantity_value }}">
+                                        <input type="hidden" name="quantity_min" value="{{ quantity_min }}">
+                                        <input type="hidden" name="quantity_max" value="{{ quantity_max }}">
+                                        <input type="hidden" name="amount_filter_mode" value="{{ amount_filter_mode }}">
+                                        <input type="hidden" name="amount_value" value="{{ amount_value }}">
+                                        <input type="hidden" name="amount_min" value="{{ amount_min }}">
+                                        <input type="hidden" name="amount_max" value="{{ amount_max }}">
+                                        {% if column.field == 'type' %}
+                                        <input type="hidden" name="type" value="all">
+                                        {% for value in description_filters %}<input type="hidden" name="description_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in partner_filters %}<input type="hidden" name="partner_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in payment_filters %}<input type="hidden" name="payment_filter" value="{{ value }}">{% endfor %}
+                                        <div class="history-filter-note">Chọn loại giao dịch cần hiển thị.</div>
+                                        <label class="history-select-all"><input type="checkbox" data-select-all checked> <span>Chọn tất cả</span></label>
+                                        <div class="history-check-list">
+                                            {% for option in type_options %}
+                                            <label data-filter-option>
+                                                <input type="checkbox" name="type_filter" value="{{ option.value }}" {% if not type_filters or option.value in type_filters %}checked{% endif %}>
+                                                <span>{{ option.label }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% elif column.field == 'description' %}
+                                        {% for value in type_filters %}<input type="hidden" name="type_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in partner_filters %}<input type="hidden" name="partner_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in payment_filters %}<input type="hidden" name="payment_filter" value="{{ value }}">{% endfor %}
+                                        <div class="history-filter-search"><i data-lucide="search"></i><input type="search" placeholder="Tìm nội dung" data-filter-search></div>
+                                        <label class="history-select-all"><input type="checkbox" data-select-all checked> <span>Chọn tất cả</span></label>
+                                        <div class="history-check-list">
+                                            {% for option in description_options %}
+                                            <label data-filter-option>
+                                                <input type="checkbox" name="description_filter" value="{{ option }}" {% if not description_filters or option in description_filters %}checked{% endif %}>
+                                                <span>{{ option }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% elif column.field == 'partner' %}
+                                        {% for value in type_filters %}<input type="hidden" name="type_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in description_filters %}<input type="hidden" name="description_filter" value="{{ value }}">{% endfor %}
+                                        <div class="history-filter-search"><i data-lucide="search"></i><input type="search" placeholder="Tìm đối tác" data-filter-search></div>
+                                        <label class="history-select-all"><input type="checkbox" data-select-all checked> <span>Chọn tất cả</span></label>
+                                        <div class="history-check-list">
+                                            {% for option in partner_options %}
+                                            <label data-filter-option>
+                                                <input type="checkbox" name="partner_filter" value="{{ option }}" {% if not partner_filters or option in partner_filters %}checked{% endif %}>
+                                                <span>{{ option }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        {% for value in type_filters %}<input type="hidden" name="type_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in description_filters %}<input type="hidden" name="description_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in partner_filters %}<input type="hidden" name="partner_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in payment_filters %}<input type="hidden" name="payment_filter" value="{{ value }}">{% endfor %}
+                                        <div class="history-filter-search"><i data-lucide="search"></i><input type="search" placeholder="Tim thanh toan" data-filter-search></div>
+                                        <label class="history-select-all"><input type="checkbox" data-select-all checked> <span>Chon tat ca</span></label>
+                                        <div class="history-check-list">
+                                            {% for value, label in payment_options %}
+                                            <label data-filter-option>
+                                                <input type="checkbox" name="payment_filter" value="{{ value }}" {% if not payment_filters or value in payment_filters %}checked{% endif %}>
+                                                <span>{{ label }}</span>
+                                            </label>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                        <div class="history-filter-actions">
+                                            <button type="submit">OK</button>
+                                            <a href="{% if column.field == 'type' %}{{ clear_filter_urls.type }}{% elif column.field == 'description' %}{{ clear_filter_urls.description }}{% elif column.field == 'partner' %}{{ clear_filter_urls.partner }}{% else %}{{ clear_filter_urls.payment }}{% endif %}">Xóa lọc</a>
+                                        </div>
+                                    </form>
+                                    {% elif column.field == 'date' %}
+                                    <form method="get" class="history-column-filter history-number-filter">
+                                        <input type="hidden" name="type" value="{{ tx_type }}">
+                                        <input type="hidden" name="q" value="{{ query }}">
+                                        {% if show_product_codes %}<input type="hidden" name="show_codes" value="1">{% endif %}
+                                        {% for value in type_filters %}<input type="hidden" name="type_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in description_filters %}<input type="hidden" name="description_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in partner_filters %}<input type="hidden" name="partner_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in payment_filters %}<input type="hidden" name="payment_filter" value="{{ value }}">{% endfor %}
+                                        <select name="date_filter_mode" data-date-mode>
+                                            <option value="">Tất cả</option>
+                                            <option value="before" {% if date_filter_mode == 'before' %}selected{% endif %}>Trước ngày</option>
+                                            <option value="after" {% if date_filter_mode == 'after' %}selected{% endif %}>Sau ngày</option>
+                                            <option value="range" {% if date_filter_mode == 'range' %}selected{% endif %}>Trong khoảng</option>
+                                        </select>
+                                        <input type="date" name="date_value" value="{{ date_value }}" data-date-single data-before-default="{{ date_to }}" data-after-default="{{ date_from }}">
+                                        <input type="date" name="date_start" value="{{ date_start|default:date_from }}" data-date-range>
+                                        <input type="date" name="date_end" value="{{ date_end|default:date_to }}" data-date-range>
+                                        <div class="history-filter-actions">
+                                            <button type="submit">OK</button>
+                                            <a href="{{ clear_filter_urls.date }}">Xóa lọc</a>
+                                        </div>
+                                    </form>
+                                    {% elif column.field == 'quantity' or column.field == 'amount' %}
+                                    <form method="get" class="history-column-filter history-number-filter">
+                                        <input type="hidden" name="type" value="{{ tx_type }}">
+                                        <input type="hidden" name="q" value="{{ query }}">
+                                        <input type="hidden" name="date_from" value="{{ date_from }}">
+                                        <input type="hidden" name="date_to" value="{{ date_to }}">
+                                        <input type="hidden" name="date_filter_mode" value="{{ date_filter_mode }}">
+                                        <input type="hidden" name="date_value" value="{{ date_value }}">
+                                        <input type="hidden" name="date_start" value="{{ date_start }}">
+                                        <input type="hidden" name="date_end" value="{{ date_end }}">
+                                        {% if show_product_codes %}<input type="hidden" name="show_codes" value="1">{% endif %}
+                                        {% for value in type_filters %}<input type="hidden" name="type_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in description_filters %}<input type="hidden" name="description_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in partner_filters %}<input type="hidden" name="partner_filter" value="{{ value }}">{% endfor %}
+                                        {% for value in payment_filters %}<input type="hidden" name="payment_filter" value="{{ value }}">{% endfor %}
+                                        {% if column.field == 'quantity' %}
+                                        <input type="hidden" name="amount_filter_mode" value="{{ amount_filter_mode }}">
+                                        <input type="hidden" name="amount_value" value="{{ amount_value }}">
+                                        <input type="hidden" name="amount_min" value="{{ amount_min }}">
+                                        <input type="hidden" name="amount_max" value="{{ amount_max }}">
+                                        <select name="quantity_filter_mode" data-number-mode>
+                                            <option value="">Tất cả</option>
+                                            <option value="eq" {% if quantity_filter_mode == 'eq' %}selected{% endif %}>Bằng</option>
+                                            <option value="gt" {% if quantity_filter_mode == 'gt' %}selected{% endif %}>Lớn hơn</option>
+                                            <option value="lt" {% if quantity_filter_mode == 'lt' %}selected{% endif %}>Nhỏ hơn</option>
+                                            <option value="range" {% if quantity_filter_mode == 'range' %}selected{% endif %}>Trong khoảng</option>
+                                        </select>
+                                        <input type="text" name="quantity_value" value="{{ quantity_value }}" placeholder="Giá trị" data-number-single>
+                                        <input type="text" name="quantity_min" value="{{ quantity_min }}" placeholder="Từ" data-number-range>
+                                        <input type="text" name="quantity_max" value="{{ quantity_max }}" placeholder="Đến" data-number-range>
+                                        {% else %}
+                                        <input type="hidden" name="quantity_filter_mode" value="{{ quantity_filter_mode }}">
+                                        <input type="hidden" name="quantity_value" value="{{ quantity_value }}">
+                                        <input type="hidden" name="quantity_min" value="{{ quantity_min }}">
+                                        <input type="hidden" name="quantity_max" value="{{ quantity_max }}">
+                                        <select name="amount_filter_mode" data-number-mode>
+                                            <option value="">Tất cả</option>
+                                            <option value="eq" {% if amount_filter_mode == 'eq' %}selected{% endif %}>Bằng</option>
+                                            <option value="gt" {% if amount_filter_mode == 'gt' %}selected{% endif %}>Lớn hơn</option>
+                                            <option value="lt" {% if amount_filter_mode == 'lt' %}selected{% endif %}>Nhỏ hơn</option>
+                                            <option value="range" {% if amount_filter_mode == 'range' %}selected{% endif %}>Trong khoảng</option>
+                                        </select>
+                                        <input type="text" name="amount_value" value="{{ amount_value }}" placeholder="Giá trị" data-number-single>
+                                        <input type="text" name="amount_min" value="{{ amount_min }}" placeholder="Từ" data-number-range>
+                                        <input type="text" name="amount_max" value="{{ amount_max }}" placeholder="Đến" data-number-range>
+                                        {% endif %}
+                                        <div class="history-filter-actions">
+                                            <button type="submit">OK</button>
+                                            <a href="{% if column.field == 'quantity' %}{{ clear_filter_urls.quantity }}{% else %}{{ clear_filter_urls.amount }}{% endif %}">Xóa lọc</a>
+                                        </div>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </th>
+                            {% endfor %}
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in transactions %}
+                        <tr>
+                            <td>
+                                <span class="history-type history-type--{{ item.kind }}">{{ item.label }}</span>
+                            </td>
+                            <td>{{ item.date|date:"d/m/Y" }}</td>
+                            <td>
+                                <strong>{{ item.description }}</strong>
+                                {% if show_product_codes %}<small class="history-code">{{ item.code }}</small>{% endif %}
+                            </td>
+                            <td>{{ item.partner }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td class="{% if item.amount < 0 %}history-money-out{% else %}history-money-in{% endif %}">
+                                {{ item.amount|vnd }}
+                            </td>
+                            <td>
+                                <span class="history-payment-badge history-payment-badge--{{ item.payment_status.key }}">{{ item.payment_status.label }}</span>
+                                {% if item.payment_status.key != 'paid' %}
+                                <form method="post" action="/transactions/{{ item.payment_kind }}/{{ item.id }}/mark-paid/" class="history-mark-paid-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                    <button type="submit">Đã thanh toán hôm nay</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="history-actions">
+                                    <button type="button" class="history-action-btn" data-kind="{{ item.kind }}" data-edit-url="{{ item.edit_url }}" data-raw-id="{{ item.raw_id }}" title="Sửa giao dịch"><i data-lucide="pencil"></i></button>
+                                    <a href="{{ item.delete_url }}" title="Xóa giao dịch" onclick="return confirm('Xóa giao dịch này? Dữ liệu sẽ được cập nhật ngay.');"><i data-lucide="trash-2"></i></a>
+                                    <script type="application/json" id="{{ item.raw_id }}">{{ item.raw|safe }}</script>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="history-empty">Chưa có giao dịch phù hợp.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Generic Edit Modal -->
+    <div class="modal-overlay" id="editModalOverlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="editModalTitle">Chỉnh sửa giao dịch</h2>
+                <button type="button" class="modal-close" onclick="closeEditModal()"><i data-lucide="x"></i></button>
+            </div>
+            <form id="editModalForm" method="post" action="">
+                {% csrf_token %}
+                <div class="modal-body" id="editModalBody">
+                    <!-- Nội dung form thay đổi dựa vào loại giao dịch (sale, purchase, expense) -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Hủy</button>
+                    <button type="submit" class="btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Templates HTML cho form nhập liệu modal (ẩn) -->
+    <template id="tpl-sale-purchase">
+        <div class="form-group">
+            <label>Ngày</label>
+            <input type="date" name="date" required id="modal_date">
+        </div>
+        <div class="form-group">
+            <label>Sản phẩm</label>
+            <select name="product" required id="modal_product">
+                {% for p in products %}
+                <option value="{{ p.id }}" data-sale-price="{{ p.price_sell }}" data-purchase-price="{{ p.price_buy_latest }}">{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label id="modal_partner_label">Đối tác</label>
+            <input type="text" name="partner_name" id="modal_partner"> <!-- Name changed via JS -->
+        </div>
+        <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+                <label>Số lượng</label>
+                <input type="number" name="quantity" required id="modal_quantity" min="1">
+            </div>
+            <div>
+                <label>Đơn giá</label>
+                <input type="number" name="unit_price" required id="modal_unit_price" min="0">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Ghi chú</label>
+            <input type="text" name="note" id="modal_note">
+        </div>
+        <div class="form-group">
+            <label>Thành tiền</label>
+            <input type="text" id="modal_total_amount" value="0 đ" readonly>
+        </div>
+        <div class="form-group" id="modal_update_price_group" hidden>
+            <label>
+                <input type="checkbox" name="update_product_price" value="on" id="modal_update_product_price">
+                Cập nhật thành giá bán mặc định mới
+            </label>
+        </div>
+    </template>
+
+    <template id="tpl-expense">
+        <div class="form-group">
+            <label>Ngày</label>
+            <input type="date" name="date" required id="modal_exp_date">
+        </div>
+        <div class="form-group">
+            <label>Nhóm chi phí</label>
+            <select name="expense_type" required id="modal_exp_type">
+                {% for key, label in expense_type_choices %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Số tiền</label>
+            <input type="number" name="amount" required id="modal_exp_amount" min="1">
+        </div>
+        <div class="form-group" id="modal_exp_lifetime_group" title="Số tháng dự kiến sử dụng thiết bị. Website sẽ phân bổ chi phí theo tháng để tính khấu hao thay vì trừ toàn bộ một lần.">
+            <label>Estimated lifetime (tháng)</label>
+            <input type="number" name="estimated_lifetime_months" id="modal_exp_lifetime" min="1" step="1">
+        </div>
+        <div class="form-group">
+            <label>Ghi chú</label>
+            <input type="text" name="note" id="modal_exp_note">
+        </div>
+    </template>
+
+    <script>
+        document.querySelectorAll('[data-column-menu]').forEach(button => {
+            button.addEventListener('click', event => {
+                event.stopPropagation();
+                const panel = document.querySelector(`[data-column-menu-panel="${button.dataset.columnMenu}"]`);
+                document.querySelectorAll('.history-column-menu').forEach(menu => {
+                    if (menu !== panel) menu.hidden = true;
+                });
+                if (panel) panel.hidden = !panel.hidden;
+            });
+        });
+
+        document.querySelectorAll('[data-type-tab]').forEach(tab => {
+            tab.addEventListener('click', event => {
+                if (tab.dataset.typeTab === 'all') {
+                    if (event.shiftKey) {
+                        event.preventDefault();
+                        window.location.href = tab.href;
+                    }
+                    return;
+                }
+                if (!event.shiftKey) return;
+                event.preventDefault();
+                const current = new URLSearchParams(window.location.search).getAll('type_filter');
+                let selected = current.length
+                    ? current
+                    : Array.from(document.querySelectorAll('[data-type-tab].active'))
+                        .map(item => item.dataset.typeTab)
+                        .filter(value => value !== 'all');
+                const value = tab.dataset.typeTab;
+                selected = selected.includes(value)
+                    ? selected.filter(item => item !== value)
+                    : [...selected, value];
+                const params = new URLSearchParams(window.location.search);
+                params.set('type', selected.length === 1 ? selected[0] : 'all');
+                params.delete('type_filter');
+                selected.forEach(item => params.append('type_filter', item));
+                window.location.href = `${window.location.pathname}?${params.toString()}`;
+            });
+        });
+
+        document.querySelectorAll('[data-auto-submit]').forEach(input => {
+            input.addEventListener('change', () => {
+                input.closest('form')?.requestSubmit();
+            });
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.history-column-head')) {
+                document.querySelectorAll('.history-column-menu').forEach(menu => menu.hidden = true);
+            }
+        });
+
+        document.querySelectorAll('[data-filter-search]').forEach(input => {
+            input.addEventListener('input', () => {
+                const query = input.value.trim().toLowerCase();
+                input.closest('form').querySelectorAll('[data-filter-option]').forEach(option => {
+                    option.hidden = query && !option.textContent.toLowerCase().includes(query);
+                });
+            });
+        });
+
+        function syncNumberFilter(form) {
+            const mode = form.querySelector('[data-number-mode]');
+            const single = form.querySelectorAll('[data-number-single]');
+            const range = form.querySelectorAll('[data-number-range]');
+            const isRange = mode && mode.value === 'range';
+            const isSingle = mode && ['eq', 'gt', 'lt'].includes(mode.value);
+            single.forEach(input => input.hidden = !isSingle);
+            range.forEach(input => input.hidden = !isRange);
+        }
+
+        document.querySelectorAll('.history-number-filter').forEach(form => {
+            syncNumberFilter(form);
+            form.querySelector('[data-number-mode]')?.addEventListener('change', () => syncNumberFilter(form));
+        });
+
+        function syncDateFilter(form) {
+            const mode = form.querySelector('[data-date-mode]');
+            const single = form.querySelectorAll('[data-date-single]');
+            const range = form.querySelectorAll('[data-date-range]');
+            const isRange = mode && mode.value === 'range';
+            const isSingle = mode && ['before', 'after'].includes(mode.value);
+            single.forEach(input => {
+                input.hidden = !isSingle;
+                if (isSingle && !input.value) {
+                    input.value = mode.value === 'before' ? input.dataset.beforeDefault : input.dataset.afterDefault;
+                }
+            });
+            range.forEach(input => input.hidden = !isRange);
+        }
+
+        document.querySelectorAll('[data-date-mode]').forEach(mode => {
+            const form = mode.closest('form');
+            syncDateFilter(form);
+            mode.addEventListener('change', () => syncDateFilter(form));
+        });
+
+        document.querySelectorAll('[data-select-all]').forEach(selectAll => {
+            const form = selectAll.closest('form');
+            const checks = Array.from(form.querySelectorAll('.history-check-list input[type="checkbox"]'));
+            function syncSelectAll() {
+                selectAll.checked = checks.length > 0 && checks.every(check => check.checked);
+                selectAll.indeterminate = checks.some(check => check.checked) && !selectAll.checked;
+            }
+            selectAll.addEventListener('change', () => {
+                checks.forEach(check => {
+                    if (!check.closest('[data-filter-option]').hidden) check.checked = selectAll.checked;
+                });
+                syncSelectAll();
+            });
+            checks.forEach(check => check.addEventListener('change', syncSelectAll));
+            syncSelectAll();
+        });
+
+        function openEditModal(kind, editUrl, rawData) {
+            const overlay = document.getElementById('editModalOverlay');
+            const form = document.getElementById('editModalForm');
+            const body = document.getElementById('editModalBody');
+            const title = document.getElementById('editModalTitle');
+            
+            form.action = editUrl;
+            
+            // Render template
+            if (kind === 'income' || kind === 'purchase') {
+                title.innerText = kind === 'income' ? 'Chỉnh sửa doanh thu' : 'Chỉnh sửa nhập hàng';
+                body.innerHTML = document.getElementById('tpl-sale-purchase').innerHTML;
+                
+                document.getElementById('modal_date').value = rawData.date;
+                document.getElementById('modal_product').value = rawData.product_id;
+                document.getElementById('modal_quantity').value = rawData.quantity;
+                document.getElementById('modal_unit_price').value = rawData.unit_price;
+                document.getElementById('modal_note').value = rawData.note || '';
+                
+                const partnerInput = document.getElementById('modal_partner');
+                const productSelect = document.getElementById('modal_product');
+                const quantityInput = document.getElementById('modal_quantity');
+                const unitPriceInput = document.getElementById('modal_unit_price');
+                const totalInput = document.getElementById('modal_total_amount');
+                const formatVnd = value => `${Math.round(Number(value || 0)).toLocaleString('vi-VN')} đ`;
+                const updateTotal = () => {
+                    totalInput.value = formatVnd(Number(quantityInput.value || 0) * Number(unitPriceInput.value || 0));
+                };
+                const syncUnitPriceFromProduct = () => {
+                    const selected = productSelect.selectedOptions[0];
+                    if (!selected) return;
+                    const nextPrice = kind === 'income' ? selected.dataset.salePrice : selected.dataset.purchasePrice;
+                    unitPriceInput.value = nextPrice || 0;
+                    updateTotal();
+                };
+                productSelect.addEventListener('change', syncUnitPriceFromProduct);
+                quantityInput.addEventListener('input', updateTotal);
+                unitPriceInput.addEventListener('input', updateTotal);
+                updateTotal();
+                if (kind === 'income') {
+                    document.getElementById('modal_partner_label').innerText = 'Khách hàng';
+                    partnerInput.name = 'customer_name';
+                    partnerInput.value = rawData.customer_name || '';
+                    document.getElementById('modal_update_price_group').hidden = false;
+                } else {
+                    document.getElementById('modal_partner_label').innerText = 'Nhà cung cấp';
+                    partnerInput.name = 'supplier_name';
+                    partnerInput.value = rawData.supplier_name || '';
+                    document.getElementById('modal_update_price_group').hidden = true;
+                }
+            } else if (kind === 'expense') {
+                title.innerText = 'Chỉnh sửa chi phí';
+                body.innerHTML = document.getElementById('tpl-expense').innerHTML;
+                
+                document.getElementById('modal_exp_date').value = rawData.date;
+                document.getElementById('modal_exp_type').value = rawData.expense_type;
+                document.getElementById('modal_exp_amount').value = rawData.amount;
+                const lifetimeGroup = document.getElementById('modal_exp_lifetime_group');
+                const lifetimeInput = document.getElementById('modal_exp_lifetime');
+                const typeSelect = document.getElementById('modal_exp_type');
+                function syncExpenseLifetime() {
+                    const isEquipment = typeSelect.value === 'equipment';
+                    lifetimeGroup.hidden = !isEquipment;
+                    lifetimeInput.disabled = !isEquipment;
+                    lifetimeInput.required = isEquipment;
+                    if (!isEquipment) lifetimeInput.value = '';
+                }
+                lifetimeInput.value = rawData.estimated_lifetime_months || '';
+                typeSelect.addEventListener('change', syncExpenseLifetime);
+                syncExpenseLifetime();
+                document.getElementById('modal_exp_note').value = rawData.note || '';
+            }
+            
+            overlay.classList.add('active');
+        }
+
+        function closeEditModal() {
+            const overlay = document.getElementById('editModalOverlay');
+            overlay.classList.remove('active');
+        }
+
+        document.querySelectorAll('.history-action-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const rawEl = document.getElementById(button.dataset.rawId);
+                const rawData = rawEl ? JSON.parse(rawEl.textContent || '{}') : {};
+                openEditModal(button.dataset.kind, button.dataset.editUrl, rawData);
+            });
+        });
+
+        // Đóng khi click bên ngoài modal
+        document.getElementById('editModalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+    </script>
+
+    <footer class="dashboard-footer">
+        <span>© 2026 PIXIU FLOW - NỀN TẢNG QUẢN LÝ TÀI CHÍNH DOANH NGHIỆP THÔNG MINH. PHIÊN BẢN 1.0-BETA</span>
+        <nav>
+            <a href="#">Hỗ trợ</a>
+            <a href="#">Điều khoản</a>
+            <a href="#">Bảo mật</a>
+        </nav>
+    </footer>
+</div>
+{% endblock %}

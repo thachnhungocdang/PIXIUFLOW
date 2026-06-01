@@ -1,0 +1,495 @@
+{% extends 'core/base.html' %}
+{% load format_utils %}
+{% load static %}
+
+{% block title %}Ghi nhận nhiều giao dịch - Pixiu Flow{% endblock %}
+
+{% block content %}
+<div class="transaction-page">
+    <header class="transaction-topbar">
+        <div class="transaction-search">
+            <i data-lucide="search"></i>
+            <input type="search" placeholder="Tìm kiếm giao dịch, đối tác...">
+        </div>
+        <div class="topbar-actions">
+            <button type="button" class="icon-btn" aria-label="Thông báo">
+                <i data-lucide="bell"></i>
+            </button>
+            <div class="topbar-user">
+                <div>
+                    <strong>Kiều Xuân Thuý</strong>
+                    <span>Chủ doanh nghiệp</span>
+                </div>
+                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+            </div>
+        </div>
+    </header>
+
+    <section class="bulk-content">
+        <div class="transaction-heading">
+            <h1>Ghi nhận nhiều giao dịch</h1>
+            <p>Nhập nhiều giao dịch doanh thu hoặc chi phí cùng lúc để tiết kiệm thời gian.</p>
+        </div>
+
+        <form method="post" class="bulk-sheet" id="bulkTransactionForm">
+            {% csrf_token %}
+            <div class="bulk-toolbar">
+                <button type="button" id="addBulkRow"><i data-lucide="plus"></i> Thêm dòng</button>
+                <button type="button" id="addTenRows"><i data-lucide="rows-3"></i> Thêm 10 dòng</button>
+                <button type="button" id="clearSelectedRows"><i data-lucide="trash-2"></i> Xóa dòng chọn</button>
+            </div>
+
+            <div class="bulk-table-wrap">
+                <table class="bulk-table">
+                    <thead>
+                        <tr>
+                            <th class="select-col"><input type="checkbox" id="selectAllRows" aria-label="Chọn tất cả"></th>
+                            <th>#</th>
+                            <th>Loại giao dịch</th>
+                            <th>Ngày</th>
+                            <th>Sản phẩm / Nhóm chi phí</th>
+                            <th>Khách hàng / NCC</th>
+                            <th>Giá trị (VND)</th>
+                            <th>Số lượng</th>
+                            <th>Thành tiền</th>
+                            <th>Thanh toán</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulkRows">
+                        {% for row in bulk_rows %}
+                        <tr class="{% if row.errors %}has-error{% endif %}">
+                            <td class="select-col"><input type="checkbox" class="row-check" aria-label="Chọn dòng"></td>
+                            <td class="row-number"><span>{{ forloop.counter }}</span></td>
+                            <td>
+                                <select name="transaction_type[]" class="bulk-type">
+                                    <option value="income"   {% if row.transaction_type == 'income'   %}selected{% endif %}>Doanh thu</option>
+                                    <option value="purchase" {% if row.transaction_type == 'purchase' %}selected{% endif %}>Nhập hàng</option>
+                                    <option value="expense"  {% if row.transaction_type == 'expense'  %}selected{% endif %}>Chi phí khác</option>
+                                </select>
+                            </td>
+                            <td><input type="date" name="date[]" value="{{ row.date }}"></td>
+                            <td>
+                                {# Dùng chung 1 dropdown sản phẩm cho cả income và purchase #}
+                                <select name="product[]" class="bulk-product">
+                                    <option value="">Chọn sản phẩm</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}"
+                                            data-price="{{ product.price_sell }}"
+                                            data-buy-price="{{ product.price_buy_latest }}"
+                                            {% if row.product == product.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ product.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <select name="expense_type[]" class="bulk-expense-type">
+                                    <option value="">Chọn nhóm chi phí</option>
+                                    {% for value, label in expense_type_choices %}
+                                    <option value="{{ value }}" {% if row.expense_type == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label class="bulk-equipment-lifetime" title="Số tháng dự kiến sử dụng thiết bị. Website sẽ phân bổ chi phí theo tháng để tính khấu hao thay vì trừ toàn bộ một lần.">
+                                    <input type="number" name="estimated_lifetime_months[]" min="1" step="1" value="{{ row.estimated_lifetime_months|default:'' }}" placeholder="Vòng đời (tháng)">
+                                    <span>?</span>
+                                </label>
+                                {% if row.errors %}
+                                <small class="bulk-error">{{ row.errors|join:" " }}</small>
+                                {% endif %}
+                            </td>
+                            <td><input type="text" name="partner[]" value="{{ row.partner }}" placeholder="Tên đối tác"></td>
+                            <td><input type="text" name="unit_price[]" class="bulk-unit-price" inputmode="numeric" value="{{ row.unit_price }}" placeholder="0"></td>
+                            <td><input type="number" name="quantity[]" class="bulk-quantity" min="1" step="1" value="{{ row.quantity|default:'1' }}"></td>
+                            <td><strong class="bulk-row-total">0 đ</strong></td>
+                            <td>
+                                <div class="bulk-payment-cell">
+                                    <select name="payment_method[]" class="bulk-payment-method">
+                                        {% for value, label in payment_method_choices %}
+                                        <option value="{{ value }}" {% if row.payment_method == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="date" name="payment_due_date[]" class="bulk-payment-due-date" value="{{ row.payment_due_date }}" aria-label="Ngày cần thanh toán hoặc nhắc nợ">
+                                </div>
+                            </td>
+                            <td><input type="text" name="note[]" class="bulk-note" value="{{ row.note }}" placeholder="Ghi chú"></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bulk-footer">
+                <img src="{% static 'core/images/Pixiu_on_top.PNG' %}" alt="Pixiu">
+                <div>
+                    <span>Tổng giá trị</span>
+                    <strong id="bulkGrandTotal">0 đ</strong>
+                </div>
+                <a href="/dashboard/" class="secondary-action">Hủy</a>
+                <button type="button" class="secondary-action" id="saveDraftBtn">Lưu nháp</button>
+                <button type="submit">Lưu tất cả giao dịch</button>
+            </div>
+        </form>
+    </section>
+</div>
+
+{# Template cho dòng mới — phải có đủ data-buy-price #}
+{% if saved_count %}
+<div class="bulk-success-modal" id="bulkSuccessModal" role="dialog" aria-modal="true" aria-labelledby="bulkSuccessTitle">
+    <div class="bulk-success-card">
+        <div>
+            <strong id="bulkSuccessTitle">Lưu thành công</strong>
+            <span>Đã lưu {{ saved_count }} giao dịch.</span>
+        </div>
+        <button type="button" id="closeBulkSuccess">Đóng</button>
+    </div>
+</div>
+{% endif %}
+
+<template id="bulkRowTemplate">
+    <tr>
+        <td class="select-col"><input type="checkbox" class="row-check" aria-label="Chọn dòng"></td>
+        <td class="row-number"><span></span></td>
+        <td>
+            <select name="transaction_type[]" class="bulk-type">
+                <option value="income">Doanh thu</option>
+                <option value="purchase">Nhập hàng</option>
+                <option value="expense">Chi phí khác</option>
+            </select>
+        </td>
+        <td><input type="date" name="date[]"></td>
+        <td>
+            <select name="product[]" class="bulk-product">
+                <option value="">Chọn sản phẩm</option>
+                {% for product in products %}
+                <option value="{{ product.id }}"
+                        data-price="{{ product.price_sell }}"
+                        data-buy-price="{{ product.price_buy_latest }}">
+                    {{ product.name }}
+                </option>
+                {% endfor %}
+            </select>
+            <select name="expense_type[]" class="bulk-expense-type">
+                <option value="">Chọn nhóm chi phí</option>
+                {% for value, label in expense_type_choices %}
+                <option value="{{ value }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+            <label class="bulk-equipment-lifetime" title="Số tháng dự kiến sử dụng thiết bị. Website sẽ phân bổ chi phí theo tháng để tính khấu hao thay vì trừ toàn bộ một lần.">
+                <input type="number" name="estimated_lifetime_months[]" min="1" step="1" placeholder="Vòng đời (tháng)">
+                <span>?</span>
+            </label>
+        </td>
+        <td><input type="text" name="partner[]" placeholder="Tên đối tác"></td>
+        <td><input type="text" name="unit_price[]" class="bulk-unit-price" inputmode="numeric" placeholder="0"></td>
+        <td><input type="number" name="quantity[]" class="bulk-quantity" min="1" step="1" value="1"></td>
+        <td><strong class="bulk-row-total">0 đ</strong></td>
+        <td>
+            <div class="bulk-payment-cell">
+                <select name="payment_method[]" class="bulk-payment-method">
+                    {% for value, label in payment_method_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <input type="date" name="payment_due_date[]" class="bulk-payment-due-date" aria-label="Ngày cần thanh toán hoặc nhắc nợ">
+            </div>
+        </td>
+        <td><input type="text" name="note[]" class="bulk-note" placeholder="Ghi chú"></td>
+    </tr>
+</template>
+
+<script>
+(function () {
+    const tbody      = document.getElementById('bulkRows');
+    const template   = document.getElementById('bulkRowTemplate');
+    const grandTotal = document.getElementById('bulkGrandTotal');
+    const today      = new Date().toISOString().slice(0, 10);
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function formatVnd(value) {
+        return `${Math.round(value || 0).toLocaleString('de-DE')} đ`;
+    }
+
+    function parseRaw(str) {
+        // Xóa mọi dấu chấm/phẩy trước khi parse
+        return Number(String(str || '').replace(/[.,]/g, '') || 0);
+    }
+
+    // ── Đánh số lại dòng ────────────────────────────────────────────────────
+
+    function renumberRows() {
+        tbody.querySelectorAll('tr').forEach((row, i) => {
+            const badge = row.querySelector('.row-number span');
+            if (badge) badge.textContent = i + 1;
+        });
+    }
+
+    // ── Cập nhật chế độ hiển thị dropdown theo loại giao dịch ───────────────
+    // income   → hiện bulk-product,      ẩn bulk-expense-type
+    // purchase → hiện bulk-product,      ẩn bulk-expense-type
+    // expense  → ẩn  bulk-product,       hiện bulk-expense-type
+
+    function updateRowMode(row) {
+        const type          = row.querySelector('.bulk-type').value;
+        const productSelect = row.querySelector('.bulk-product');
+        const expenseSelect = row.querySelector('.bulk-expense-type');
+        const lifetimeField = row.querySelector('.bulk-equipment-lifetime');
+        const paymentMethod = row.querySelector('.bulk-payment-method');
+        const paymentDueDate = row.querySelector('.bulk-payment-due-date');
+
+        // CSS class để tô màu nền dòng
+        row.classList.toggle('is-expense',  type === 'expense');
+        row.classList.toggle('is-purchase', type === 'purchase');
+        row.classList.remove(type === 'expense' ? 'is-purchase' : 'is-expense');
+
+        if (type === 'expense') {
+            productSelect.style.display = 'none';
+            expenseSelect.style.display = '';
+            if (lifetimeField) lifetimeField.style.display = '';
+            syncPaymentDueDate(row);
+        } else {
+            // income hoặc purchase đều dùng dropdown sản phẩm
+            productSelect.style.display = '';
+            expenseSelect.style.display = 'none';
+            if (lifetimeField) lifetimeField.style.display = 'none';
+            syncPaymentDueDate(row);
+        }
+        syncEquipmentLifetime(row);
+    }
+
+    function syncEquipmentLifetime(row) {
+        const isEquipment = row.querySelector('.bulk-type').value === 'expense'
+            && row.querySelector('.bulk-expense-type').value === 'equipment';
+        const lifetimeField = row.querySelector('.bulk-equipment-lifetime');
+        const lifetimeInput = lifetimeField?.querySelector('input');
+        const noteInput = row.querySelector('.bulk-note');
+        if (!lifetimeField || !lifetimeInput) return;
+        lifetimeField.hidden = !isEquipment;
+        lifetimeInput.required = isEquipment;
+        if (noteInput) {
+            noteInput.placeholder = isEquipment ? 'Tên thiết bị' : 'Ghi chú';
+            noteInput.title = isEquipment ? 'Nhập tên thiết bị để theo dõi ở tab Thiết bị.' : '';
+            noteInput.required = isEquipment;
+        }
+        if (!isEquipment) lifetimeInput.value = '';
+    }
+
+    function syncPaymentDueDate(row) {
+        const type = row.querySelector('.bulk-type').value;
+        const paymentMethod = row.querySelector('.bulk-payment-method');
+        const paymentDueDate = row.querySelector('.bulk-payment-due-date');
+        const showDueDate = paymentMethod.value === 'debt';
+        paymentDueDate.min = today;
+        paymentDueDate.hidden = false;
+        paymentDueDate.readOnly = false;
+        paymentDueDate.disabled = !showDueDate;
+        paymentDueDate.classList.toggle('is-disabled', !showDueDate);
+        paymentDueDate.setAttribute('aria-disabled', showDueDate ? 'false' : 'true');
+        paymentDueDate.tabIndex = showDueDate ? 0 : -1;
+        paymentDueDate.required = showDueDate;
+        paymentDueDate.title = showDueDate ? '' : 'Đã thanh toán, không cần ngày cần thanh toán/nhắc nợ.';
+        if (showDueDate && !paymentDueDate.value) paymentDueDate.value = today;
+        if (!showDueDate) paymentDueDate.value = '';
+    }
+
+    // ── Tính tổng toàn bảng ──────────────────────────────────────────────────
+
+    function updateTotals() {
+        let total = 0;
+        tbody.querySelectorAll('tr').forEach(row => {
+            const priceInput = row.querySelector('.bulk-unit-price');
+            const unitPrice  = parseRaw(priceInput.value);
+            const quantity   = Number(row.querySelector('.bulk-quantity').value || 0);
+            const rowTotal   = unitPrice * quantity;
+            row.querySelector('.bulk-row-total').textContent = formatVnd(rowTotal);
+            if (unitPrice >= 0 && quantity > 0) total += rowTotal;
+        });
+        grandTotal.textContent = formatVnd(total);
+    }
+
+    // ── Bind events cho 1 dòng ───────────────────────────────────────────────
+
+    function bindRow(row) {
+        const dateInput     = row.querySelector('input[type="date"]');
+        const typeSelect    = row.querySelector('.bulk-type');
+        const productSelect = row.querySelector('.bulk-product');
+        const priceInput    = row.querySelector('.bulk-unit-price');
+        const qtyInput      = row.querySelector('.bulk-quantity');
+        const paymentMethod = row.querySelector('.bulk-payment-method');
+        const expenseSelect = row.querySelector('.bulk-expense-type');
+
+        // Ngày mặc định = hôm nay
+        if (!dateInput.value) dateInput.value = today;
+
+        // Format giá khi blur (10000 → 10.000), strip khi focus để gõ tiếp
+        priceInput.addEventListener('blur', () => {
+            const raw = parseRaw(priceInput.value);
+            priceInput.value = raw > 0 ? raw.toLocaleString('de-DE') : '';
+            updateTotals();
+        });
+        priceInput.addEventListener('focus', () => {
+            priceInput.value = priceInput.value.replace(/\./g, '');
+        });
+
+        // Chọn sản phẩm → tự điền giá phù hợp với loại giao dịch
+        // income   → price_sell (data-price)
+        // purchase → price_buy_latest (data-buy-price)
+        productSelect.addEventListener('change', () => {
+            const selected = productSelect.selectedOptions[0];
+            if (!selected || !selected.value) { updateTotals(); return; }
+
+            const type  = typeSelect.value;
+            const price = type === 'purchase'
+                ? selected.dataset.buyPrice
+                : selected.dataset.price;
+
+            if (price && Number(price) > 0) {
+                priceInput.value = Number(price).toLocaleString('de-DE');
+            }
+            updateTotals();
+        });
+
+        // Đổi loại giao dịch → toggle dropdown + reset sản phẩm & giá
+        typeSelect.addEventListener('change', () => {
+            updateRowMode(row);
+            // Reset để tránh giá sai khi chuyển income ↔ purchase
+            productSelect.value = '';
+            priceInput.value    = '';
+            updateTotals();
+        });
+
+        // Số lượng thay đổi → update tổng
+        qtyInput.addEventListener('input', updateTotals);
+        paymentMethod.addEventListener('change', () => syncPaymentDueDate(row));
+        expenseSelect.addEventListener('change', () => syncEquipmentLifetime(row));
+
+        // Các input khác (partner, note, expense_type) cũng trigger updateTotals
+        row.querySelectorAll(
+            'input:not(.row-check):not(.bulk-unit-price):not(.bulk-quantity),' +
+            'select:not(.bulk-product):not(.bulk-type)'
+        ).forEach(el => el.addEventListener('input', updateTotals));
+
+        // Keyboard navigation (Arrow keys, Tab, Enter)
+        row.querySelectorAll('input:not([type="checkbox"]), select')
+            .forEach(el => el.addEventListener('keydown', handleGridKeydown));
+
+        // Áp dụng mode ngay khi bind (quan trọng cho dòng load từ server)
+        updateRowMode(row);
+        syncPaymentDueDate(row);
+    }
+
+    // ── Keyboard grid navigation ─────────────────────────────────────────────
+
+    function getGridFields() {
+        return Array.from(tbody.querySelectorAll('tr')).map(row =>
+            Array.from(row.querySelectorAll(
+                'select:not([style*="display: none"]), input:not(.row-check):not([type="hidden"])'
+            )).filter(f => f.offsetParent !== null && !f.disabled)
+        );
+    }
+
+    function focusCell(rowIndex, colIndex) {
+        const grid = getGridFields();
+        if (rowIndex >= grid.length) { addRows(1); return focusCell(rowIndex, colIndex); }
+        if (rowIndex < 0 || !grid[rowIndex]) return;
+        if (colIndex >= grid[rowIndex].length) return focusCell(rowIndex + 1, 0);
+        if (colIndex < 0) return focusCell(rowIndex - 1, grid[rowIndex - 1] ? grid[rowIndex - 1].length - 1 : 0);
+        const target = grid[rowIndex][Math.max(0, Math.min(colIndex, grid[rowIndex].length - 1))];
+        if (!target) return;
+        target.focus();
+        if (typeof target.select === 'function' && target.tagName !== 'SELECT') target.select();
+    }
+
+    function currentCell(field) {
+        const grid = getGridFields();
+        for (let r = 0; r < grid.length; r++) {
+            const c = grid[r].indexOf(field);
+            if (c !== -1) return { rowIndex: r, colIndex: c, grid };
+        }
+        return null;
+    }
+
+    function handleGridKeydown(e) {
+        const cell = currentCell(e.currentTarget);
+        if (!cell) return;
+        const { rowIndex: r, colIndex: c } = cell;
+        const moves = {
+            'Enter':      [r, c + 1],
+            'ArrowRight': [r, c + 1],
+            'ArrowLeft':  [r, c - 1],
+            'ArrowDown':  [r + 1, c],
+            'ArrowUp':    [r - 1, c],
+        };
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            focusCell(r, e.shiftKey ? c - 1 : c + 1);
+        } else if (moves[e.key]) {
+            e.preventDefault();
+            focusCell(...moves[e.key]);
+        } else if (e.key === 'Home' && e.ctrlKey) {
+            e.preventDefault(); focusCell(0, 0);
+        } else if (e.key === 'End' && e.ctrlKey) {
+            const g = getGridFields();
+            e.preventDefault(); focusCell(g.length - 1, g[g.length - 1].length - 1);
+        }
+    }
+
+    // ── Thêm dòng ────────────────────────────────────────────────────────────
+
+    function addRows(count) {
+        for (let i = 0; i < count; i++) {
+            const row = template.content.firstElementChild.cloneNode(true);
+            tbody.appendChild(row);
+            bindRow(row);
+        }
+        renumberRows();
+        updateTotals();
+    }
+
+    // ── Submit: strip format trước khi gửi form ──────────────────────────────
+
+    document.getElementById('bulkTransactionForm').addEventListener('submit', () => {
+        tbody.querySelectorAll('.bulk-unit-price').forEach(input => {
+            input.value = input.value.trim() ? parseRaw(input.value) : '';
+        });
+    });
+
+    // ── Init ─────────────────────────────────────────────────────────────────
+
+    tbody.querySelectorAll('tr').forEach(bindRow);
+    renumberRows();
+    updateTotals();
+
+    document.getElementById('addBulkRow').addEventListener('click', () => addRows(1));
+    document.getElementById('addTenRows').addEventListener('click', () => addRows(10));
+
+    document.getElementById('selectAllRows').addEventListener('change', e => {
+        tbody.querySelectorAll('.row-check').forEach(cb => cb.checked = e.target.checked);
+    });
+
+    document.getElementById('clearSelectedRows').addEventListener('click', () => {
+        tbody.querySelectorAll('tr').forEach(row => {
+            if (row.querySelector('.row-check')?.checked) row.remove();
+        });
+        if (!tbody.querySelector('tr')) addRows(1);
+        renumberRows();
+        updateTotals();
+    });
+
+    document.getElementById('saveDraftBtn').addEventListener('click', () => {
+        localStorage.setItem(
+            'pixiu_bulk_transactions',
+            new URLSearchParams(new FormData(document.getElementById('bulkTransactionForm'))).toString()
+        );
+    });
+
+    const successModal = document.getElementById('bulkSuccessModal');
+    const closeSuccess = document.getElementById('closeBulkSuccess');
+    if (successModal && closeSuccess) {
+        closeSuccess.addEventListener('click', () => successModal.remove());
+        successModal.addEventListener('click', event => {
+            if (event.target === successModal) successModal.remove();
+        });
+    }
+})();
+</script>
+{% endblock %}

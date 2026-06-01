@@ -1,0 +1,1777 @@
+﻿{% extends 'core/base.html' %}
+{% load format_utils %}
+{% load static %}
+
+{% block title %}Sản phẩm và tồn kho - Pixiu Flow{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/css/inventory.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="inventory-page inventory-shell">
+    <header class="transaction-topbar inventory-topbar">
+        <div class="transaction-search">
+            <i data-lucide="search"></i>
+            <input type="search" id="inventoryGlobalSearch" placeholder="Tìm kiếm sản phẩm, danh mục, nhà cung cấp...">
+            <button type="button" class="inventory-search-clear" id="clearInventoryGlobalSearch" hidden aria-label="Xóa tìm kiếm">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+    </header>
+
+    <section class="inventory-layout-v2">
+        <main class="inventory-main-v2">
+            <div class="inventory-page-heading inventory-page-heading-v2">
+                <div>
+                    <h1>Sản phẩm &amp; tồn kho</h1>
+                    <p>Quản lý sản phẩm, tồn kho và lịch sử nhập hàng theo dữ liệu hiện có.</p>
+                </div>
+                <div class="inventory-title-actions">
+                    <a href="/expenses/create/?mode=purchase" class="inventory-topbar-link">
+                        <i data-lucide="package-plus"></i> Nhập kho
+                    </a>
+                    <a href="/products/create/" class="inventory-topbar-link inventory-topbar-link--primary">
+                        <i data-lucide="plus"></i> Thêm sản phẩm
+                    </a>
+                </div>
+            </div>
+
+            {% if new_products %}
+            <div class="inventory-new-product-alert">
+                <i data-lucide="sparkles"></i>
+                <div>
+                    <strong>Bạn đã có sản phẩm mới</strong>
+                    <span>Cập nhật thêm giá bán, cảnh báo tồn kho và danh mục để theo dõi chính xác hơn.</span>
+                </div>
+                <div class="inventory-new-product-actions">
+                    {% for product in new_products %}
+                    <a href="/products/create/?product_id={{ product.id }}">Cập nhật {{ product.name|truncatechars:24 }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="inventory-status-strip" aria-label="Lọc nhanh trạng thái tồn kho">
+                <button type="button" class="inventory-status-card inventory-status-card--danger" data-stock-filter="het_hang">
+                    <div class="inventory-status-card__top">
+                        <span class="inventory-status-card__icon"><i data-lucide="package-x"></i></span>
+                    </div>
+                    <span>Hết hàng</span>
+                    <strong>{{ out_of_stock_products.count }}</strong>
+                    <small>Sản phẩm cần nhập ngay</small>
+                </button>
+                <button type="button" class="inventory-status-card inventory-status-card--warning" data-stock-filter="sap_het">
+                    <div class="inventory-status-card__top">
+                        <span class="inventory-status-card__icon"><i data-lucide="triangle-alert"></i></span>
+                    </div>
+                    <span>Sắp hết</span>
+                    <strong>{{ low_stock_products.count }}</strong>
+                    <small>Dưới mức tối thiểu</small>
+                </button>
+                <button type="button" class="inventory-status-card inventory-status-card--info" data-stock-filter="all">
+                    <div class="inventory-status-card__top">
+                        <span class="inventory-status-card__icon"><i data-lucide="boxes"></i></span>
+                    </div>
+                    <span>Số sản phẩm</span>
+                    <strong>{{ total_products|default:0 }}</strong>
+                    <small>Mã hàng đang kinh doanh</small>
+                </button>
+                <button type="button" class="inventory-status-card inventory-status-card--value" data-stock-filter="all">
+                    <div class="inventory-status-card__top">
+                        <span class="inventory-status-card__icon"><i data-lucide="wallet-cards"></i></span>
+                    </div>
+                    <span>Giá trị tồn kho</span>
+                    <strong>{{ inventory_value|vnd }}</strong>
+                    <small>Theo giá vốn nhập</small>
+                </button>
+            </div>
+
+            <section class="inventory-panel inventory-tabs-panel">
+                <div class="inventory-tabs" role="tablist" aria-label="Nội dung tồn kho">
+                    <button type="button" class="inventory-tab is-active" data-inventory-tab="products">
+                        Sản phẩm <span>{{ total_products|default:0 }}</span>
+                    </button>
+                    <button type="button" class="inventory-tab" data-inventory-tab="categories">
+                        Danh mục <span>{{ category_total_count }}</span>
+                    </button>
+                    <button type="button" class="inventory-tab" data-inventory-tab="suppliers">
+                        Nhà cung cấp <span>{{ supplier_stats|length }}</span>
+                    </button>
+                    <button type="button" class="inventory-tab" data-inventory-tab="equipment">
+                        Thiết bị <span>{{ equipment_total_count }}</span>
+                    </button>
+                </div>
+
+                {# ── TAB: SẢN PHẨM ── #}
+                <div class="inventory-tab-pane is-active" data-inventory-pane="products">
+                    <div class="inventory-filter-row inventory-filter-row-v2">
+                        <label class="inventory-search">
+                            <i data-lucide="search"></i>
+                            <input type="search" id="inventoryProductSearch" placeholder="Tìm tên, mã sản phẩm, danh mục...">
+                        </label>
+                        <button type="button" class="inventory-filter-button" data-stock-filter="all">
+                            <i data-lucide="rotate-ccw"></i> Tất cả
+                        </button>
+                        <div class="inventory-column-menu">
+                            <button type="button" id="columnMenuTrigger">
+                                <i data-lucide="columns-3"></i> Tuỳ chỉnh cột
+                            </button>
+                            <div class="inventory-column-menu__panel" id="columnMenuPanel" hidden>
+                                <label><input type="checkbox" data-column-toggle="name" checked> Tên sản phẩm</label>
+                                <label><input type="checkbox" data-column-toggle="sku"> Mã SP</label>
+                                <label><input type="checkbox" data-column-toggle="unit"> Đơn vị tính</label>
+                                <label><input type="checkbox" data-column-toggle="created"> Ngày thêm</label>
+                                <label><input type="checkbox" data-column-toggle="category" checked> Danh mục</label>
+                                <label><input type="checkbox" data-column-toggle="stock" checked> Tồn kho</label>
+                                <label><input type="checkbox" data-column-toggle="threshold" checked> Ngưỡng</label>
+                                <label><input type="checkbox" data-column-toggle="cost" checked> Giá vốn</label>
+                                <label><input type="checkbox" data-column-toggle="price" checked> Giá bán</label>
+                                <label><input type="checkbox" data-column-toggle="margin" checked> Margin</label>
+                                <label><input type="checkbox" data-column-toggle="status" checked> Trạng thái</label>
+                                <label><input type="checkbox" data-column-toggle="payment" checked> Thanh toán</label>
+                                <label><input type="checkbox" data-column-toggle="actions" checked> Hành động</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="inventory-active-filters" id="inventoryActiveFilters" hidden>
+                        <i data-lucide="filter"></i>
+                        <div>
+                            <strong>Bảng đang được lọc</strong>
+                            <span id="inventoryActiveFilterText"></span>
+                        </div>
+                        <button type="button" id="clearInventoryFiltersInline">Xoá tất cả</button>
+                    </div>
+
+                    <div class="inventory-table-wrap">
+                        <div class="inventory-bulk-bar" id="inventoryBulkBar" hidden>
+                            <strong><span id="bulkSelectedCount">0</span> sản phẩm đã chọn</strong>
+                            <button type="button" data-bulk-category><i data-lucide="tags"></i> Gán danh mục</button>
+                            <button type="button" data-bulk-supplier><i data-lucide="store"></i> Gán nhà cung cấp</button>
+                            <button type="button" class="danger" data-bulk-delete><i data-lucide="trash-2"></i> Xóa</button>
+                            <button type="button" data-bulk-clear>Bỏ chọn</button>
+                        </div>
+
+                        <table class="inventory-table inventory-product-table">
+                            <thead>
+                                <tr>
+                                    <th class="inventory-select-col">
+                                        <input type="checkbox" id="selectAllProducts" aria-label="Chọn tất cả sản phẩm">
+                                    </th>
+                                    <th class="inventory-col-name">
+                                        <span class="inventory-th-label">Tên sản phẩm
+                                            <button type="button" data-column-sort="name" aria-label="Sắp xếp tên sản phẩm"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="search" aria-label="Lọc tên sản phẩm"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-sku is-optional-column" hidden>
+                                        <span class="inventory-th-label">Mã SP
+                                            <button type="button" data-column-sort="sku" aria-label="Sắp xếp mã sản phẩm"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="search" aria-label="Lọc mã sản phẩm"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-unit is-optional-column" hidden>
+                                        <span class="inventory-th-label">Đơn vị
+                                            <button type="button" data-column-sort="unit" aria-label="Sắp xếp đơn vị"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="unit" aria-label="Lọc đơn vị"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-created is-optional-column" hidden>
+                                        <span class="inventory-th-label">Ngày thêm
+                                            <button type="button" data-column-sort="created" aria-label="Sắp xếp ngày thêm"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="created" aria-label="Lọc ngày thêm"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-category">
+                                        <span class="inventory-th-label">Danh mục
+                                            <button type="button" data-column-sort="category" aria-label="Sắp xếp danh mục"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="category" aria-label="Lọc danh mục"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-stock">
+                                        <span class="inventory-th-label">Tồn kho
+                                            <button type="button" data-column-sort="stock" aria-label="Sắp xếp tồn kho"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="stock" aria-label="Lọc tồn kho"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-threshold">
+                                        <span class="inventory-th-label">Ngưỡng
+                                            <button type="button" data-column-sort="threshold" aria-label="Sắp xếp ngưỡng"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="threshold" aria-label="Lọc ngưỡng"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-cost">
+                                        <span class="inventory-th-label">Giá vốn
+                                            <button type="button" data-column-sort="cost" aria-label="Sắp xếp giá vốn"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="cost" aria-label="Lọc giá vốn"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-price">
+                                        <span class="inventory-th-label">Giá bán
+                                            <button type="button" data-column-sort="price" aria-label="Sắp xếp giá bán"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="price" aria-label="Lọc giá bán"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-margin">
+                                        <span class="inventory-th-label">Margin
+                                            <button type="button" data-column-sort="margin" aria-label="Sắp xếp margin"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="margin" aria-label="Lọc margin"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-status">
+                                        <span class="inventory-th-label">Trạng thái
+                                            <button type="button" data-column-sort="status" aria-label="Sắp xếp trạng thái"><i data-lucide="arrow-up-down"></i></button>
+                                            <button type="button" data-column-filter="status" aria-label="Lọc trạng thái"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-payment">
+                                        <span class="inventory-th-label">Thanh toán
+                                            <button type="button" data-column-filter="payment" aria-label="Lọc thanh toán"><i data-lucide="filter"></i></button>
+                                        </span>
+                                    </th>
+                                    <th class="inventory-col-actions">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventoryProductRows">
+                                {% for row in product_rows %}
+                                {% with p=row.product %}
+                                <tr
+                                    data-product-id="{{ p.id }}"
+                                    data-stock-status="{{ p.stock_status }}"
+                                    data-stock-quantity="{{ p.stock_quantity }}"
+                                    data-alert-threshold="{{ p.alert_threshold }}"
+                                    data-name="{{ p.name|lower }}"
+                                    data-sku="sp-{{ p.id|stringformat:'03d' }}"
+                                    data-unit="{{ p.unit|fix_mojibake|lower }}"
+                                    data-created="{{ p.created_at|date:'Y-m-d' }}"
+                                    data-category-path="{{ row.category_path }}"
+                                    data-payment="{{ row.payment_summary.key }}"
+                                    data-cost="{{ p.price_buy_latest|default:0 }}"
+                                    data-price="{{ p.price_sell|default:0 }}"
+                                    data-margin="{% if row.margin != None %}{{ row.margin }}{% else %}-999999{% endif %}"
+                                    data-search="{{ p.name|lower }} sp-{{ p.id|stringformat:'03d' }} {{ row.category_path|lower }} {{ p.supplier_name|lower }}"
+                                >
+                                    <td class="inventory-select-col">
+                                        <input type="checkbox" class="inventory-row-check" value="{{ p.id }}" aria-label="Chọn {{ p.name }}">
+                                    </td>
+                                    <td class="inventory-col-name">
+                                        <button type="button" class="inventory-product-name" data-open-product="{{ p.id }}">{{ p.name }}</button>
+                                    </td>
+                                    <td class="muted inventory-col-sku is-optional-column" hidden>SP-{{ p.id|stringformat:"03d" }}</td>
+                                    <td class="muted inventory-col-unit is-optional-column" hidden>{{ p.unit|fix_mojibake }}</td>
+                                    <td class="muted inventory-col-created is-optional-column" hidden>{{ p.created_at|date:"d/m/Y" }}</td>
+                                    <td class="inventory-col-category">
+                                        <div class="category-breadcrumb">
+                                            {% for part in row.category_parts %}
+                                            <span class="category-chip category-chip--level-{{ forloop.counter }}">{{ part }}</span>
+                                            {% if not forloop.last %}<b>›</b>{% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td class="inventory-col-stock">
+                                        <div class="inventory-stock-display inventory-stock-display--{{ p.stock_status }}">
+                                            <span class="inventory-stock-bar"><i style="width: {{ row.stock_bar_percent }}%;"></i></span>
+                                            <strong>{{ p.stock_quantity }} {{ p.unit|fix_mojibake }}</strong>
+                                            <a href="/expenses/create/?mode=purchase&product_id={{ p.id }}"
+                                               aria-label="Nhập hàng để cập nhật tồn kho {{ p.name }}"
+                                               title="Tồn kho chỉ thay đổi qua nhập hàng hoặc hàng có sẵn">
+                                                <i data-lucide="package-plus"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                    <td class="inventory-col-threshold">
+                                        <div class="inventory-threshold-editor" data-product-id="{{ p.id }}">
+                                            <span class="inventory-threshold-value">{{ p.alert_threshold }}</span>
+                                            <button type="button" data-edit-threshold aria-label="Sửa ngưỡng cảnh báo {{ p.name }}">
+                                                <i data-lucide="pencil"></i>
+                                            </button>
+                                            <input type="number" class="inventory-inline-input inventory-alert-input"
+                                                min="0" value="{{ p.alert_threshold }}"
+                                                data-field="alert_threshold"
+                                                data-product-id="{{ p.id }}"
+                                                data-original-value="{{ p.alert_threshold }}"
+                                                aria-label="Ngưỡng cảnh báo {{ p.name }}" hidden>
+                                            <button type="button" data-save-threshold hidden>Áp dụng</button>
+                                        </div>
+                                    </td>
+                                    <td class="muted inventory-col-cost">{{ p.price_buy_latest|vnd }}</td>
+                                    <td class="money inventory-col-price">
+                                        {% if row.sale_price_state == "missing" %}
+                                        <a href="/products/create/?product_id={{ p.id }}" class="price-missing-badge">Chưa có giá</a>
+                                        {% elif row.sale_price_state == "free" %}
+                                        <span class="price-free-label">Miễn phí</span>
+                                        {% else %}
+                                        {{ p.price_sell|vnd }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="inventory-col-margin">
+                                        {% if row.margin != None %}
+                                        <span class="inventory-margin-pill {% if row.margin < 0 %}inventory-margin-pill--loss{% endif %}">{{ row.margin }}%</span>
+                                        {% else %}
+                                        <span class="muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="inventory-col-status">
+                                        <span class="stock-badge stock-badge--{{ p.stock_status }}">
+                                            {% if p.stock_status == "het_hang" %}Hết hàng
+                                            {% elif p.stock_status == "sap_het" %}Sắp hết
+                                            {% else %}Còn hàng
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="inventory-col-payment">
+                                        <span class="supplier-payment-badge supplier-payment-badge--{{ row.payment_summary.key }}">{{ row.payment_summary.label }}</span>
+                                        {% if row.payment_summary.due_date %}
+                                        <small class="payment-due-text">Hạn {{ row.payment_summary.due_date|date:"d/m/Y" }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="inventory-actions inventory-col-actions">
+                                        {% if p.stock_status == "het_hang" or p.stock_status == "sap_het" %}
+                                        <a href="/expenses/create/?mode=purchase&product_id={{ p.id }}" aria-label="Nhập thêm hàng">
+                                            <i data-lucide="package-plus"></i>
+                                        </a>
+                                        {% endif %}
+                                        <a href="/products/create/?product_id={{ p.id }}" aria-label="Sửa sản phẩm">
+                                            <i data-lucide="pencil"></i>
+                                        </a>
+                                        <form method="post" action="/products/delete/{{ p.id }}/">
+                                            {% csrf_token %}
+                                            <button type="submit" aria-label="Xóa sản phẩm"><i data-lucide="trash-2"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endwith %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <div class="inventory-empty-state" id="inventoryNoProductsState" {% if product_rows %}hidden{% endif %}>
+                            <i data-lucide="package-x"></i>
+                            <strong>Chưa có sản phẩm nào</strong>
+                            <span>Thêm sản phẩm đầu tiên để bắt đầu theo dõi tồn kho và doanh thu.</span>
+                            <a href="/products/create/" class="inventory-topbar-link inventory-topbar-link--primary">Thêm sản phẩm đầu tiên</a>
+                        </div>
+                        <div class="inventory-empty-state" id="inventoryNoFilterState" hidden>
+                            <i data-lucide="search-x"></i>
+                            <strong>Không tìm thấy sản phẩm</strong>
+                            <span>Không có sản phẩm nào khớp bộ lọc hiện tại.</span>
+                            <button type="button" id="clearInventoryFilters">Xoá bộ lọc</button>
+                        </div>
+                    </div>
+
+                    {# Column filter popover #}
+                    <div class="inventory-column-filter-popover" id="columnFilterPopover" hidden>
+                        <div class="inventory-column-filter-popover__head">
+                            <strong id="columnFilterTitle">Lọc cột</strong>
+                            <button type="button" id="closeColumnFilter" aria-label="Đóng bộ lọc"><i data-lucide="x"></i></button>
+                        </div>
+                        <label class="inventory-column-filter-search">
+                            <i data-lucide="search"></i>
+                            <input type="search" id="columnFilterSearch" placeholder="Tìm giá trị muốn lọc...">
+                        </label>
+                        <div class="inventory-column-filter-options" id="columnFilterOptions"></div>
+                        <div class="inventory-column-filter-actions">
+                            <button type="button" id="clearColumnFilter">Xoá lọc cột</button>
+                            <button type="button" id="applyColumnFilter">Áp dụng</button>
+                        </div>
+                    </div>
+
+                    {# Column sort popover #}
+                    <div class="inventory-column-sort-popover" id="columnSortPopover" hidden>
+                        <div class="inventory-column-sort-popover__head">
+                            <strong id="columnSortTitle">Sắp xếp cột</strong>
+                            <button type="button" id="closeColumnSort" aria-label="Đóng sắp xếp"><i data-lucide="x"></i></button>
+                        </div>
+                        <div class="inventory-sort-options">
+                            <button type="button" class="inventory-sort-option" data-sort-direction="asc">
+                                <i data-lucide="arrow-up-narrow-wide"></i>
+                                <span id="sortAscendingLabel">Tăng dần</span>
+                            </button>
+                            <button type="button" class="inventory-sort-option" data-sort-direction="desc">
+                                <i data-lucide="arrow-down-wide-narrow"></i>
+                                <span id="sortDescendingLabel">Giảm dần</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {# ── TAB: DANH MỤC ── #}
+                <div class="inventory-tab-pane" data-inventory-pane="categories" hidden>
+                    <div class="inventory-tab-toolbar">
+                        <span>Danh mục phân cấp</span>
+                        <button type="button" class="inventory-tree-add-root" data-open-category-create data-parent-category="">
+                            <i data-lucide="plus"></i> Thêm danh mục cấp 1
+                        </button>
+                    </div>
+                    <div class="inventory-category-actions" id="categoryBulkActions" hidden>
+                        <strong><span id="categorySelectedCount">0</span> sản phẩm đã chọn</strong>
+                        <button type="button" id="moveSelectedCategoryProducts">
+                            <i data-lucide="move-right"></i> Di chuyển sang danh mục khác
+                        </button>
+                        <button type="button" id="clearCategorySelection">Bỏ chọn</button>
+                    </div>
+
+                    <div class="inventory-category-tree">
+                        {% for node in category_tree %}
+                        <details class="inventory-tree-node inventory-tree-node--level-1" open>
+                            <summary data-category-drop="{{ node.path }}">
+                                <span><i data-lucide="folder"></i>{{ node.name }}</span>
+                                <b>{{ node.product_count }} sản phẩm</b>
+                                {% if not node.is_uncategorized %}
+                                <button type="button" class="inventory-tree-rename" data-rename-category="{{ node.path }}" data-category-name="{{ node.name }}" data-category-note="{{ node.note }}">Đổi tên</button>
+                                <button type="button" class="inventory-inline-action" data-open-category-create data-parent-category="{{ node.path }}">Thêm cấp 2</button>
+                                <button type="button" class="inventory-tree-delete" data-delete-category="{{ node.path }}" data-delete-count="{{ node.product_count }}">Xóa</button>
+                                {% endif %}
+                            </summary>
+                            {% for product in node.products %}
+                            <label class="inventory-category-product-row" data-product-id="{{ product.id }}">
+                                <input type="checkbox" class="category-product-check" value="{{ product.id }}">
+                                <span><i data-lucide="package"></i>{{ product.name }}</span>
+                                <small>{{ product.stock_quantity }} {{ product.unit }}</small>
+                            </label>
+                            {% endfor %}
+                            {% for child in node.children.values %}
+                            <details class="inventory-tree-node inventory-tree-node--level-2" open>
+                                <summary data-category-drop="{{ child.path }}">
+                                    <span><i data-lucide="folder"></i>{{ child.name }}</span>
+                                    <b>{{ child.product_count }} sản phẩm</b>
+                                    <button type="button" class="inventory-tree-rename" data-rename-category="{{ child.path }}" data-category-name="{{ child.name }}" data-category-note="{{ child.note }}">Đổi tên</button>
+                                    <button type="button" class="inventory-inline-action" data-open-category-create data-parent-category="{{ child.path }}">Thêm cấp 3</button>
+                                    <button type="button" class="inventory-tree-delete" data-delete-category="{{ child.path }}" data-delete-count="{{ child.product_count }}">Xóa</button>
+                                </summary>
+                                {% for product in child.products %}
+                                <label class="inventory-category-product-row inventory-category-product-row--level-2" data-product-id="{{ product.id }}">
+                                    <input type="checkbox" class="category-product-check" value="{{ product.id }}">
+                                    <span><i data-lucide="package"></i>{{ product.name }}</span>
+                                    <small>{{ product.stock_quantity }} {{ product.unit }}</small>
+                                </label>
+                                {% endfor %}
+                                {% for grandchild in child.children.values %}
+                                <details class="inventory-tree-node inventory-tree-node--level-3" open>
+                                    <summary data-category-drop="{{ grandchild.path }}">
+                                        <span><i data-lucide="folder"></i>{{ grandchild.name }}</span>
+                                        <b>{{ grandchild.product_count }} sản phẩm</b>
+                                        <button type="button" class="inventory-tree-rename" data-rename-category="{{ grandchild.path }}" data-category-name="{{ grandchild.name }}" data-category-note="{{ grandchild.note }}">Đổi tên</button>
+                                        <button type="button" class="inventory-inline-action" data-open-category-create data-parent-category="{{ grandchild.path }}">Thêm cấp 4</button>
+                                        <button type="button" class="inventory-tree-delete" data-delete-category="{{ grandchild.path }}" data-delete-count="{{ grandchild.product_count }}">Xóa</button>
+                                    </summary>
+                                    {% for product in grandchild.products %}
+                                    <label class="inventory-category-product-row inventory-category-product-row--level-3" data-product-id="{{ product.id }}">
+                                        <input type="checkbox" class="category-product-check" value="{{ product.id }}">
+                                        <span><i data-lucide="package"></i>{{ product.name }}</span>
+                                        <small>{{ product.stock_quantity }} {{ product.unit }}</small>
+                                    </label>
+                                    {% endfor %}
+                                    {% for leaf in grandchild.children.values %}
+                                    <div class="inventory-tree-leaf" data-category-drop="{{ leaf.path }}">
+                                        <span><i data-lucide="tag"></i>{{ leaf.name }}</span>
+                                        <b>{{ leaf.product_count }} sản phẩm</b>
+                                        <button type="button" class="inventory-tree-rename" data-rename-category="{{ leaf.path }}" data-category-name="{{ leaf.name }}" data-category-note="{{ leaf.note }}">Đổi tên</button>
+                                        <button type="button" class="inventory-tree-delete" data-delete-category="{{ leaf.path }}" data-delete-count="{{ leaf.product_count }}">Xóa</button>
+                                    </div>
+                                    {% for product in leaf.products %}
+                                    <label class="inventory-category-product-row inventory-category-product-row--level-4" data-product-id="{{ product.id }}">
+                                        <input type="checkbox" class="category-product-check" value="{{ product.id }}">
+                                        <span><i data-lucide="package"></i>{{ product.name }}</span>
+                                        <small>{{ product.stock_quantity }} {{ product.unit }}</small>
+                                    </label>
+                                    {% endfor %}
+                                    {% endfor %}
+                                </details>
+                                {% endfor %}
+                            </details>
+                            {% endfor %}
+                        </details>
+                        {% empty %}
+                        <p class="inventory-empty">Chưa có danh mục.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# ── TAB: NHÀ CUNG CẤP ── #}
+                <div class="inventory-tab-pane" data-inventory-pane="suppliers" hidden>
+                    <table class="inventory-mini-table">
+                        <thead>
+                            <tr>
+                                <th>Nhà cung cấp</th>
+                                <th>Số lần nhập</th>
+                                <th>Tổng giá trị</th>
+                                <th>Lô gần nhất</th>
+                                <th>Thanh toán</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in supplier_rows %}
+                            <tr>
+                                <td>{{ supplier.name }}</td>
+                                <td><b>{{ supplier.purchase_count }}</b></td>
+                                <td class="money">{{ supplier.total_value|vnd }}</td>
+                                <td>
+                                    {% if supplier.latest_lot %}
+                                    LOT-{{ supplier.latest_lot.date|date:"Y" }}-{{ supplier.latest_lot.id|stringformat:"03d" }}
+                                    {% else %}Chưa nhập{% endif %}
+                                </td>
+                                <td>
+                                    <span class="supplier-payment-badge supplier-payment-badge--{{ supplier.payment_summary.key }}">{{ supplier.payment_summary.label }}</span>
+                                    {% if supplier.payment_summary.due_date %}
+                                    <small class="payment-due-text">Hạn {{ supplier.payment_summary.due_date|date:"d/m/Y" }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="/expenses/create/?mode=purchase" class="inventory-inline-action">Nhập hàng</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="inventory-empty">Chưa có nhà cung cấp.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div class="inventory-recent-lots">
+                        <h3>Lô hàng gần đây</h3>
+                        <table class="inventory-mini-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã lô</th>
+                                    <th>Sản phẩm</th>
+                                    <th>Số lượng</th>
+                                    <th>Nhà cung cấp</th>
+                                    <th>Ngày nhập</th>
+                                    <th>Thanh toán</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lot in recent_lots %}
+                                <tr>
+                                    <td>
+                                        <a href="/transactions/history/?type=purchase&q=LOT-{{ lot.date|date:'Y' }}-{{ lot.id|stringformat:'03d' }}" class="lot-link">
+                                            LOT-{{ lot.date|date:"Y" }}-{{ lot.id|stringformat:"03d" }}
+                                        </a>
+                                    </td>
+                                    <td>{{ lot.product.name }}</td>
+                                    <td><b>{{ lot.quantity }}</b></td>
+                                    <td>{{ lot.supplier_name|default:"---" }}</td>
+                                    <td>{{ lot.date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="supplier-payment-badge supplier-payment-badge--{{ lot.payment_method }}">{{ lot.get_payment_method_display }}</span>
+                                        {% if lot.payment_due_date %}
+                                        <small class="payment-due-text">Hạn {{ lot.payment_due_date|date:"d/m/Y" }}</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="6" class="inventory-empty">Chưa có lô hàng nhập.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                {# ── TAB: THIẾT BỊ ── #}
+                <div class="inventory-tab-pane" data-inventory-pane="equipment" hidden>
+                    <div class="equipment-kpi-grid">
+                        <article>
+                            <span>Tổng thiết bị</span>
+                            <strong>{{ equipment_total_count }}</strong>
+                        </article>
+                        <article>
+                            <span>Đang dùng</span>
+                            <strong>{{ equipment_active_count }}</strong>
+                        </article>
+                        <article>
+                            <span>Tổng đã mua</span>
+                            <strong>{{ equipment_total_value|vnd }}</strong>
+                        </article>
+                        <article>
+                            <span>Chưa phân bổ còn lại</span>
+                            <strong>{{ equipment_remaining_value|vnd }}</strong>
+                        </article>
+                    </div>
+
+                    <div class="equipment-section-head">
+                        <h3>Danh sách thiết bị</h3>
+                        <p>Thiết bị tự xuất hiện khi bạn ghi chi phí <b>Mua thiết bị</b>. Không cần thêm thiết bị ở đây.</p>
+                    </div>
+
+                    <div class="equipment-table-wrap">
+                        <table class="inventory-mini-table equipment-table">
+                            <thead>
+                                <tr>
+                                    <th>Tên thiết bị</th>
+                                    <th>Ngày mua</th>
+                                    <th>Giá mua</th>
+                                    <th>
+                                        Mỗi tháng trừ
+                                        <span class="equipment-help" title="Số tiền app tự chia đều mỗi tháng vào chi phí để lợi nhuận không bị trừ hết trong tháng mua.">?</span>
+                                    </th>
+                                    <th>Đã phân bổ</th>
+                                    <th>Còn lại</th>
+                                    <th>Trạng thái</th>
+                                    <th>Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in equipment_rows %}
+                                <tr class="{% if item.is_done %}equipment-row--done{% endif %}">
+                                    <td>
+                                        <strong>{{ item.name }}</strong>
+                                        <small>Dùng {{ item.months_used }}/{{ item.lifetime }} tháng</small>
+                                    </td>
+                                    <td>{{ item.date|date:"d/m/Y" }}</td>
+                                    <td>{{ item.amount|vnd }}</td>
+                                    <td>{{ item.monthly_amount|vnd }}</td>
+                                    <td>
+                                        <div class="equipment-progress">
+                                            <span><i style="width: {{ item.allocated_percent }}%;"></i></span>
+                                            <b>{{ item.allocated_percent }}%</b>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.remaining_amount|vnd }}</td>
+                                    <td>
+                                        <span class="equipment-status {% if item.is_done %}equipment-status--done{% else %}equipment-status--active{% endif %}">
+                                            {{ item.status_label }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if not item.is_done %}
+                                        <button type="button" class="equipment-break-btn"
+                                            data-equipment-name="{{ item.name }}"
+                                            data-equipment-remaining="{{ item.remaining_amount|vnd }}">
+                                            Báo hỏng
+                                        </button>
+                                        {% else %}
+                                        <span class="muted">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="inventory-empty">
+                                        Chưa có thiết bị. Khi ghi chi phí "Mua thiết bị", thiết bị sẽ tự xuất hiện ở đây.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        {# ── RIGHT PANEL ── #}
+        <aside class="inventory-right-panel" aria-label="Tóm tắt tồn kho">
+            <section class="inventory-right-card inventory-right-card--summary">
+                <h3>Tóm tắt kho</h3>
+                <div class="inventory-right-metric">
+                    <span>Giá trị tồn kho</span>
+                    <strong>{{ inventory_value|vnd }}</strong>
+                </div>
+                <div class="inventory-right-metric">
+                    <span>Tổng sản phẩm</span>
+                    <strong>{{ total_products|default:0 }}</strong>
+                </div>
+                <div class="inventory-right-metric">
+                    <span>Tổng tồn kho</span>
+                    <strong>{{ total_stock|default:0 }}</strong>
+                </div>
+            </section>
+
+            <section class="inventory-right-card inventory-action-card">
+                <h3>Cần xử lý</h3>
+                <div class="inventory-alert-section">
+                    <h4>Tồn kho sắp hết ({{ urgent_products|length }} sản phẩm)</h4>
+                    {% for p in urgent_products %}
+                    <div class="inventory-urgent-item inventory-urgent-item--{{ p.stock_status }}">
+                        <strong>{{ p.name|truncatechars:20 }}</strong>
+                        <span data-payment-due-text>
+                            {% if p.stock_status == "het_hang" %}Hết hàng
+                            {% else %}Còn {{ p.stock_quantity }} / ngưỡng {{ p.alert_threshold }}
+                            {% endif %}
+                        </span>
+                        <a href="/expenses/create/?mode=purchase&product_id={{ p.id }}">Nhập thêm hàng →</a>
+                    </div>
+                    {% empty %}
+                    <p class="inventory-empty inventory-empty--compact">Không có sản phẩm cần nhập thêm.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="payment-alert-group inventory-alert-section">
+                    <h4>Khách chưa thanh toán ({{ customer_payment_alerts|length }} đơn)</h4>
+                    {% for alert in customer_payment_alerts %}
+                    <div class="inventory-urgent-item inventory-urgent-item--{% if alert.due_date and alert.due_date < today %}het_hang{% else %}sap_het{% endif %}">
+                        <strong>{{ alert.title|truncatechars:22 }}</strong>
+                        <span data-payment-due-text>
+                            {{ alert.subtitle|truncatechars:26 }} -
+                            {% if alert.due_date %}Hạn {{ alert.due_date|date:"d/m/Y" }}{% else %}Chưa có hạn{% endif %}
+                            - {{ alert.amount|vnd }}
+                        </span>
+                        <a href="{{ alert.url }}">Xem giao dịch →</a>
+                        <div class="inventory-payment-actions">
+                            <button type="button" data-payment-extend data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-due="{{ alert.due_date|date:'Y-m-d' }}"><i data-lucide="calendar-plus"></i> Đổi hạn</button>
+                            <button type="button" data-payment-paid data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-action-label="Đã thu"><i data-lucide="check"></i> Đã thu</button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="inventory-empty inventory-empty--compact">Không có khách nợ gần đến hạn.</p>
+                    {% endfor %}
+                </div>
+                <div class="payment-alert-group inventory-alert-section">
+                    <h4>Cần thanh toán cho NCC ({{ supplier_debt_count }} NCC)</h4>
+                    {% for alert in supplier_payment_alerts %}
+                    <div class="inventory-urgent-item inventory-urgent-item--{% if alert.due_date and alert.due_date < today %}het_hang{% else %}sap_het{% endif %}">
+                        <strong>{{ alert.title|truncatechars:22 }}</strong>
+                        <span data-payment-due-text>
+                            {{ alert.subtitle|truncatechars:28 }} -
+                            {% if alert.due_date %}Hạn {{ alert.due_date|date:"d/m/Y" }}{% else %}Chưa có hạn{% endif %}
+                            - {{ alert.amount|vnd }}
+                        </span>
+                        <a href="{{ alert.url }}">Xem giao dịch →</a>
+                        <div class="inventory-payment-actions">
+                            <button type="button" data-payment-extend data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-due="{{ alert.due_date|date:'Y-m-d' }}"><i data-lucide="calendar-plus"></i> Đổi hạn</button>
+                            <button type="button" data-payment-paid data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-action-label="Đã trả"><i data-lucide="check"></i> Đã trả</button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="inventory-empty inventory-empty--compact">Không có khoản phải trả NCC gần đến hạn.</p>
+                    {% endfor %}
+                    {% for alert in other_payable_alerts %}
+                    <div class="inventory-urgent-item inventory-urgent-item--{% if alert.due_date and alert.due_date < today %}het_hang{% else %}sap_het{% endif %}">
+                        <strong>{{ alert.title|truncatechars:22 }}</strong>
+                        <span>
+                            {{ alert.subtitle }} -
+                            {% if alert.due_date %}Hạn {{ alert.due_date|date:"d/m/Y" }}{% else %}Chưa có hạn{% endif %}
+                            - {{ alert.amount|vnd }}
+                        </span>
+                        <a href="{{ alert.url }}">Xem giao dịch →</a>
+                        <div class="inventory-payment-actions">
+                            <button type="button" data-payment-extend data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-due="{{ alert.due_date|date:'Y-m-d' }}"><i data-lucide="calendar-plus"></i> Đổi hạn</button>
+                            <button type="button" data-payment-paid data-kind="{{ alert.kind }}" data-id="{{ alert.id }}" data-title="{{ alert.title }}" data-amount="{{ alert.amount|vnd }}" data-action-label="Đã trả"><i data-lucide="check"></i> Đã trả</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="inventory-right-card">
+                <h3>Bán chạy nhất</h3>
+                {% for item in top_sellers|slice:":4" %}
+                <div class="inventory-rank-row">
+                    <span>
+                        <strong>{{ item.product__name|truncatechars:18 }}</strong>
+                        <small>{{ item.revenue|default:0|vnd }}</small>
+                    </span>
+                    <b>{{ item.quantity }}</b>
+                </div>
+                {% empty %}
+                <p class="inventory-empty">Chưa có dữ liệu bán hàng.</p>
+                {% endfor %}
+            </section>
+
+            <section class="inventory-right-card">
+                <h3>Danh mục lợi nhuận cao</h3>
+                {% for item in top_profit_categories %}
+                <div class="inventory-rank-row">
+                    <span>
+                        <strong>{{ item.name|truncatechars:22 }}</strong>
+                        <small>{{ item.product_count }} sản phẩm có giá</small>
+                    </span>
+                    <b>{{ item.margin }}%</b>
+                </div>
+                {% empty %}
+                <p class="inventory-empty">Chưa đủ dữ liệu giá vốn và giá bán.</p>
+                {% endfor %}
+            </section>
+
+            <section class="inventory-right-card">
+                <h3>Nhà cung cấp lớn nhất</h3>
+                {% if top_supplier %}
+                <div class="inventory-rank-row">
+                    <span>
+                        <strong>{{ top_supplier.name|truncatechars:22 }}</strong>
+                        <small>{{ top_supplier.purchase_count }} lần nhập</small>
+                    </span>
+                    <b>{{ top_supplier.total_value|vnd }}</b>
+                </div>
+                {% else %}
+                <p class="inventory-empty">Chưa có dữ liệu nhà cung cấp.</p>
+                {% endif %}
+            </section>
+        </aside>
+    </section>
+</div>
+
+<div class="inventory-toast-stack" id="inventoryToastStack" aria-live="polite"></div>
+
+{# ── Detail side panel ── #}
+<aside class="inventory-detail-panel" id="inventoryDetailPanel" hidden aria-label="Chi tiết sản phẩm">
+    <div class="inventory-detail-panel__head">
+        <div>
+            <span id="detailSku">SP-000</span>
+            <h2 id="detailName">Sản phẩm</h2>
+        </div>
+        <button type="button" id="closeProductDetail" aria-label="Đóng chi tiết"><i data-lucide="x"></i></button>
+    </div>
+    <div class="inventory-detail-panel__body">
+        <section>
+            <h3>Danh mục</h3>
+            <div class="category-breadcrumb" id="detailCategory"></div>
+        </section>
+        <section class="inventory-detail-grid">
+            <div><span>Tồn kho</span><strong id="detailStock">0</strong></div>
+            <div><span>Ngưỡng</span><strong id="detailAlert">0</strong></div>
+            <div><span>Giá vốn / Giá bán</span><strong id="detailPrices">0đ / 0đ</strong></div>
+            <div><span>Biên lợi nhuận</span><strong id="detailMargin">—</strong></div>
+        </section>
+        <section>
+            <h3>Lịch sử nhập kho</h3>
+            <div id="detailLots" class="inventory-detail-lots"></div>
+        </section>
+    </div>
+    <div class="inventory-detail-panel__footer">
+        <a href="#" id="detailPurchaseLink" class="inventory-topbar-link"><i data-lucide="package-plus"></i> Nhập thêm</a>
+        <a href="#" id="detailEditLink" class="inventory-topbar-link"><i data-lucide="pencil"></i> Sửa</a>
+    </div>
+</aside>
+
+{# ── Category modals ── #}
+<div class="inventory-modal-backdrop" id="categoryCreateModal" hidden>
+    <div class="inventory-modal-card" role="dialog" aria-modal="true" aria-labelledby="categoryCreateTitle">
+        <div class="inventory-modal-head">
+            <h3 id="categoryCreateTitle">Thêm danh mục</h3>
+            <button type="button" data-close-category-modal><i data-lucide="x"></i></button>
+        </div>
+        <p class="inventory-modal-copy" id="categoryCreateParentText">Tạo danh mục cấp 1 mới.</p>
+        <label class="inventory-modal-field">
+            <span>Tên danh mục</span>
+            <input type="text" id="categoryCreateName" placeholder="Ví dụ: Đồ uống">
+        </label>
+        <label class="inventory-modal-field">
+            <span>Ghi chú</span>
+            <textarea id="categoryCreateNote" placeholder="Ghi chú nội bộ nếu cần"></textarea>
+        </label>
+        <label class="inventory-modal-choice">
+            <input type="radio" name="categoryCreateAction" value="empty" checked>
+            <span>Chỉ tạo danh mục</span>
+        </label>
+        <label class="inventory-modal-choice">
+            <input type="radio" name="categoryCreateAction" value="move_selected">
+            <span>Tạo và di chuyển các sản phẩm đang tick vào danh mục này</span>
+        </label>
+        <label class="inventory-modal-choice">
+            <input type="radio" name="categoryCreateAction" value="new_product">
+            <span>Tạo danh mục rồi thêm sản phẩm mới</span>
+        </label>
+        <div class="inventory-modal-actions">
+            <button type="button" class="secondary-action" data-close-category-modal>Hủy</button>
+            <button type="button" id="confirmCategoryCreate">Tạo danh mục</button>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-modal-backdrop" id="categoryRenameModal" hidden>
+    <div class="inventory-modal-card" role="dialog" aria-modal="true" aria-labelledby="categoryRenameTitle">
+        <div class="inventory-modal-head">
+            <h3 id="categoryRenameTitle">Đổi tên danh mục</h3>
+            <button type="button" data-close-category-modal><i data-lucide="x"></i></button>
+        </div>
+        <label class="inventory-modal-field">
+            <span>Tên danh mục</span>
+            <input type="text" id="categoryRenameName">
+        </label>
+        <label class="inventory-modal-field">
+            <span>Ghi chú</span>
+            <textarea id="categoryRenameNote" placeholder="Ghi chú nội bộ nếu cần"></textarea>
+        </label>
+        <div class="inventory-modal-actions">
+            <button type="button" class="secondary-action" data-close-category-modal>Hủy</button>
+            <button type="button" id="confirmCategoryRename">Lưu thay đổi</button>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-modal-backdrop" id="categoryMoveModal" hidden>
+    <div class="inventory-modal-card" role="dialog" aria-modal="true" aria-labelledby="categoryMoveTitle">
+        <div class="inventory-modal-head">
+            <h3 id="categoryMoveTitle">Di chuyển sản phẩm</h3>
+            <button type="button" data-close-category-modal><i data-lucide="x"></i></button>
+        </div>
+        <label class="inventory-modal-field">
+            <span>Danh mục đích</span>
+            <select id="categoryMoveTarget">
+                <option value="">Chọn danh mục</option>
+                {% for option in category_options %}
+                <option value="{{ option.path }}">
+                    {% if option.level == 2 %}-- {% elif option.level == 3 %}---- {% elif option.level == 4 %}------ {% endif %}{{ option.path }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <div class="inventory-modal-actions">
+            <button type="button" class="secondary-action" data-close-category-modal>Hủy</button>
+            <button type="button" id="confirmCategoryMove">Di chuyển</button>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-modal-backdrop" id="categoryDeleteModal" hidden>
+    <div class="inventory-modal-card" role="dialog" aria-modal="true" aria-labelledby="categoryDeleteTitle">
+        <div class="inventory-modal-head">
+            <h3 id="categoryDeleteTitle">Xóa danh mục an toàn</h3>
+            <button type="button" data-close-category-modal><i data-lucide="x"></i></button>
+        </div>
+        <p class="inventory-modal-copy">Danh mục này có thể đang chứa sản phẩm. Chọn cách xử lý sản phẩm trước khi xóa.</p>
+        <label class="inventory-modal-choice">
+            <input type="radio" name="categoryDeleteMode" value="move" checked>
+            <span>Chuyển sản phẩm sang danh mục khác</span>
+        </label>
+        <label class="inventory-modal-field" id="categoryDeleteTargetWrap">
+            <span>Danh mục đích</span>
+            <select id="categoryDeleteTarget">
+                <option value="">Chọn danh mục</option>
+                {% for option in category_options %}
+                <option value="{{ option.path }}">
+                    {% if option.level == 2 %}-- {% elif option.level == 3 %}---- {% elif option.level == 4 %}------ {% endif %}{{ option.path }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label class="inventory-modal-choice inventory-modal-choice--danger">
+            <input type="radio" name="categoryDeleteMode" value="clear">
+            <span>Bỏ danh mục khỏi sản phẩm</span>
+        </label>
+        <div class="inventory-modal-actions">
+            <button type="button" class="secondary-action" data-close-category-modal>Hủy</button>
+            <button type="button" class="danger" id="confirmCategoryDelete">Xóa danh mục</button>
+        </div>
+    </div>
+</div>
+
+<div class="inventory-modal-backdrop" id="equipmentBreakModal" hidden>
+    <div class="inventory-modal-card" role="dialog" aria-modal="true" aria-labelledby="equipmentBreakTitle">
+        <div class="inventory-modal-head">
+            <h3 id="equipmentBreakTitle">Báo thiết bị bị hỏng</h3>
+            <button type="button" data-close-equipment-modal><i data-lucide="x"></i></button>
+        </div>
+        <p class="inventory-modal-copy" id="equipmentBreakCopy">
+            Phần chi phí còn lại sẽ được ghi nhận hết vào tháng này. Hành động này giúp lợi nhuận tháng hiện tại phản ánh việc thiết bị không còn dùng được.
+        </p>
+        <div class="equipment-break-summary">
+            <span>Thiết bị</span>
+            <strong id="equipmentBreakName">—</strong>
+            <span>Phần chi phí còn lại</span>
+            <strong id="equipmentBreakRemaining">0 đ</strong>
+        </div>
+        <div class="inventory-modal-actions">
+            <button type="button" class="secondary-action" data-close-equipment-modal>Hủy</button>
+            <button type="button" class="danger" id="confirmEquipmentBreak">Xác nhận báo hỏng</button>
+        </div>
+    </div>
+</div>
+
+{{ product_details|json_script:"inventoryProductDetails" }}
+
+<script>
+(function () {
+    const rows = Array.from(document.querySelectorAll('#inventoryProductRows tr[data-stock-status]'));
+    const search = document.getElementById('inventoryProductSearch');
+    const globalSearch = document.getElementById('inventoryGlobalSearch');
+    const clearGlobalSearch = document.getElementById('clearInventoryGlobalSearch');
+    const filterButtons = Array.from(document.querySelectorAll('[data-stock-filter]'));
+    const categoryButtons = Array.from(document.querySelectorAll('[data-category-filter]'));
+    const categoryTrigger = document.getElementById('categoryFilterTrigger');
+    const categoryMenu = document.getElementById('categoryFilterMenu');
+    const categoryLabel = document.getElementById('categoryFilterLabel');
+    const tabButtons = Array.from(document.querySelectorAll('[data-inventory-tab]'));
+    const panes = Array.from(document.querySelectorAll('[data-inventory-pane]'));
+    const details = JSON.parse(document.getElementById('inventoryProductDetails').textContent || '[]');
+    const detailById = new Map(details.map(item => [String(item.id), item]));
+    const noProductsState = document.getElementById('inventoryNoProductsState');
+    const noFilterState = document.getElementById('inventoryNoFilterState');
+    const bulkBar = document.getElementById('inventoryBulkBar');
+    const selectedCount = document.getElementById('bulkSelectedCount');
+    const selectAll = document.getElementById('selectAllProducts');
+    const detailPanel = document.getElementById('inventoryDetailPanel');
+    const toastStack = document.getElementById('inventoryToastStack');
+    const activeFilters = document.getElementById('inventoryActiveFilters');
+    const activeFilterText = document.getElementById('inventoryActiveFilterText');
+    const columnFilterPopover = document.getElementById('columnFilterPopover');
+    const columnFilterTitle = document.getElementById('columnFilterTitle');
+    const columnFilterSearch = document.getElementById('columnFilterSearch');
+    const columnFilterOptions = document.getElementById('columnFilterOptions');
+    const applyColumnFilterButton = document.getElementById('applyColumnFilter');
+    const clearColumnFilterButton = document.getElementById('clearColumnFilter');
+    const closeColumnFilterButton = document.getElementById('closeColumnFilter');
+    const columnSortPopover = document.getElementById('columnSortPopover');
+    const columnSortTitle = document.getElementById('columnSortTitle');
+    const closeColumnSortButton = document.getElementById('closeColumnSort');
+    const sortAscendingLabel = document.getElementById('sortAscendingLabel');
+    const sortDescendingLabel = document.getElementById('sortDescendingLabel');
+    const categoryCreateModal = document.getElementById('categoryCreateModal');
+    const categoryRenameModal = document.getElementById('categoryRenameModal');
+    const categoryCreateName = document.getElementById('categoryCreateName');
+    const categoryCreateNote = document.getElementById('categoryCreateNote');
+    const categoryCreateParentText = document.getElementById('categoryCreateParentText');
+    const categoryRenameName = document.getElementById('categoryRenameName');
+    const categoryRenameNote = document.getElementById('categoryRenameNote');
+    const categoryMoveModal = document.getElementById('categoryMoveModal');
+    const categoryDeleteModal = document.getElementById('categoryDeleteModal');
+    const categorySelectedCount = document.getElementById('categorySelectedCount');
+    const categoryBulkActions = document.getElementById('categoryBulkActions');
+    const categoryMoveTarget = document.getElementById('categoryMoveTarget');
+    const categoryDeleteTarget = document.getElementById('categoryDeleteTarget');
+    const categoryDeleteTargetWrap = document.getElementById('categoryDeleteTargetWrap');
+    const equipmentBreakModal = document.getElementById('equipmentBreakModal');
+    const equipmentBreakName = document.getElementById('equipmentBreakName');
+    const equipmentBreakRemaining = document.getElementById('equipmentBreakRemaining');
+
+    let currentFilter = 'all';
+    let currentCategory = 'all';
+    let activeColumnFilterKey = null;
+    let activeColumnSortKey = null;
+    let activeColumnSortButton = null;
+    let lastCategoryCheck = null;
+    let isCategoryDragSelecting = false;
+    let categoryDragValue = true;
+    let categoryDeletePath = '';
+    let categoryDeleteCount = 0;
+    let categoryCreateParentPath = '';
+    let categoryRenamePath = '';
+    const columnFilters = {};
+
+    const filterLabels = {
+        all: 'Tất cả trạng thái',
+        het_hang: 'Hết hàng',
+        sap_het: 'Sắp hết',
+        day_du: 'Đủ hàng'
+    };
+
+    const columnFilterConfig = {
+        search:    { label: 'Tên / mã sản phẩm', dataset: 'search' },
+        unit:      { label: 'Đơn vị',            dataset: 'unit' },
+        created:   { label: 'Ngày thêm',         dataset: 'created' },
+        category:  { label: 'Danh mục',          dataset: 'categoryPath' },
+        stock:     { label: 'Tồn kho',           dataset: 'stockQuantity' },
+        threshold: { label: 'Ngưỡng',            dataset: 'alertThreshold' },
+        cost:      { label: 'Giá vốn',           dataset: 'cost' },
+        price:     { label: 'Giá bán',           dataset: 'price' },
+        margin:    { label: 'Margin',            dataset: 'margin' },
+        status:    { label: 'Trạng thái',        dataset: 'stockStatus' },
+        payment:   { label: 'Thanh toán',        dataset: 'payment' }
+    };
+
+    const columnSortLabels = {
+        name:      { label: 'Tên sản phẩm', asc: 'A-Z',            desc: 'Z-A' },
+        sku:       { label: 'Mã SP',         asc: 'A-Z',            desc: 'Z-A' },
+        unit:      { label: 'Đơn vị',        asc: 'A-Z',            desc: 'Z-A' },
+        created:   { label: 'Ngày thêm',    asc: 'Cũ đến mới',     desc: 'Mới đến cũ' },
+        category:  { label: 'Danh mục',     asc: 'A-Z',            desc: 'Z-A' },
+        stock:     { label: 'Tồn kho',      asc: 'Bé đến lớn',     desc: 'Lớn đến bé' },
+        threshold: { label: 'Ngưỡng',       asc: 'Bé đến lớn',     desc: 'Lớn đến bé' },
+        cost:      { label: 'Giá vốn',      asc: 'Bé đến lớn',     desc: 'Lớn đến bé' },
+        price:     { label: 'Giá bán',      asc: 'Bé đến lớn',     desc: 'Lớn đến bé' },
+        margin:    { label: 'Margin',       asc: 'Thấp đến cao',   desc: 'Cao đến thấp' },
+        status:    { label: 'Trạng thái',   asc: 'A-Z',            desc: 'Z-A' }
+    };
+
+    function formatVnd(value) {
+        return `${Number(value || 0).toLocaleString('vi-VN')}đ`;
+    }
+
+    function csrfToken() {
+        const match = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+        return match ? decodeURIComponent(match[1]) : '';
+    }
+
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `inventory-toast inventory-toast--${type}`;
+        toast.innerHTML = `<span>${message}</span>`;
+        toastStack.appendChild(toast);
+        window.setTimeout(() => toast.remove(), type === 'confirm' ? 7000 : 2600);
+        return toast;
+    }
+
+    function closeEquipmentModal() {
+        if (equipmentBreakModal) equipmentBreakModal.hidden = true;
+    }
+
+    function setRowSaved(row) {
+        row.classList.add('inventory-row-saved');
+        window.setTimeout(() => row.classList.remove('inventory-row-saved'), 1000);
+    }
+
+    function updateEmptyStates(visibleCount) {
+        if (noProductsState) noProductsState.hidden = rows.length > 0;
+        if (noFilterState) noFilterState.hidden = rows.length === 0 || visibleCount > 0;
+    }
+
+    function displayColumnValue(key, value) {
+        if (key === 'status') return filterLabels[value] || value;
+        if (key === 'payment') {
+            return {
+                paid: 'Đã thanh toán', cash: 'Tiền mặt', transfer: 'Chuyển khoản',
+                debt: 'Nợ/chưa thanh toán', due_today: 'Đến hạn hôm nay',
+                due_soon: 'Sắp đến hạn', overdue: 'Quá hạn', none: 'Chưa theo dõi'
+            }[value] || value;
+        }
+        if (key === 'margin' && value === '-999999') return 'Chưa có margin';
+        if (['cost', 'price'].includes(key)) return formatVnd(value);
+        return value || 'Trống';
+    }
+
+    function rowMatchesColumnFilters(row) {
+        return Object.entries(columnFilters).every(([key, selected]) => {
+            if (!selected || !selected.size) return true;
+            const config = columnFilterConfig[key];
+            return config ? selected.has(row.dataset[config.dataset] || '') : true;
+        });
+    }
+
+    function updateFilterSummary() {
+        const notes = [];
+        const query = (search ? search.value : '').trim();
+        if (currentFilter !== 'all') notes.push(`Trạng thái: ${filterLabels[currentFilter] || currentFilter}`);
+        if (currentCategory !== 'all') notes.push(`Danh mục: ${currentCategory}`);
+        if (query) notes.push(`Tìm kiếm: "${query}"`);
+        Object.entries(columnFilters).forEach(([key, values]) => {
+            if (!values || !values.size) return;
+            const label = columnFilterConfig[key]?.label || key;
+            const names = Array.from(values).slice(0, 3).map(v => displayColumnValue(key, v));
+            const extra = values.size > 3 ? ` +${values.size - 3}` : '';
+            notes.push(`${label}: ${names.join(', ')}${extra}`);
+        });
+        if (activeFilters && activeFilterText) {
+            activeFilters.hidden = notes.length === 0;
+            activeFilterText.textContent = notes.join(' • ');
+        }
+    }
+
+    function applyInventoryFilter(filter = currentFilter) {
+        currentFilter = filter;
+        const localQuery = search ? search.value : '';
+        const globalQuery = globalSearch ? globalSearch.value : '';
+        const query = `${localQuery} ${globalQuery}`.trim().toLowerCase();
+        let visibleCount = 0;
+        rows.forEach(row => {
+            const matchesStatus   = filter === 'all' || row.dataset.stockStatus === filter;
+            const matchesCategory = currentCategory === 'all' || row.dataset.categoryPath.startsWith(currentCategory);
+            const matchesSearch   = !query || row.dataset.search.includes(query);
+            const visible = matchesStatus && matchesCategory && matchesSearch && rowMatchesColumnFilters(row);
+            row.hidden = !visible;
+            if (visible) visibleCount += 1;
+        });
+        filterButtons.forEach(btn => btn.classList.toggle('is-active', btn.dataset.stockFilter === filter));
+        updateEmptyStates(visibleCount);
+        updateFilterSummary();
+    }
+
+    filterButtons.forEach(btn => btn.addEventListener('click', () => {
+        activateTab('products');
+        applyInventoryFilter(btn.dataset.stockFilter);
+    }));
+    if (search) search.addEventListener('input', () => applyInventoryFilter());
+    if (globalSearch) {
+        globalSearch.addEventListener('input', () => {
+            if (clearGlobalSearch) clearGlobalSearch.hidden = !globalSearch.value;
+            applyInventoryFilter();
+        });
+    }
+    clearGlobalSearch?.addEventListener('click', () => {
+        globalSearch.value = '';
+        clearGlobalSearch.hidden = true;
+        applyInventoryFilter();
+        globalSearch.focus();
+    });
+
+    // ── Category search ────────────────────────────────────────────
+    const categoryPane = document.querySelector('[data-inventory-pane="categories"]');
+    const categoryToolbar = categoryPane?.querySelector('.inventory-tab-toolbar');
+    if (categoryToolbar && !document.getElementById('inventoryCategorySearch')) {
+        const label = document.createElement('label');
+        label.className = 'inventory-search inventory-search--compact';
+        label.innerHTML = '<i data-lucide="search"></i><input type="search" id="inventoryCategorySearch" placeholder="Tìm danh mục...">';
+        categoryToolbar.insertBefore(label, categoryToolbar.lastElementChild);
+    }
+    document.getElementById('inventoryCategorySearch')?.addEventListener('input', event => {
+        const query = event.target.value.trim().toLowerCase();
+        document.querySelectorAll('.inventory-tree-node, .inventory-tree-leaf, .inventory-category-product-row').forEach(item => {
+            item.hidden = Boolean(query) && !item.textContent.toLowerCase().includes(query);
+            if (query && item.textContent.toLowerCase().includes(query)) item.closest('details')?.setAttribute('open', '');
+        });
+    });
+
+    // ── Supplier search & sort ─────────────────────────────────────
+    const supplierPane = document.querySelector('[data-inventory-pane="suppliers"]');
+    const supplierTable = supplierPane?.querySelector('.inventory-mini-table');
+    if (supplierPane && supplierTable && !document.getElementById('inventorySupplierSearch')) {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'inventory-tab-toolbar inventory-tab-toolbar--filters';
+        toolbar.innerHTML = `
+            <label class="inventory-search inventory-search--compact">
+                <i data-lucide="search"></i>
+                <input type="search" id="inventorySupplierSearch" placeholder="Tìm nhà cung cấp hoặc lô hàng...">
+            </label>
+            <select id="inventorySupplierSort" class="inventory-sort-select" aria-label="Sắp xếp nhà cung cấp">
+                <option value="name-asc">Nhà cung cấp A-Z</option>
+                <option value="name-desc">Nhà cung cấp Z-A</option>
+                <option value="count-desc">Số lần nhập nhiều nhất</option>
+                <option value="value-desc">Tổng giá trị cao nhất</option>
+                <option value="value-asc">Tổng giá trị thấp nhất</option>
+                <option value="payment-asc">Thanh toán A-Z</option>
+            </select>`;
+        supplierPane.insertBefore(toolbar, supplierTable);
+    }
+    function getSupplierRows() {
+        return Array.from(supplierPane?.querySelectorAll('.inventory-mini-table:first-of-type tbody tr') || []);
+    }
+    function applySupplierControls() {
+        const query = (document.getElementById('inventorySupplierSearch')?.value || '').trim().toLowerCase();
+        const sort  = document.getElementById('inventorySupplierSort')?.value || 'name-asc';
+        const sRows = getSupplierRows().filter(row => !row.querySelector('.inventory-empty'));
+        sRows.forEach(row => { row.hidden = Boolean(query) && !row.textContent.toLowerCase().includes(query); });
+        sRows.sort((a, b) => {
+            const tA = a.cells[0]?.textContent.trim().toLowerCase() || '';
+            const tB = b.cells[0]?.textContent.trim().toLowerCase() || '';
+            const cA = Number(a.cells[1]?.textContent.replace(/[^\d]/g, '') || 0);
+            const cB = Number(b.cells[1]?.textContent.replace(/[^\d]/g, '') || 0);
+            const vA = Number(a.cells[2]?.textContent.replace(/[^\d]/g, '') || 0);
+            const vB = Number(b.cells[2]?.textContent.replace(/[^\d]/g, '') || 0);
+            const pA = a.cells[4]?.textContent.trim().toLowerCase() || '';
+            const pB = b.cells[4]?.textContent.trim().toLowerCase() || '';
+            if (sort === 'name-desc')  return tB.localeCompare(tA, 'vi');
+            if (sort === 'count-desc') return cB - cA;
+            if (sort === 'value-desc') return vB - vA;
+            if (sort === 'value-asc')  return vA - vB;
+            if (sort === 'payment-asc') return pA.localeCompare(pB, 'vi');
+            return tA.localeCompare(tB, 'vi');
+        });
+        const body = sRows[0]?.parentElement;
+        if (body) sRows.forEach(row => body.appendChild(row));
+    }
+    document.getElementById('inventorySupplierSearch')?.addEventListener('input', applySupplierControls);
+    document.getElementById('inventorySupplierSort')?.addEventListener('change', applySupplierControls);
+
+    // ── Clear filters ──────────────────────────────────────────────
+    function clearAllFilters() {
+        if (search) search.value = '';
+        if (globalSearch) globalSearch.value = '';
+        if (clearGlobalSearch) clearGlobalSearch.hidden = true;
+        currentCategory = 'all';
+        Object.keys(columnFilters).forEach(key => delete columnFilters[key]);
+        if (categoryLabel) categoryLabel.textContent = 'Danh mục';
+        if (categoryTrigger) categoryTrigger.classList.remove('is-active');
+        categoryButtons.forEach(btn => btn.classList.toggle('is-active', btn.dataset.categoryFilter === 'all'));
+        document.querySelectorAll('[data-column-filter]').forEach(btn => btn.classList.remove('is-active'));
+        applyInventoryFilter('all');
+    }
+    document.getElementById('clearInventoryFilters')?.addEventListener('click', clearAllFilters);
+    document.getElementById('clearInventoryFiltersInline')?.addEventListener('click', clearAllFilters);
+
+    // ── Tabs ───────────────────────────────────────────────────────
+    function activateTab(name) {
+        tabButtons.forEach(btn => btn.classList.toggle('is-active', btn.dataset.inventoryTab === name));
+        panes.forEach(pane => {
+            const active = pane.dataset.inventoryPane === name;
+            pane.classList.toggle('is-active', active);
+            pane.hidden = !active;
+        });
+        sessionStorage.setItem('inventoryActiveTab', name);
+    }
+    tabButtons.forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.inventoryTab)));
+    const savedTab = sessionStorage.getItem('inventoryActiveTab');
+    if (savedTab && tabButtons.some(btn => btn.dataset.inventoryTab === savedTab)) activateTab(savedTab);
+
+    // ── Bulk select ────────────────────────────────────────────────
+    function selectedRows() { return Array.from(document.querySelectorAll('.inventory-row-check:checked')); }
+    function updateBulkBar() {
+        const count = selectedRows().length;
+        if (bulkBar) bulkBar.hidden = count === 0;
+        if (selectedCount) selectedCount.textContent = count;
+        if (selectAll) selectAll.checked = count > 0 && count === rows.length;
+    }
+    document.querySelectorAll('.inventory-row-check').forEach(check => check.addEventListener('change', updateBulkBar));
+    if (selectAll) {
+        selectAll.addEventListener('change', () => {
+            document.querySelectorAll('.inventory-row-check').forEach(check => { check.checked = selectAll.checked; });
+            updateBulkBar();
+        });
+    }
+    document.querySelector('[data-bulk-clear]')?.addEventListener('click', () => {
+        document.querySelectorAll('.inventory-row-check').forEach(check => { check.checked = false; });
+        updateBulkBar();
+    });
+    async function updateSelectedProducts(field, value) {
+        const checks = selectedRows();
+        await Promise.all(checks.map(check => fetch(`/inventory/products/${check.value}/inline-update/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({ field, value })
+        })));
+        showToast(`Đã cập nhật ${checks.length} sản phẩm.`);
+    }
+    document.querySelector('[data-bulk-category]')?.addEventListener('click', async () => {
+        const value = window.prompt('Nhập danh mục mới cho các sản phẩm đã chọn:');
+        if (value === null) return;
+        await updateSelectedProducts('category', value);
+        window.location.reload();
+    });
+    document.querySelector('[data-bulk-supplier]')?.addEventListener('click', async () => {
+        const value = window.prompt('Nhập nhà cung cấp cho các sản phẩm đã chọn:');
+        if (value === null) return;
+        await updateSelectedProducts('supplier_name', value);
+        showToast('Đã gán nhà cung cấp cho các sản phẩm đã chọn.');
+    });
+    document.querySelector('[data-bulk-delete]')?.addEventListener('click', async () => {
+        const checks = selectedRows();
+        if (!checks.length || !window.confirm(`Xóa ${checks.length} sản phẩm đã chọn?`)) return;
+        await Promise.all(checks.map(check => fetch(`/products/delete/${check.value}/`, {
+            method: 'POST', headers: { 'X-CSRFToken': csrfToken() }
+        })));
+        checks.forEach(check => check.closest('tr').remove());
+        updateBulkBar();
+        showToast(`Đã xóa ${checks.length} sản phẩm.`);
+        applyInventoryFilter();
+    });
+
+    // ── Threshold editor ───────────────────────────────────────────
+    async function saveThresholdValue(input) {
+        const row = input.closest('tr');
+        const original = Number(input.dataset.originalValue || 0);
+        const value = Number(input.value || 0);
+        if (value === original) return;
+        const response = await fetch(`/inventory/products/${input.dataset.productId}/inline-update/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({ field: input.dataset.field, value })
+        });
+        const data = await response.json();
+        if (!data.ok) {
+            input.value = original;
+            showToast(data.error || 'Không lưu được thay đổi.', 'error');
+            return;
+        }
+        input.dataset.originalValue = value;
+        row.dataset.stockStatus = data.stock_status;
+        const editor = input.closest('.inventory-threshold-editor');
+        if (editor) {
+            editor.querySelector('.inventory-threshold-value').textContent = value;
+            editor.classList.remove('is-editing');
+            input.hidden = true;
+            editor.querySelector('[data-save-threshold]').hidden = true;
+            editor.querySelector('[data-edit-threshold]').hidden = false;
+            editor.querySelector('.inventory-threshold-value').hidden = false;
+        }
+        const badge = row.querySelector('.stock-badge');
+        if (badge) { badge.className = `stock-badge stock-badge--${data.stock_status}`; badge.textContent = data.stock_status_label; }
+        setRowSaved(row);
+        showToast(`Đã cập nhật ngưỡng cảnh báo: ${original} → ${value}`);
+        applyInventoryFilter();
+    }
+    document.querySelectorAll('.inventory-threshold-editor').forEach(editor => {
+        const input = editor.querySelector('.inventory-alert-input');
+        const editBtn = editor.querySelector('[data-edit-threshold]');
+        const saveBtn = editor.querySelector('[data-save-threshold]');
+        const valueLabel = editor.querySelector('.inventory-threshold-value');
+        editBtn.addEventListener('click', () => {
+            editor.classList.add('is-editing');
+            input.hidden = false; saveBtn.hidden = false; editBtn.hidden = true; valueLabel.hidden = true;
+            input.focus(); input.select();
+        });
+        saveBtn.addEventListener('click', () => saveThresholdValue(input));
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Enter') saveThresholdValue(input);
+            if (event.key === 'Escape') {
+                input.value = input.dataset.originalValue;
+                editor.classList.remove('is-editing');
+                input.hidden = true; saveBtn.hidden = true; editBtn.hidden = false; valueLabel.hidden = false;
+            }
+        });
+    });
+
+    document.querySelectorAll('.equipment-break-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            if (equipmentBreakName) equipmentBreakName.textContent = button.dataset.equipmentName || 'Thiết bị';
+            if (equipmentBreakRemaining) equipmentBreakRemaining.textContent = button.dataset.equipmentRemaining || '0 đ';
+            if (equipmentBreakModal) equipmentBreakModal.hidden = false;
+        });
+    });
+    document.querySelectorAll('[data-close-equipment-modal]').forEach(button => {
+        button.addEventListener('click', closeEquipmentModal);
+    });
+    equipmentBreakModal?.addEventListener('click', event => {
+        if (event.target === equipmentBreakModal) closeEquipmentModal();
+    });
+    document.getElementById('confirmEquipmentBreak')?.addEventListener('click', () => {
+        closeEquipmentModal();
+        showToast('Đây là popup mockup. Backend chưa lưu trạng thái báo hỏng.', 'confirm');
+    });
+
+    // ── Product detail panel ───────────────────────────────────────
+    function openDetail(id) {
+        const detail = detailById.get(String(id));
+        if (!detail || !detailPanel) return;
+        document.getElementById('detailSku').textContent = detail.sku;
+        document.getElementById('detailName').textContent = detail.name;
+        document.getElementById('detailStock').textContent = detail.stock_quantity;
+        document.getElementById('detailAlert').textContent = detail.alert_threshold;
+        const priceLabel = detail.sale_price_state === 'missing' ? 'Chưa có giá' : (detail.sale_price_state === 'free' ? 'Miễn phí' : formatVnd(detail.price_sell));
+        document.getElementById('detailPrices').textContent = `${formatVnd(detail.price_buy_latest)} / ${priceLabel}`;
+        document.getElementById('detailMargin').textContent = detail.margin === null ? '—' : `${detail.margin}%`;
+        document.getElementById('detailPurchaseLink').href = detail.purchase_url;
+        document.getElementById('detailEditLink').href = detail.edit_url;
+        const category = document.getElementById('detailCategory');
+        category.innerHTML = detail.category_parts.map((part, i) => `<span class="category-chip category-chip--level-${i + 1}">${part}</span>`).join('<b>›</b>');
+        const lots = document.getElementById('detailLots');
+        lots.innerHTML = detail.recent_lots.length
+            ? detail.recent_lots.map(lot => `<div><span>${lot.date}</span><strong>+${lot.quantity}</strong><b>${lot.code} - ${lot.payment_label}${lot.payment_due_date ? ` - hạn ${lot.payment_due_date}` : ''}</b></div>`).join('')
+            : '<p class="inventory-empty">Chưa có lịch sử nhập kho.</p>';
+        detailPanel.hidden = false;
+    }
+    document.querySelectorAll('[data-open-product]').forEach(btn => btn.addEventListener('click', () => openDetail(btn.dataset.openProduct)));
+    document.getElementById('closeProductDetail')?.addEventListener('click', () => { detailPanel.hidden = true; });
+
+    // ── Column toggle ──────────────────────────────────────────────
+    const columnTrigger = document.getElementById('columnMenuTrigger');
+    const columnPanel   = document.getElementById('columnMenuPanel');
+    if (columnTrigger && columnPanel) {
+        columnTrigger.addEventListener('click', event => { event.stopPropagation(); columnPanel.hidden = !columnPanel.hidden; });
+        columnPanel.addEventListener('click', event => event.stopPropagation());
+        const columnToggles = Array.from(document.querySelectorAll('[data-column-toggle]'));
+        function applyColumnToggle(toggle) {
+            const key = toggle.dataset.columnToggle;
+            if ((key === 'name' || key === 'sku') && !toggle.checked) {
+                const otherKey = key === 'name' ? 'sku' : 'name';
+                const otherToggle = columnToggles.find(t => t.dataset.columnToggle === otherKey);
+                if (!otherToggle || !otherToggle.checked) {
+                    toggle.checked = true;
+                    showToast('Cần giữ lại Tên sản phẩm hoặc Mã SP để nhận diện sản phẩm.', 'error');
+                    return;
+                }
+            }
+            document.querySelectorAll(`.inventory-col-${key}`).forEach(cell => { cell.hidden = !toggle.checked; });
+        }
+        columnToggles.forEach(toggle => { applyColumnToggle(toggle); toggle.addEventListener('change', () => applyColumnToggle(toggle)); });
+    }
+
+    // ── Category product selection ─────────────────────────────────
+    function selectedCategoryProducts() { return Array.from(document.querySelectorAll('.category-product-check:checked')); }
+    function updateCategoryBulkActions() {
+        const count = selectedCategoryProducts().length;
+        if (categorySelectedCount) categorySelectedCount.textContent = count;
+        if (categoryBulkActions) categoryBulkActions.hidden = count === 0;
+    }
+    function setCategoryCheck(check, checked) {
+        check.checked = checked;
+        check.closest('.inventory-category-product-row')?.classList.toggle('is-selected', checked);
+    }
+    const categoryChecks = Array.from(document.querySelectorAll('.category-product-check'));
+    categoryChecks.forEach((check, index) => {
+        check.addEventListener('click', event => {
+            if (event.shiftKey && lastCategoryCheck) {
+                const start = categoryChecks.indexOf(lastCategoryCheck);
+                const [from, to] = start < index ? [start, index] : [index, start];
+                for (let i = from; i <= to; i++) setCategoryCheck(categoryChecks[i], check.checked);
+            } else {
+                setCategoryCheck(check, check.checked);
+            }
+            lastCategoryCheck = check;
+            updateCategoryBulkActions();
+        });
+    });
+    document.querySelectorAll('.inventory-category-product-row').forEach(row => {
+        row.addEventListener('mousedown', event => {
+            if (event.target.closest('input')) return;
+            const check = row.querySelector('.category-product-check');
+            categoryDragValue = !check.checked;
+            isCategoryDragSelecting = true;
+            setCategoryCheck(check, categoryDragValue);
+            lastCategoryCheck = check;
+            updateCategoryBulkActions();
+            event.preventDefault();
+        });
+        row.addEventListener('click', event => { if (!event.target.closest('input')) event.preventDefault(); });
+        row.addEventListener('mouseenter', () => {
+            if (!isCategoryDragSelecting) return;
+            setCategoryCheck(row.querySelector('.category-product-check'), categoryDragValue);
+            updateCategoryBulkActions();
+        });
+    });
+    document.addEventListener('mouseup', () => { isCategoryDragSelecting = false; });
+    document.getElementById('clearCategorySelection')?.addEventListener('click', () => {
+        categoryChecks.forEach(check => setCategoryCheck(check, false));
+        updateCategoryBulkActions();
+    });
+
+    // ── Category modals ────────────────────────────────────────────
+    function closeCategoryModals() {
+        [categoryCreateModal, categoryRenameModal, categoryMoveModal, categoryDeleteModal].forEach(m => { if (m) m.hidden = true; });
+    }
+    [categoryCreateModal, categoryRenameModal, categoryMoveModal, categoryDeleteModal].forEach(modal => {
+        modal?.addEventListener('click', event => { if (event.target === modal) closeCategoryModals(); });
+    });
+    document.querySelectorAll('[data-close-category-modal]').forEach(btn => btn.addEventListener('click', closeCategoryModals));
+    document.getElementById('moveSelectedCategoryProducts')?.addEventListener('click', () => {
+        if (!selectedCategoryProducts().length) return;
+        categoryMoveModal.hidden = false;
+    });
+
+    function reloadInventoryCategories() {
+        sessionStorage.setItem('inventoryActiveTab', 'categories');
+        window.location.reload();
+    }
+
+    document.querySelectorAll('[data-open-category-create]').forEach(btn => {
+        btn.addEventListener('click', event => {
+            event.preventDefault(); event.stopPropagation();
+            categoryCreateParentPath = btn.dataset.parentCategory || '';
+            if (categoryCreateName) categoryCreateName.value = '';
+            if (categoryCreateNote) categoryCreateNote.value = '';
+            const emptyAction = document.querySelector('input[name="categoryCreateAction"][value="empty"]');
+            if (emptyAction) emptyAction.checked = true;
+            if (categoryCreateParentText) {
+                categoryCreateParentText.textContent = categoryCreateParentPath
+                    ? `Tạo danh mục con trong: ${categoryCreateParentPath}`
+                    : 'Tạo danh mục cấp 1 mới.';
+            }
+            if (categoryCreateModal) categoryCreateModal.hidden = false;
+            categoryCreateName?.focus();
+        });
+    });
+
+    document.getElementById('confirmCategoryCreate')?.addEventListener('click', async () => {
+        const action = document.querySelector('input[name="categoryCreateAction"]:checked')?.value || 'empty';
+        const response = await fetch('/inventory/categories/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({
+                name: categoryCreateName?.value || '',
+                note: categoryCreateNote?.value || '',
+                parent_path: categoryCreateParentPath,
+                action,
+                product_ids: selectedCategoryProducts().map(c => c.value)
+            })
+        });
+        const data = await response.json();
+        if (!data.ok) { showToast(data.error || 'Không tạo được danh mục.', 'error'); return; }
+        if (action === 'new_product') { sessionStorage.setItem('inventoryActiveTab', 'categories'); window.location.href = data.create_product_url; return; }
+        showToast(data.moved ? `Đã tạo danh mục và di chuyển ${data.moved} sản phẩm.` : 'Đã tạo danh mục.');
+        reloadInventoryCategories();
+    });
+
+    document.querySelectorAll('[data-rename-category]').forEach(btn => {
+        btn.addEventListener('click', event => {
+            event.preventDefault(); event.stopPropagation();
+            categoryRenamePath = btn.dataset.renameCategory || '';
+            if (categoryRenameName) categoryRenameName.value = btn.dataset.categoryName || '';
+            if (categoryRenameNote) categoryRenameNote.value = btn.dataset.categoryNote || '';
+            if (categoryRenameModal) categoryRenameModal.hidden = false;
+            categoryRenameName?.focus(); categoryRenameName?.select();
+        });
+    });
+
+    document.getElementById('confirmCategoryRename')?.addEventListener('click', async () => {
+        const response = await fetch('/inventory/categories/rename/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({ old_path: categoryRenamePath, name: categoryRenameName?.value || '', note: categoryRenameNote?.value || '' })
+        });
+        const data = await response.json();
+        if (!data.ok) { showToast(data.error || 'Không đổi tên được danh mục.', 'error'); return; }
+        showToast(`Đã đổi tên danh mục thành ${data.path}.`);
+        reloadInventoryCategories();
+    });
+
+    async function moveCategoryProducts(productIds, targetCategory) {
+        if (!productIds.length) return;
+        if (!targetCategory) { showToast('Chọn danh mục đích trước khi di chuyển.', 'error'); return; }
+        const response = await fetch('/inventory/categories/bulk-move/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({ product_ids: productIds, target_category: targetCategory })
+        });
+        const data = await response.json();
+        if (!data.ok) { showToast(data.error || 'Không di chuyển được sản phẩm.', 'error'); return; }
+        showToast(`Đã di chuyển ${data.updated} sản phẩm sang ${data.target_category}.`);
+        reloadInventoryCategories();
+    }
+
+    document.getElementById('confirmCategoryMove')?.addEventListener('click', async () => {
+        await moveCategoryProducts(selectedCategoryProducts().map(c => c.value), categoryMoveTarget.value);
+    });
+
+    // Drag & drop category
+    document.querySelectorAll('.inventory-category-product-row').forEach(row => {
+        row.draggable = true;
+        row.addEventListener('dragstart', event => {
+            const check = row.querySelector('.category-product-check');
+            if (!check.checked) { categoryChecks.forEach(c => setCategoryCheck(c, false)); setCategoryCheck(check, true); updateCategoryBulkActions(); }
+            const ids = selectedCategoryProducts().map(c => c.value);
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('application/json', JSON.stringify(ids));
+            event.dataTransfer.setData('text/plain', ids.join(','));
+        });
+    });
+    document.querySelectorAll('[data-category-drop]').forEach(dropzone => {
+        dropzone.addEventListener('dragover', event => { if (!selectedCategoryProducts().length) return; event.preventDefault(); dropzone.classList.add('is-drop-target'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-drop-target'));
+        dropzone.addEventListener('drop', async event => {
+            event.preventDefault(); event.stopPropagation(); dropzone.classList.remove('is-drop-target');
+            let ids = selectedCategoryProducts().map(c => c.value);
+            try { const dragged = JSON.parse(event.dataTransfer.getData('application/json') || '[]'); if (Array.isArray(dragged) && dragged.length) ids = dragged; } catch {}
+            await moveCategoryProducts(ids, dropzone.dataset.categoryDrop);
+        });
+    });
+
+    // Delete category
+    document.querySelectorAll('.inventory-tree-delete').forEach(btn => {
+        btn.addEventListener('click', event => {
+            event.preventDefault(); event.stopPropagation();
+            categoryDeletePath  = btn.dataset.deleteCategory;
+            categoryDeleteCount = Number(btn.dataset.deleteCount || 0);
+            if (categoryDeleteTarget) categoryDeleteTarget.value = '';
+            if (categoryDeleteTargetWrap) categoryDeleteTargetWrap.hidden = false;
+            const moveMode = document.querySelector('input[name="categoryDeleteMode"][value="move"]');
+            if (moveMode) moveMode.checked = true;
+            categoryDeleteModal.hidden = false;
+        });
+    });
+    document.querySelectorAll('input[name="categoryDeleteMode"]').forEach(input => {
+        input.addEventListener('change', () => {
+            categoryDeleteTargetWrap.hidden = document.querySelector('input[name="categoryDeleteMode"]:checked').value !== 'move';
+        });
+    });
+    document.getElementById('confirmCategoryDelete')?.addEventListener('click', async () => {
+        const mode = document.querySelector('input[name="categoryDeleteMode"]:checked').value;
+        const targetCategory = categoryDeleteTarget.value;
+        if (mode === 'move' && categoryDeleteCount > 0 && !targetCategory) { showToast('Chọn danh mục đích trước khi xóa.', 'error'); return; }
+        const response = await fetch('/inventory/categories/delete/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+            body: JSON.stringify({ category_path: categoryDeletePath, mode, target_category: targetCategory })
+        });
+        const data = await response.json();
+        if (!data.ok) { showToast(data.error || 'Không xóa được danh mục.', 'error'); return; }
+        showToast(`Đã xử lý ${data.affected} sản phẩm trong danh mục.`);
+        reloadInventoryCategories();
+    });
+
+    // ── Column sort ────────────────────────────────────────────────
+    function sortValue(row, key) {
+        const numericKeys = new Set(['stock', 'threshold', 'cost', 'price', 'margin']);
+        const map = { stock: 'stockQuantity', threshold: 'alertThreshold', cost: 'cost', price: 'price', margin: 'margin', status: 'stockStatus', category: 'categoryPath' };
+        const dataKey = map[key] || key;
+        const value = row.dataset[dataKey] || '';
+        return numericKeys.has(key) ? Number(value || 0) : value.toString().toLowerCase();
+    }
+    function applyColumnSort(key, direction, button) {
+        document.querySelectorAll('[data-column-sort]').forEach(item => { item.dataset.sortDirection = 'none'; item.classList.remove('is-active'); });
+        if (button) { button.dataset.sortDirection = direction; button.classList.add('is-active'); }
+        const body = document.getElementById('inventoryProductRows');
+        rows.sort((a, b) => {
+            const av = sortValue(a, key), bv = sortValue(b, key);
+            let result = typeof av === 'number' && typeof bv === 'number' ? av - bv : String(av).localeCompare(String(bv), 'vi');
+            return direction === 'asc' ? result : -result;
+        });
+        rows.forEach(row => body.appendChild(row));
+        const labels = columnSortLabels[key] || { label: key, asc: 'Tăng dần', desc: 'Giảm dần' };
+        showToast(`Đã sắp xếp ${labels.label}: ${direction === 'asc' ? labels.asc : labels.desc}`);
+        applyInventoryFilter();
+    }
+    function openColumnSort(button) {
+        if (columnFilterPopover) columnFilterPopover.hidden = true;
+        if (columnPanel) columnPanel.hidden = true;
+        activeColumnSortKey = button.dataset.columnSort;
+        activeColumnSortButton = button;
+        const labels = columnSortLabels[activeColumnSortKey] || { label: activeColumnSortKey, asc: 'Tăng dần', desc: 'Giảm dần' };
+        if (columnSortTitle) columnSortTitle.textContent = `Sắp xếp theo ${labels.label}`;
+        if (sortAscendingLabel) sortAscendingLabel.textContent = labels.asc;
+        if (sortDescendingLabel) sortDescendingLabel.textContent = labels.desc;
+        document.querySelectorAll('.inventory-sort-option').forEach(opt => opt.classList.toggle('is-active', button.dataset.sortDirection === opt.dataset.sortDirection));
+        const rect = button.getBoundingClientRect();
+        const host = document.querySelector('.inventory-tab-pane.is-active');
+        const hostRect = host.getBoundingClientRect();
+        columnSortPopover.style.top  = `${rect.bottom - hostRect.top + 8}px`;
+        columnSortPopover.style.left = `${Math.min(rect.left - hostRect.left, hostRect.width - 290)}px`;
+        columnSortPopover.hidden = false;
+    }
+    document.querySelectorAll('[data-column-sort]').forEach(btn => {
+        btn.dataset.sortDirection = 'none';
+        btn.addEventListener('click', event => { event.stopPropagation(); openColumnSort(btn); });
+    });
+    document.querySelectorAll('.inventory-sort-option').forEach(opt => {
+        opt.addEventListener('click', () => { applyColumnSort(activeColumnSortKey, opt.dataset.sortDirection, activeColumnSortButton); columnSortPopover.hidden = true; });
+    });
+    closeColumnSortButton?.addEventListener('click', () => { columnSortPopover.hidden = true; });
+
+    // ── Column filter ──────────────────────────────────────────────
+    function columnValues(key) {
+        const config = columnFilterConfig[key];
+        if (!config) return [];
+        const counts = new Map();
+        rows.forEach(row => { const v = row.dataset[config.dataset] || ''; counts.set(v, (counts.get(v) || 0) + 1); });
+        return Array.from(counts.entries())
+            .sort((a, b) => displayColumnValue(key, a[0]).localeCompare(displayColumnValue(key, b[0]), 'vi'))
+            .map(([value, count]) => ({ value, count, label: displayColumnValue(key, value) }));
+    }
+    function renderColumnFilterOptions() {
+        const query = (columnFilterSearch?.value || '').trim().toLowerCase();
+        const selected = columnFilters[activeColumnFilterKey] || new Set();
+        columnFilterOptions.innerHTML = '';
+        columnValues(activeColumnFilterKey)
+            .filter(item => !query || item.label.toLowerCase().includes(query))
+            .forEach(item => {
+                const label = document.createElement('label');
+                label.className = 'inventory-column-filter-option';
+                label.innerHTML = `<input type="checkbox" value="${item.value.replace(/"/g, '&quot;')}" ${selected.has(item.value) ? 'checked' : ''}><span>${item.label}</span><small>${item.count}</small>`;
+                columnFilterOptions.appendChild(label);
+            });
+    }
+    function openColumnFilter(button) {
+        if (columnSortPopover) columnSortPopover.hidden = true;
+        if (columnPanel) columnPanel.hidden = true;
+        activeColumnFilterKey = button.dataset.columnFilter;
+        const config = columnFilterConfig[activeColumnFilterKey];
+        if (!config || !columnFilterPopover) return;
+        columnFilterTitle.textContent = `Lọc theo ${config.label}`;
+        columnFilterSearch.value = '';
+        renderColumnFilterOptions();
+        const rect = button.getBoundingClientRect();
+        const host = document.querySelector('.inventory-tab-pane.is-active');
+        const hostRect = host.getBoundingClientRect();
+        columnFilterPopover.style.top  = `${rect.bottom - hostRect.top + 8}px`;
+        columnFilterPopover.style.left = `${Math.min(rect.left - hostRect.left, hostRect.width - 340)}px`;
+        columnFilterPopover.hidden = false;
+        columnFilterSearch.focus();
+    }
+    document.querySelectorAll('[data-column-filter]').forEach(btn => btn.addEventListener('click', event => { event.stopPropagation(); openColumnFilter(btn); }));
+    columnFilterSearch?.addEventListener('input', renderColumnFilterOptions);
+    applyColumnFilterButton?.addEventListener('click', () => {
+        const selected = new Set(Array.from(columnFilterOptions.querySelectorAll('input:checked')).map(i => i.value));
+        if (selected.size) columnFilters[activeColumnFilterKey] = selected;
+        else delete columnFilters[activeColumnFilterKey];
+        document.querySelectorAll(`[data-column-filter="${activeColumnFilterKey}"]`).forEach(btn => btn.classList.toggle('is-active', selected.size > 0));
+        columnFilterPopover.hidden = true;
+        applyInventoryFilter();
+    });
+    clearColumnFilterButton?.addEventListener('click', () => {
+        delete columnFilters[activeColumnFilterKey];
+        document.querySelectorAll(`[data-column-filter="${activeColumnFilterKey}"]`).forEach(btn => btn.classList.remove('is-active'));
+        columnFilterPopover.hidden = true;
+        applyInventoryFilter();
+    });
+    closeColumnFilterButton?.addEventListener('click', () => { columnFilterPopover.hidden = true; });
+
+    // ── Global click close ─────────────────────────────────────────
+    document.addEventListener('click', event => {
+        if (columnPanel && !event.target.closest('.inventory-column-menu')) columnPanel.hidden = true;
+        if (!event.target.closest('.inventory-column-filter-popover') && !event.target.closest('[data-column-filter]') && columnFilterPopover) columnFilterPopover.hidden = true;
+        if (!event.target.closest('.inventory-column-sort-popover') && !event.target.closest('[data-column-sort]') && columnSortPopover) columnSortPopover.hidden = true;
+    });
+
+    // ── Init ───────────────────────────────────────────────────────
+    applyInventoryFilter(currentFilter);
+})();
+</script>
+{% endblock %}

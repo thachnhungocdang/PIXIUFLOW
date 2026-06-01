@@ -1,0 +1,1093 @@
+{% extends 'core/base.html' %}
+{% load format_utils %}
+{% load static %}
+
+{% block title %}Ghi nhận doanh thu - Pixiu Flow{% endblock %}
+
+{% block content %}
+<div class="transaction-page">
+    <header class="transaction-topbar">
+        <div class="transaction-search">
+            <i data-lucide="search"></i>
+            <input type="search" placeholder="Tìm kiếm giao dịch, đối tác...">
+        </div>
+        <div class="topbar-actions">
+            <button type="button" class="icon-btn" aria-label="Thông báo">
+                <i data-lucide="bell"></i>
+            </button>
+            <div class="topbar-user">
+                <div>
+                    <strong>Kiều Xuân Thuý</strong>
+                    <span>Chủ doanh nghiệp</span>
+                </div>
+                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+            </div>
+        </div>
+    </header>
+
+    <section class="transaction-content">
+        <div class="transaction-heading">
+            <h1>Ghi nhận giao dịch lẻ</h1>
+            <p>Ghi nhận, theo dõi và quản lý giao dịch doanh thu & chi phí một cách chuyên nghiệp.</p>
+        </div>
+
+        <a href="/transactions/bulk-create/" class="bulk-suggestion-card transaction-heading-suggestion">
+            <i data-lucide="message-square-text"></i>
+            <span>
+                <strong>Bạn muốn ghi nhận nhiều giao dịch cùng lúc?</strong>
+                <small>Mở bảng nhập nhanh giống Excel</small>
+            </span>
+            <b>Đi tới</b>
+        </a>
+
+        <div class="transaction-layout transaction-layout--compact">
+            <form method="post" class="transaction-card transaction-card--sale" id="saleForm">
+                {% csrf_token %}
+                <img src="{% static 'core/images/Pixiu_on_top.PNG' %}" alt="Pixiu" class="transaction-card-mascot">
+                <div class="mascot-notification" id="mascotNotification">
+                    <button type="button" class="mascot-notification-btn" id="openNotificationBox" hidden aria-label="Thông báo sản phẩm mới">
+                        <span class="mascot-notification-badge" id="mascotNotificationBadge">!</span>
+                    </button>
+                    <div class="notification-chat-box" id="notificationChatBox" hidden>
+                        <div class="notification-chat-header">
+                            <strong>Thông báo mới</strong>
+                            <button type="button" class="notification-chat-close" id="closeNotificationChat" aria-label="Đóng thông báo">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <div class="notification-chat-messages" id="notificationMessages"></div>
+                    </div>
+                </div>
+                <div class="transaction-tabs">
+                    <a href="/sales/create/" class="active">Doanh thu mới</a>
+                    <a href="/expenses/create/">Chi phí mới</a>
+                    <a href="/transactions/bulk-create/" class="bulk-entry-link">
+                        <i data-lucide="table-2"></i>
+                        Nhập nhiều cùng lúc
+                        <i data-lucide="arrow-up-right"></i>
+                    </a>
+                    <span>Mã GD: #TXN-1203</span>
+                </div>
+
+                {% if sale_errors %}
+                <div class="transaction-errors">
+                    {% for error in sale_errors %}
+                    <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="sale-top-grid">
+                    <label>
+                        <span>Khách hàng (tuỳ chọn)</span>
+                        <input type="text" name="customer_name" value="{{ sale_values.customer_name }}" placeholder="Chọn khách hàng hoặc đối tác">
+                    </label>
+                    <label>
+                        <span>Ngày giao dịch</span>
+                        <input type="date" name="date" value="{{ sale_values.date }}">
+                    </label>
+                </div>
+
+                <div class="order-box order-box--items">
+                    <div class="order-box__title">
+                        <strong><i data-lucide="badge-dollar-sign"></i> Chi tiết đơn hàng</strong>
+                        <span id="saleItemCount">Đang nhập 01 mục</span>
+                    </div>
+                    <div class="sale-item-head">
+                        <span>#</span>
+                        <span>Tên sản phẩm</span>
+                        <span>Đơn giá (VND)</span>
+                        <span>Số lượng</span>
+                        <span>Thành toán (VND)</span>
+                        <span></span>
+                    </div>
+                    <div class="sale-items" id="saleItems">
+                        {% for row in sale_rows %}
+                        <div class="sale-item-row">
+                            <span class="sale-item-index">{{ forloop.counter }}</span>
+                            <div class="sale-product-cell">
+                                <input type="hidden" name="order_product[]" class="sale-product" value="{{ row.product|default:'' }}">
+                                <input type="text" class="sale-product-search" value="{% for product in products %}{% if row.product == product.id|stringformat:'s' %}{{ product.name }}{% endif %}{% endfor %}" placeholder="Nhập tên sản phẩm">
+                                <div class="sale-product-menu" hidden></div>
+                                <input type="hidden" name="order_new_product_name[]" class="sale-new-product-name" value="{{ row.new_product_name|default:'' }}">
+                                <input type="hidden" name="order_new_product_unit[]" class="sale-new-product-unit" value="{{ row.new_product_unit|default:'cái' }}">
+                                <input type="hidden" name="order_new_product_alert[]" class="sale-new-product-alert" value="{{ row.new_product_alert|default:'10' }}">
+                                <input type="hidden" name="order_category_level_1[]" class="sale-category-level-1" value="{{ row.category_level_1|default:'' }}">
+                                <input type="hidden" name="order_category_level_2[]" class="sale-category-level-2" value="{{ row.category_level_2|default:'' }}">
+                                <input type="hidden" name="order_category_level_3[]" class="sale-category-level-3" value="{{ row.category_level_3|default:'' }}">
+                                <input type="hidden" name="order_category_level_4[]" class="sale-category-level-4" value="{{ row.category_level_4|default:'' }}">
+                                <input type="hidden" name="order_stock_quantity[]" class="sale-stock-quantity" value="{{ row.stock_quantity|default:'' }}">
+                                <input type="hidden" name="order_stock_unit_cost[]" class="sale-stock-unit-cost" value="{{ row.stock_unit_cost|default:'' }}">
+                                <input type="hidden" name="order_stock_origin[]" class="sale-stock-origin" value="{{ row.stock_origin|default:'opening' }}">
+                                <input type="hidden" name="order_stock_purchase_date[]" class="sale-stock-purchase-date" value="{{ row.stock_purchase_date|default:sale_values.date }}">
+                                <input type="hidden" name="order_stock_supplier_name[]" class="sale-stock-supplier-name" value="{{ row.stock_supplier_name|default:'' }}">
+                                <input type="hidden" name="order_stock_note[]" class="sale-stock-note" value="{{ row.stock_note|default:'' }}">
+                                <button type="button" class="sale-product-draft" hidden></button>
+                            </div>
+                            <div class="sale-price-cell">
+                                <input type="text" name="order_unit_price[]" class="sale-unit-price" inputmode="numeric" value="{{ row.unit_price|default:'' }}" placeholder="Đơn giá" required>
+                                <input type="hidden" name="order_update_product_price[]" class="sale-update-product-price-value" value="{{ row.update_product_price|default:'0' }}">
+                                <label class="sale-price-default-option" hidden>
+                                    <input type="checkbox" class="sale-update-product-price" {% if row.update_product_price == '1' %}checked{% endif %}>
+                                    <span>Đặt làm giá bán mặc định mới</span>
+                                </label>
+                            </div>
+                            <input type="number" name="order_quantity[]" class="sale-quantity" min="1" step="1" value="{{ row.quantity|default:'1' }}" placeholder="Số lượng">
+                            <input type="text" class="sale-row-total" value="0" placeholder="Thành toán" readonly>
+                            <button type="button" class="sale-remove-row" aria-label="Xóa sản phẩm">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="sale-add-row" id="addSaleItem">
+                        <i data-lucide="plus"></i>
+                        Thêm sản phẩm khác cho giao dịch này
+                    </button>
+                </div>
+
+                <div class="sale-bottom-grid">
+                    <label>
+                        <span>Phương thức thanh toán</span>
+                        <select name="payment_method" id="salePaymentMethod">
+                            {% for value, label in payment_method_choices %}
+                            <option value="{{ value }}" {% if sale_values.payment_method == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label class="sale-debt-field" id="saleDebtField">
+                        <span>Ngày nhắc nợ</span>
+                        <input type="date" name="payment_due_date" id="salePaymentDueDate" value="{{ sale_values.payment_due_date }}">
+                    </label>
+                    <label>
+                        <span>Ghi chú / hóa đơn (tuỳ chọn)</span>
+                        <textarea name="note" rows="2" placeholder="Kéo thả hoặc ghi chú hoá đơn tại đây">{{ sale_values.note }}</textarea>
+                    </label>
+                </div>
+
+                <div class="transaction-card__footer">
+                    <div>
+                        <span>Tổng cộng doanh thu:</span>
+                        <strong id="saleFooterTotal">0 VND</strong>
+                    </div>
+                    <a href="/transactions/history/?type=income" class="secondary-action">Huỷ</a>
+                    <button type="submit">Lưu giao dịch</button>
+                </div>
+            </form>
+
+            {% include 'core/transaction_side.html' %}
+        </div>
+    </section>
+
+    <footer class="dashboard-footer">
+        <span>© 2026 PIXIU FLOW - NỀN TẢNG QUẢN LÝ TÀI CHÍNH DOANH NGHIỆP THÔNG MINH. PHIÊN BẢN 1.0-BETA</span>
+        <nav>
+            <a href="#">Hỗ trợ</a>
+            <a href="#">Điều khoản</a>
+            <a href="#">Bảo mật</a>
+        </nav>
+    </footer>
+</div>
+
+<template id="saleItemTemplate">
+    <div class="sale-item-row">
+        <span class="sale-item-index"></span>
+        <div class="sale-product-cell">
+            <input type="hidden" name="order_product[]" class="sale-product">
+            <input type="text" class="sale-product-search" placeholder="Gõ tên sản phẩm">
+            <div class="sale-product-menu" hidden></div>
+            <input type="hidden" name="order_new_product_name[]" class="sale-new-product-name">
+            <input type="hidden" name="order_new_product_unit[]" class="sale-new-product-unit" value="cái">
+            <input type="hidden" name="order_new_product_alert[]" class="sale-new-product-alert" value="10">
+            <input type="hidden" name="order_category_level_1[]" class="sale-category-level-1">
+            <input type="hidden" name="order_category_level_2[]" class="sale-category-level-2">
+            <input type="hidden" name="order_category_level_3[]" class="sale-category-level-3">
+            <input type="hidden" name="order_category_level_4[]" class="sale-category-level-4">
+            <input type="hidden" name="order_stock_quantity[]" class="sale-stock-quantity">
+            <input type="hidden" name="order_stock_unit_cost[]" class="sale-stock-unit-cost">
+            <input type="hidden" name="order_stock_origin[]" class="sale-stock-origin" value="opening">
+            <input type="hidden" name="order_stock_purchase_date[]" class="sale-stock-purchase-date">
+            <input type="hidden" name="order_stock_supplier_name[]" class="sale-stock-supplier-name">
+            <input type="hidden" name="order_stock_note[]" class="sale-stock-note">
+            <button type="button" class="sale-product-draft" hidden></button>
+        </div>
+        <div class="sale-price-cell">
+            <input type="text" name="order_unit_price[]" class="sale-unit-price" inputmode="numeric" placeholder="Đơn giá" required>
+            <input type="hidden" name="order_update_product_price[]" class="sale-update-product-price-value" value="0">
+            <label class="sale-price-default-option" hidden>
+                <input type="checkbox" class="sale-update-product-price">
+                <span>Đặt làm giá bán mặc định mới</span>
+            </label>
+        </div>
+        <input type="number" name="order_quantity[]" class="sale-quantity" min="1" step="1" value="1" placeholder="Số lượng">
+        <input type="text" class="sale-row-total" value="0" placeholder="Thành toán" readonly>
+        <button type="button" class="sale-remove-row" aria-label="Xóa sản phẩm">
+            <i data-lucide="trash-2"></i>
+        </button>
+    </div>
+</template>
+
+<div class="product-modal-backdrop" id="productModal" hidden>
+    <div class="product-modal-card" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+        <div class="product-modal-head">
+            <div>
+                <h2 id="productModalTitle">Thêm sản phẩm mới</h2>
+                <p>Danh mục cấp 1 là bắt buộc. Các cấp sau có thể bổ sung sau.</p>
+            </div>
+            <button type="button" class="product-modal-close" id="closeProductModal" aria-label="Đóng">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="product-modal-grid">
+            <label class="product-modal-field product-modal-field--wide">
+                <span>Tên sản phẩm <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                <input type="text" id="modalProductName" placeholder="Ví dụ: Cà phê sữa">
+            </label>
+            <label class="product-modal-field">
+                <span>Đơn vị tính</span>
+                <input type="text" id="modalProductUnit" value="cái" placeholder="cái, hộp, kg...">
+            </label>
+            <label class="product-modal-field">
+                <span>Ngưỡng cảnh báo kho</span>
+                <input type="number" id="modalProductAlert" min="0" value="10">
+            </label>
+            <label class="product-modal-field">
+                <span>Giá bán mặc định (VND) <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                <input type="text" id="modalProductSellPrice" inputmode="numeric" placeholder="Ví dụ: 20.000">
+            </label>
+            <div class="product-modal-field product-modal-field--wide category-choice-field category-level-section" id="categoryLevel1Section">
+                <span>Danh mục <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                <div class="category-level-control">
+                    <select id="modalCategory1Select"></select>
+                    <button type="button" class="category-remove-level" data-level="1" aria-label="Xóa danh mục cấp 1">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <input type="text" id="modalCategory1New" placeholder="Nhập danh mục cấp 1 mới" hidden>
+            </div>
+
+            <!-- Button to add category level 2 -->
+            <div id="addCategory2ButtonWrapper" class="category-add-wrapper" hidden>
+                <button type="button" id="addCategory2Btn" class="category-add-link-block">
+                    + Thêm phân loại cấp 2 (tuỳ chọn)
+                </button>
+            </div>
+
+            <!-- Category level 2 - hidden by default -->
+            <div id="categoryLevel2Section" class="category-level-section" hidden>
+                <div class="category-level-wrapper">
+                    <div class="product-modal-field category-choice-field">
+                        <span>Phân loại cấp 2 <span class="modal-field-badge">tuỳ chọn</span></span>
+                        <div class="category-level-control">
+                            <select id="modalCategory2Select"></select>
+                            <button type="button" class="category-remove-level" data-level="2" aria-label="Xóa phân loại cấp 2">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <input type="text" id="modalCategory2New" placeholder="Nhập danh mục cấp 2 mới" hidden>
+                    </div>
+                    
+                    <!-- Button to add category level 3 -->
+                    <div id="addCategory3ButtonWrapper" class="category-add-wrapper category-add-wrapper--nested" hidden>
+                        <button type="button" id="addCategory3Btn" class="category-add-link">
+                            + Thêm phân loại cấp 3 (tuỳ chọn)
+                        </button>
+                    </div>
+
+                    <!-- Category level 3 - hidden by default -->
+                    <div id="categoryLevel3Section" class="category-level-section category-level-section--nested" hidden>
+                        <div class="product-modal-field category-choice-field">
+                            <span>Phân loại cấp 3 <span class="modal-field-badge">tuỳ chọn</span></span>
+                            <div class="category-level-control">
+                                <select id="modalCategory3Select"></select>
+                                <button type="button" class="category-remove-level" data-level="3" aria-label="Xóa phân loại cấp 3">
+                                    <i data-lucide="x"></i>
+                                </button>
+                            </div>
+                            <input type="text" id="modalCategory3New" placeholder="Nhập danh mục cấp 3 mới" hidden>
+                        </div>
+                        
+                        <!-- Button to add category level 4 -->
+                        <div id="addCategory4ButtonWrapper" class="category-add-wrapper category-add-wrapper--nested" hidden>
+                            <button type="button" id="addCategory4Btn" class="category-add-link">
+                                + Thêm phân loại cấp 4 (tuỳ chọn)
+                            </button>
+                        </div>
+
+                        <!-- Category level 4 - hidden by default -->
+                        <div id="categoryLevel4Section" class="category-level-section category-level-section--nested" hidden>
+                            <div class="product-modal-field category-choice-field">
+                                <span>Phân loại cấp 4 <span class="modal-field-badge">tuỳ chọn</span></span>
+                                <div class="category-level-control">
+                                    <select id="modalCategory4Select"></select>
+                                    <button type="button" class="category-remove-level" data-level="4" aria-label="Xóa phân loại cấp 4">
+                                        <i data-lucide="x"></i>
+                                    </button>
+                                </div>
+                                <input type="text" id="modalCategory4New" placeholder="Nhập danh mục cấp 4 mới" hidden>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="product-stock-source">
+                <h3>Khai báo tồn kho <span class="required-mark" aria-label="bắt buộc">*</span></h3>
+                <p>Khai báo tồn kho để bạn có thể bán hàng và tính giá vốn đúng.</p>
+                <div class="product-stock-grid">
+                    <label class="product-modal-field">
+                        <span><span id="stockQuantityLabel">Số lượng hiện có</span> <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                        <input type="number" id="modalStockQuantity" min="1" step="1" placeholder="Ví dụ: 20">
+                    </label>
+                    <label class="product-modal-field">
+                        <span id="stockUnitCostLabel">Giá vốn ước tính / đơn vị <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                        <input type="text" id="modalStockUnitCost" inputmode="numeric" placeholder="Ví dụ: 5.000">
+                    </label>
+                </div>
+                <div class="stock-origin-options">
+                    <label class="stock-origin-card">
+                        <input type="radio" name="modalStockOrigin" value="opening" checked>
+                        <span>
+                            <strong>Hàng tôi đã có sẵn</strong>
+                            <small>Hàng có sẵn - không tính chi phí kỳ này</small>
+                        </span>
+                    </label>
+                    <label class="stock-origin-card">
+                        <input type="radio" name="modalStockOrigin" value="purchase">
+                        <span>
+                            <strong>Vừa nhập hôm nay</strong>
+                            <small>Tạo phiếu nhập, ghi chi phí hập hàng</small>
+                        </span>
+                    </label>
+                </div>
+                <label class="product-modal-field stock-purchase-date-wrap" id="stockPurchaseDateWrap" hidden>
+                    <span>Ngày nhập hàng</span>
+                    <input type="date" id="modalStockPurchaseDate" value="{{ sale_values.date }}">
+                </label>
+                <div class="stock-purchase-extra" id="stockPurchaseExtra" hidden>
+                    <label class="product-modal-field">
+                        <span>Nhà cung cấp <span class="modal-field-badge">tuỳ chọn</span></span>
+                        <input type="text" id="modalStockSupplierName" placeholder="Ví dụ: Công ty ABC">
+                    </label>
+                    <label class="product-modal-field product-modal-field--wide">
+                        <span>Ghi chú nhập hàng <span class="modal-field-badge">tuỳ chọn</span></span>
+                        <textarea id="modalStockNote" rows="4" placeholder="Ví dụ: Nhập nhanh khi tạo sản phẩm từ giao dịch doanh thu"></textarea>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <p class="product-modal-error" id="productModalError" hidden></p>
+        <div class="product-modal-actions">
+            <button type="button" class="secondary-action" id="cancelProductModal">Huỷ</button>
+            <button type="button" id="saveProductModal">Dùng sản phẩm này</button>
+        </div>
+    </div>
+</div>
+
+{{ category_tree|json_script:"categoryTreeData" }}
+{{ product_prices|json_script:"productPriceData" }}
+{{ product_options|json_script:"productNameData" }}
+
+<script>
+(function () {
+    const saleItems = document.getElementById('saleItems');
+    const template = document.getElementById('saleItemTemplate');
+    const totalEl = document.getElementById('saleFooterTotal');
+    const itemCount = document.getElementById('saleItemCount');
+    const salePaymentMethod = document.getElementById('salePaymentMethod');
+    const saleDebtField = document.getElementById('saleDebtField');
+    const salePaymentDueDate = document.getElementById('salePaymentDueDate');
+    const productModal = document.getElementById('productModal');
+    const productModalError = document.getElementById('productModalError');
+    const modalProductName = document.getElementById('modalProductName');
+    const modalProductUnit = document.getElementById('modalProductUnit');
+    const modalProductAlert = document.getElementById('modalProductAlert');
+    const modalStockQuantity = document.getElementById('modalStockQuantity');
+    const modalStockUnitCost = document.getElementById('modalStockUnitCost');
+    const modalProductSellPrice = document.getElementById('modalProductSellPrice');
+    const modalStockPurchaseDate = document.getElementById('modalStockPurchaseDate');
+    const modalStockSupplierName = document.getElementById('modalStockSupplierName');
+    const modalStockNote = document.getElementById('modalStockNote');
+    const stockQuantityLabel = document.getElementById('stockQuantityLabel');
+    const stockUnitCostLabel = document.getElementById('stockUnitCostLabel');
+    const stockPurchaseDateWrap = document.getElementById('stockPurchaseDateWrap');
+    const stockPurchaseExtra = document.getElementById('stockPurchaseExtra');
+    const notificationButton = document.getElementById('openNotificationBox');
+    const notificationBadge = document.getElementById('mascotNotificationBadge');
+    const notificationChatBox = document.getElementById('notificationChatBox');
+    const notificationMessages = document.getElementById('notificationMessages');
+    const closeNotificationChat = document.getElementById('closeNotificationChat');
+    let pendingNotifications = [];
+    const stockOriginInputs = document.querySelectorAll('input[name="modalStockOrigin"]');
+    const categoryTree = JSON.parse(document.getElementById('categoryTreeData').textContent || '{}');
+    const productList = JSON.parse(document.getElementById('productNameData').textContent || '[]');
+    const categoryControls = [1, 2, 3, 4].map(level => ({
+        select: document.getElementById(`modalCategory${level}Select`),
+        input: document.getElementById(`modalCategory${level}New`)
+    }));
+    let activeProductRow = null;
+
+    function formatVnd(value) {
+        return `${Math.round(value || 0).toLocaleString('vi-VN')} VND`;
+    }
+
+    function parseMoney(value) {
+        return Number(String(value || '').replace(/[^\d]/g, '') || 0);
+    }
+
+    function getCookie(name) {
+        const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+        for (const cookie of cookies) {
+            const [key, value] = cookie.split('=');
+            if (key === name) return decodeURIComponent(value || '');
+        }
+        return '';
+    }
+
+    function updateNotificationUi() {
+        const hasNotifications = pendingNotifications.length > 0;
+        notificationButton.hidden = !hasNotifications;
+        if (hasNotifications) {
+            notificationBadge.textContent = pendingNotifications.length > 9 ? '9+' : String(pendingNotifications.length);
+        }
+    }
+
+    function renderNotificationMessages() {
+        notificationMessages.innerHTML = '';
+        pendingNotifications.forEach(message => {
+            const item = document.createElement('div');
+            item.className = 'chat-message';
+            item.textContent = message;
+            notificationMessages.appendChild(item);
+        });
+    }
+
+    function addNotification(message) {
+        pendingNotifications.unshift(message);
+        updateNotificationUi();
+        if (!notificationChatBox.hidden) {
+            renderNotificationMessages();
+        }
+    }
+
+    function formatMoneyInput(input) {
+        const raw = parseMoney(input.value);
+        input.value = raw ? raw.toLocaleString('vi-VN') : '';
+    }
+
+    function syncSaleDebtField() {
+        if (!salePaymentMethod || !saleDebtField || !salePaymentDueDate) return;
+        const isDebt = salePaymentMethod.value === 'debt';
+        const today = new Date().toISOString().slice(0, 10);
+        salePaymentDueDate.min = today;
+        saleDebtField.hidden = false;
+        saleDebtField.classList.toggle('is-disabled', !isDebt);
+        salePaymentDueDate.disabled = !isDebt;
+        salePaymentDueDate.required = isDebt;
+        salePaymentDueDate.title = isDebt ? '' : 'Đã thanh toán, không cần ngày nhắc nợ.';
+        if (isDebt && !salePaymentDueDate.value) salePaymentDueDate.value = today;
+        if (!isDebt) salePaymentDueDate.value = '';
+    }
+
+    function normalizeSearchText(value) {
+        return String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/[^a-z0-9]/g, '')
+            .trim();
+    }
+
+    function updateTotals() {
+        let total = 0;
+        const rows = saleItems.querySelectorAll('.sale-item-row');
+        rows.forEach((row, index) => {
+            const indexEl = row.querySelector('.sale-item-index');
+            if (indexEl) indexEl.textContent = index + 1;
+            const price = parseMoney(row.querySelector('.sale-unit-price').value);
+            const quantity = Number(row.querySelector('.sale-quantity').value || 0);
+            const rowTotal = price * quantity;
+            row.querySelector('.sale-row-total').value = Math.round(rowTotal).toLocaleString('vi-VN');
+            total += rowTotal;
+        });
+        totalEl.textContent = formatVnd(total);
+        itemCount.textContent = `Đang nhập ${String(rows.length).padStart(2, '0')} mục`;
+    }
+
+    function rowNewProductName(row) {
+        return row.querySelector('.sale-new-product-name');
+    }
+
+    function syncDraftButton(row) {
+        const draftButton = row.querySelector('.sale-product-draft');
+        const name = rowNewProductName(row).value.trim();
+        draftButton.hidden = !name;
+        draftButton.textContent = name ? `Sản phẩm mới: ${name}` : '';
+    }
+
+    function productById(productId) {
+        return productList.find(product => String(product.id) === String(productId));
+    }
+
+    function syncPriceDefaultOption(row) {
+        const productId = row.querySelector('.sale-product').value;
+        const priceInput = row.querySelector('.sale-unit-price');
+        const option = row.querySelector('.sale-price-default-option');
+        const checkbox = row.querySelector('.sale-update-product-price');
+        const hidden = row.querySelector('.sale-update-product-price-value');
+        const selectedProduct = productById(productId);
+        const defaultPrice = selectedProduct ? parseMoney(selectedProduct.price) : 0;
+        const currentPrice = parseMoney(priceInput.value);
+        const canUpdateDefault = Boolean(selectedProduct) && currentPrice > 0 && currentPrice !== defaultPrice;
+
+        option.hidden = !canUpdateDefault;
+        if (!canUpdateDefault) {
+            checkbox.checked = false;
+        }
+        hidden.value = checkbox.checked && canUpdateDefault ? '1' : '0';
+    }
+
+    function selectExistingProduct(row, product) {
+        row.querySelector('.sale-product').value = product.id;
+        row.querySelector('.sale-product-search').value = product.name;
+        row.querySelector('.sale-new-product-name').value = '';
+        row.querySelector('.sale-category-level-1').value = '';
+        const priceInput = row.querySelector('.sale-unit-price');
+        priceInput.value = product.price || '';
+        formatMoneyInput(priceInput);
+        syncDraftButton(row);
+        syncPriceDefaultOption(row);
+        updateTotals();
+    }
+
+    function closeProductMenus(exceptMenu = null) {
+        document.querySelectorAll('.sale-product-menu').forEach(menu => {
+            if (menu !== exceptMenu) menu.hidden = true;
+        });
+    }
+
+    function renderProductMenu(row) {
+        const search = row.querySelector('.sale-product-search');
+        const menu = row.querySelector('.sale-product-menu');
+        const query = normalizeSearchText(search.value);
+        let matches = productList.filter(product => {
+            const name = normalizeSearchText(product.name);
+            if (!query) return true;
+            return name.includes(query);
+        });
+        matches.sort((a, b) => {
+            const aName = normalizeSearchText(a.name);
+            const bName = normalizeSearchText(b.name);
+            const aStarts = query && aName.startsWith(query) ? 0 : 1;
+            const bStarts = query && bName.startsWith(query) ? 0 : 1;
+            return aStarts - bStarts || aName.localeCompare(bName);
+        });
+        matches = matches.slice(0, 8);
+
+        menu.innerHTML = '';
+
+        const newButton = document.createElement('button');
+        newButton.type = 'button';
+        newButton.className = 'sale-product-option sale-product-option--new';
+        newButton.textContent = query ? `+ Sản phẩm mới: ${search.value.trim()}` : '+ Sản phẩm mới';
+        newButton.addEventListener('click', () => {
+            row.querySelector('.sale-product').value = '__new__';
+            row.querySelector('.sale-new-product-name').value = search.value.trim();
+            syncPriceDefaultOption(row);
+            menu.hidden = true;
+            openProductModal(row);
+        });
+        menu.appendChild(newButton);
+
+        if (matches.length) {
+            const label = document.createElement('div');
+            label.className = 'sale-product-menu-label';
+            label.textContent = 'Sản phẩm có sẵn';
+            menu.appendChild(label);
+        }
+
+        matches.forEach(product => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'sale-product-option';
+            button.textContent = product.name;
+            button.addEventListener('click', () => {
+                selectExistingProduct(row, product);
+                menu.hidden = true;
+            });
+            menu.appendChild(button);
+        });
+
+        menu.hidden = false;
+        closeProductMenus(menu);
+    }
+
+    function selectedCategory(level) {
+        const control = categoryControls[level - 1];
+        return control.input.hidden ? control.select.value.trim() : control.input.value.trim();
+    }
+
+    const visibleCategoryLevels = { 2: false, 3: false, 4: false };
+
+    function clearCategoryFrom(level) {
+        for (let current = level; current <= 4; current += 1) {
+            const control = categoryControls[current - 1];
+            control.select.value = '';
+            control.input.value = '';
+            control.input.hidden = true;
+            if (current > 1) visibleCategoryLevels[current] = false;
+        }
+    }
+
+    function fillCategorySelect(select, options, placeholder) {
+        select.innerHTML = '';
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = placeholder;
+        emptyOption.disabled = true;
+        emptyOption.hidden = true;
+        select.appendChild(emptyOption);
+
+        const newOption = document.createElement('option');
+        newOption.value = '__new__';
+        newOption.textContent = '+ Tạo danh mục mới...';
+        select.appendChild(newOption);
+
+        if (options.length) {
+            const divider = document.createElement('option');
+            divider.value = '';
+            divider.textContent = '── Danh mục có sẵn ──';
+            divider.disabled = true;
+            select.appendChild(divider);
+
+            options.forEach(option => {
+                const item = document.createElement('option');
+                item.value = option;
+                item.textContent = option;
+                select.appendChild(item);
+            });
+        }
+    }
+
+    function categoryOptionsForLevel(level) {
+        if (level === 1) return Object.keys(categoryTree).sort();
+        const level1 = selectedCategory(1);
+        if (!level1 || !categoryTree[level1]) return [];
+        if (level === 2) return Object.keys(categoryTree[level1]).sort();
+        const level2 = selectedCategory(2);
+        if (!level2 || !categoryTree[level1][level2]) return [];
+        if (level === 3) return Object.keys(categoryTree[level1][level2]).sort();
+        const level3 = selectedCategory(3);
+        if (!level3 || !categoryTree[level1][level2][level3]) return [];
+        return [...categoryTree[level1][level2][level3]].sort();
+    }
+
+    function addCategoryValue(level, value) {
+        const name = String(value || '').trim();
+        if (!name) return '';
+        if (level === 1) {
+            categoryTree[name] = categoryTree[name] || {};
+            return name;
+        }
+        const level1 = selectedCategory(1);
+        if (!level1) return '';
+        categoryTree[level1] = categoryTree[level1] || {};
+        if (level === 2) {
+            categoryTree[level1][name] = categoryTree[level1][name] || {};
+            return name;
+        }
+        const level2 = selectedCategory(2);
+        if (!level2) return '';
+        categoryTree[level1][level2] = categoryTree[level1][level2] || {};
+        if (level === 3) {
+            categoryTree[level1][level2][name] = categoryTree[level1][level2][name] || [];
+            return name;
+        }
+        const level3 = selectedCategory(3);
+        if (!level3) return '';
+        categoryTree[level1][level2][level3] = categoryTree[level1][level2][level3] || [];
+        if (!categoryTree[level1][level2][level3].includes(name)) {
+            categoryTree[level1][level2][level3].push(name);
+        }
+        return name;
+    }
+
+    function refreshCategorySelects(fromLevel = 1) {
+        for (let level = fromLevel; level <= 4; level += 1) {
+            const control = categoryControls[level - 1];
+            const current = selectedCategory(level);
+            const options = categoryOptionsForLevel(level);
+            const placeholder = `Chọn danh mục cấp ${level}`;
+            fillCategorySelect(control.select, options, placeholder);
+            if (current && !options.includes(current)) {
+                addCategoryValue(level, current);
+            }
+            const refreshedOptions = categoryOptionsForLevel(level);
+            fillCategorySelect(control.select, refreshedOptions, placeholder);
+            if (refreshedOptions.includes(current)) {
+                control.select.value = current;
+            } else {
+                control.select.value = '';
+            }
+            control.input.hidden = true;
+            control.input.value = '';
+        }
+        updateCategoryVisibility();
+    }
+
+    function updateCategoryVisibility() {
+        const cat1Value = selectedCategory(1);
+        const cat2Value = selectedCategory(2);
+        const cat3Value = selectedCategory(3);
+
+        document.getElementById('categoryLevel2Section').hidden = !visibleCategoryLevels[2];
+        document.getElementById('categoryLevel3Section').hidden = !visibleCategoryLevels[3];
+        document.getElementById('categoryLevel4Section').hidden = !visibleCategoryLevels[4];
+
+        document.getElementById('addCategory2ButtonWrapper').hidden = !cat1Value || visibleCategoryLevels[2];
+        document.getElementById('addCategory3ButtonWrapper').hidden = !visibleCategoryLevels[2] || !cat2Value || visibleCategoryLevels[3];
+        document.getElementById('addCategory4ButtonWrapper').hidden = !visibleCategoryLevels[3] || !cat3Value || visibleCategoryLevels[4];
+
+        const removeLevel1 = document.querySelector('[data-level="1"].category-remove-level');
+        if (removeLevel1) removeLevel1.hidden = !cat1Value;
+    }
+
+    function setCategoryLevel(level, value) {
+        const control = categoryControls[level - 1];
+        const cleanValue = String(value || '').trim();
+        if (cleanValue) addCategoryValue(level, cleanValue);
+        refreshCategorySelects(level);
+        control.select.value = cleanValue;
+        control.input.hidden = true;
+        control.input.value = '';
+    }
+
+    function addVisibleCategoryLevel(level) {
+        visibleCategoryLevels[level] = true;
+        refreshCategorySelects(level);
+        updateCategoryVisibility();
+        categoryControls[level - 1].select.focus();
+    }
+
+    function removeCategoryLevel(level) {
+        clearCategoryFrom(level);
+        refreshCategorySelects(level);
+        updateCategoryVisibility();
+        categoryControls[Math.max(1, level - 1) - 1].select.focus();
+    }
+
+    function openProductModal(row) {
+        activeProductRow = row;
+        modalProductName.value = row.querySelector('.sale-new-product-name').value;
+        modalProductUnit.value = row.querySelector('.sale-new-product-unit').value || 'cái';
+        modalProductAlert.value = row.querySelector('.sale-new-product-alert').value || '10';
+        modalStockQuantity.value = row.querySelector('.sale-stock-quantity').value || '';
+        modalStockUnitCost.value = row.querySelector('.sale-stock-unit-cost').value || '';
+        modalProductSellPrice.value = row.querySelector('.sale-unit-price').value || '';
+        modalStockSupplierName.value = row.querySelector('.sale-stock-supplier-name').value || '';
+        modalStockNote.value = row.querySelector('.sale-stock-note').value || '';
+        formatMoneyInput(modalStockUnitCost);
+        formatMoneyInput(modalProductSellPrice);
+        const stockOrigin = row.querySelector('.sale-stock-origin').value || 'opening';
+        stockOriginInputs.forEach(input => {
+            input.checked = input.value === stockOrigin;
+        });
+        modalStockPurchaseDate.value = row.querySelector('.sale-stock-purchase-date').value || document.querySelector('input[name="date"]').value;
+        updateStockOriginUi();
+        categoryControls.forEach(control => {
+            control.select.value = '';
+            control.input.value = '';
+            control.input.hidden = true;
+        });
+        visibleCategoryLevels[2] = false;
+        visibleCategoryLevels[3] = false;
+        visibleCategoryLevels[4] = false;
+        refreshCategorySelects(1);
+        setCategoryLevel(1, row.querySelector('.sale-category-level-1').value);
+        const cat2Value = row.querySelector('.sale-category-level-2').value;
+        const cat3Value = row.querySelector('.sale-category-level-3').value;
+        const cat4Value = row.querySelector('.sale-category-level-4').value;
+        if (cat2Value) {
+            visibleCategoryLevels[2] = true;
+            setCategoryLevel(2, cat2Value);
+        }
+        if (cat3Value) {
+            visibleCategoryLevels[3] = true;
+            setCategoryLevel(3, cat3Value);
+        }
+        if (cat4Value) {
+            visibleCategoryLevels[4] = true;
+            setCategoryLevel(4, cat4Value);
+        }
+
+        updateCategoryVisibility();
+        productModalError.hidden = true;
+        productModal.hidden = false;
+        modalProductName.focus();
+    }
+
+    function closeProductModal() {
+        productModal.hidden = true;
+        activeProductRow = null;
+    }
+
+    function updateStockOriginUi() {
+        const stockOrigin = document.querySelector('input[name="modalStockOrigin"]:checked').value;
+        const shouldShowDate = stockOrigin === 'purchase';
+        stockQuantityLabel.textContent = shouldShowDate ? 'Số lượng nhập' : 'Số lượng hiện có';
+        stockUnitCostLabel.innerHTML = `${shouldShowDate ? 'Giá vốn nhập / đơn vị' : 'Giá vốn ước tính / đơn vị'} <span class="required-mark" aria-label="bắt buộc">*</span>`;
+        stockPurchaseDateWrap.style.display = shouldShowDate ? 'block' : 'none';
+        stockPurchaseDateWrap.hidden = !shouldShowDate;
+        stockPurchaseExtra.style.display = shouldShowDate ? 'grid' : 'none';
+        stockPurchaseExtra.hidden = !shouldShowDate;
+        if (shouldShowDate && !modalStockPurchaseDate.value) {
+            modalStockPurchaseDate.value = document.querySelector('input[name="date"]').value;
+        }
+    }
+
+    function applyCreatedProductToRow(row, productId, productName, sellPrice, categoryLevels, stockData) {
+        row.querySelector('.sale-product').value = productId;
+        row.querySelector('.sale-product-search').value = productName;
+        row.querySelector('.sale-new-product-name').value = '';
+        row.querySelector('.sale-new-product-unit').value = modalProductUnit.value.trim() || 'cái';
+        row.querySelector('.sale-new-product-alert').value = modalProductAlert.value || '10';
+        row.querySelector('.sale-category-level-1').value = categoryLevels[0] || '';
+        row.querySelector('.sale-category-level-2').value = categoryLevels[1] || '';
+        row.querySelector('.sale-category-level-3').value = categoryLevels[2] || '';
+        row.querySelector('.sale-category-level-4').value = categoryLevels[3] || '';
+        const priceInput = row.querySelector('.sale-unit-price');
+        priceInput.value = sellPrice ? sellPrice.toLocaleString('vi-VN') : '';
+        row.querySelector('.sale-stock-quantity').value = stockData.quantity;
+        row.querySelector('.sale-stock-unit-cost').value = stockData.unitCost;
+        row.querySelector('.sale-stock-origin').value = stockData.origin;
+        row.querySelector('.sale-stock-purchase-date').value = stockData.purchaseDate;
+        row.querySelector('.sale-stock-supplier-name').value = stockData.supplierName;
+        row.querySelector('.sale-stock-note').value = stockData.note;
+        if (!productList.some(item => String(item.id) === String(productId))) {
+            productList.push({ id: String(productId), name: productName, price: sellPrice });
+        }
+        syncDraftButton(row);
+        syncPriceDefaultOption(row);
+        updateTotals();
+    }
+
+    async function saveProductModal() {
+        if (!activeProductRow) return;
+        const productName = modalProductName.value.trim();
+        const category1 = selectedCategory(1);
+        const stockQuantity = Number(modalStockQuantity.value || 0);
+        const stockUnitCost = parseMoney(modalStockUnitCost.value);
+        const productSellPrice = parseMoney(modalProductSellPrice.value);
+        const stockOrigin = document.querySelector('input[name="modalStockOrigin"]:checked').value;
+        if (!productName || !category1) {
+            productModalError.textContent = 'Nhập tên sản phẩm và danh mục cấp 1 trước khi tiếp tục.';
+            productModalError.hidden = false;
+            return;
+        }
+        if (productSellPrice <= 0) {
+            productModalError.textContent = 'Nhập giá bán mặc định lớn hơn 0 cho sản phẩm mới.';
+            productModalError.hidden = false;
+            return;
+        }
+        if (!stockQuantity || stockQuantity <= 0) {
+            productModalError.textContent = 'Nhập số lượng tồn kho cho sản phẩm mới.';
+            productModalError.hidden = false;
+            return;
+        }
+        if (stockUnitCost <= 0) {
+            productModalError.textContent = 'Nhập giá vốn nhập/ước tính lớn hơn 0 cho sản phẩm mới.';
+            productModalError.hidden = false;
+            return;
+        }
+        if (stockOrigin === 'purchase' && !modalStockPurchaseDate.value) {
+            productModalError.textContent = 'Chọn ngày nhập hàng cho lần nhập hôm nay.';
+            productModalError.hidden = false;
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('name', productName);
+        formData.append('unit', modalProductUnit.value.trim() || 'cái');
+        formData.append('alert_threshold', modalProductAlert.value || '10');
+        formData.append('price_sell', productSellPrice);
+        formData.append('category_level_1', category1);
+        formData.append('category_level_2', selectedCategory(2));
+        formData.append('category_level_3', selectedCategory(3));
+        formData.append('category_level_4', selectedCategory(4));
+        formData.append('stock_quantity', stockQuantity);
+        formData.append('stock_unit_cost', stockUnitCost);
+        formData.append('stock_origin', stockOrigin);
+        formData.append('stock_purchase_date', modalStockPurchaseDate.value || document.querySelector('input[name="date"]').value);
+        formData.append('stock_supplier_name', stockOrigin === 'purchase' ? modalStockSupplierName.value.trim() : '');
+        formData.append('stock_note', stockOrigin === 'purchase' ? modalStockNote.value.trim() : '');
+
+        const response = await fetch('/sales/create/ajax-new-product/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: formData,
+        });
+
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+            productModalError.textContent = result.error || 'Không thể lưu sản phẩm mới.';
+            productModalError.hidden = false;
+            return;
+        }
+
+        applyCreatedProductToRow(activeProductRow, result.product_id, productName, productSellPrice, [
+            category1,
+            selectedCategory(2),
+            selectedCategory(3),
+            selectedCategory(4),
+        ], {
+            quantity: stockQuantity,
+            unitCost: stockUnitCost,
+            origin: stockOrigin,
+            purchaseDate: modalStockPurchaseDate.value || document.querySelector('input[name="date"]').value,
+            supplierName: stockOrigin === 'purchase' ? modalStockSupplierName.value.trim() : '',
+            note: stockOrigin === 'purchase' ? modalStockNote.value.trim() : '',
+        });
+
+        addNotification(result.message);
+        closeProductModal();
+        activeProductRow.querySelector('.sale-unit-price').focus();
+    }
+
+    function bindRow(row) {
+        const product = row.querySelector('.sale-product');
+        const productSearch = row.querySelector('.sale-product-search');
+        const price = row.querySelector('.sale-unit-price');
+        const quantity = row.querySelector('.sale-quantity');
+        const remove = row.querySelector('.sale-remove-row');
+
+        productSearch.addEventListener('focus', () => renderProductMenu(row));
+        productSearch.addEventListener('input', () => {
+            product.value = '';
+            row.querySelector('.sale-new-product-name').value = '';
+            syncDraftButton(row);
+            syncPriceDefaultOption(row);
+            renderProductMenu(row);
+        });
+        row.querySelector('.sale-product-draft').addEventListener('click', () => openProductModal(row));
+        price.addEventListener('input', () => {
+            formatMoneyInput(price);
+            syncPriceDefaultOption(row);
+            updateTotals();
+        });
+        row.querySelector('.sale-update-product-price').addEventListener('change', () => {
+            syncPriceDefaultOption(row);
+        });
+        quantity.addEventListener('input', updateTotals);
+        remove.addEventListener('click', () => {
+            if (saleItems.querySelectorAll('.sale-item-row').length > 1) {
+                row.remove();
+                updateTotals();
+            }
+        });
+        if (product.value === '__new__') syncDraftButton(row);
+        syncPriceDefaultOption(row);
+    }
+
+    document.addEventListener('click', event => {
+        if (!event.target.closest('.sale-product-cell')) closeProductMenus();
+    });
+
+    categoryControls.forEach((control, index) => {
+        const level = index + 1;
+        control.select.addEventListener('change', () => {
+            if (control.select.value === '__new__') {
+                control.input.hidden = false;
+                control.input.value = '';
+                control.input.focus();
+                updateCategoryVisibility();
+                return;
+            }
+            control.input.hidden = true;
+            control.input.value = '';
+            clearCategoryFrom(level + 1);
+            refreshCategorySelects(level + 1);
+            updateCategoryVisibility();
+        });
+
+        control.input.addEventListener('input', () => {
+            if (control.input.value.trim()) {
+                updateCategoryVisibility();
+            }
+        });
+    });
+
+    document.querySelectorAll('.category-remove-level').forEach(button => {
+        button.addEventListener('click', () => removeCategoryLevel(Number(button.dataset.level)));
+    });
+
+    const addCategory2Btn = document.getElementById('addCategory2Btn');
+    const addCategory3Btn = document.getElementById('addCategory3Btn');
+    const addCategory4Btn = document.getElementById('addCategory4Btn');
+
+    if (addCategory2Btn) {
+        addCategory2Btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addVisibleCategoryLevel(2);
+        });
+    }
+
+    if (addCategory3Btn) {
+        addCategory3Btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addVisibleCategoryLevel(3);
+        });
+    }
+
+    if (addCategory4Btn) {
+        addCategory4Btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            addVisibleCategoryLevel(4);
+        });
+    }
+    
+    refreshCategorySelects(1);
+    updateCategoryVisibility();
+
+    document.getElementById('closeProductModal').addEventListener('click', closeProductModal);
+    document.getElementById('cancelProductModal').addEventListener('click', closeProductModal);
+    document.getElementById('saveProductModal').addEventListener('click', saveProductModal);
+    salePaymentMethod?.addEventListener('change', syncSaleDebtField);
+    stockOriginInputs.forEach(input => input.addEventListener('change', updateStockOriginUi));
+    modalStockUnitCost.addEventListener('input', () => formatMoneyInput(modalStockUnitCost));
+    modalProductSellPrice.addEventListener('input', () => formatMoneyInput(modalProductSellPrice));
+    notificationButton.addEventListener('click', () => {
+        notificationChatBox.hidden = !notificationChatBox.hidden;
+        if (!notificationChatBox.hidden) {
+            renderNotificationMessages();
+        }
+    });
+    closeNotificationChat.addEventListener('click', () => {
+        notificationChatBox.hidden = true;
+    });
+    productModal.addEventListener('click', event => {
+        if (event.target === productModal) closeProductModal();
+    });
+
+    document.getElementById('addSaleItem').addEventListener('click', () => {
+        const row = template.content.firstElementChild.cloneNode(true);
+        saleItems.appendChild(row);
+        bindRow(row);
+        lucide.createIcons();
+        updateTotals();
+    });
+
+    saleItems.querySelectorAll('.sale-item-row').forEach(bindRow);
+    saleItems.querySelectorAll('.sale-unit-price').forEach(formatMoneyInput);
+    document.getElementById('saleForm').addEventListener('submit', () => {
+        saleItems.querySelectorAll('.sale-unit-price').forEach(input => {
+            input.value = parseMoney(input.value);
+        });
+    });
+    syncSaleDebtField();
+    updateTotals();
+    updateNotificationUi();
+})();
+</script>
+{% endblock %}

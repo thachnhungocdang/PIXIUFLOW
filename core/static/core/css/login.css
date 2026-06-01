@@ -1,0 +1,611 @@
+/* ================================================
+   auth.css  —  Login & Signup shared styles
+   PixiuFlow  |  Vietnamese micro-business tracker
+   ================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap&subset=vietnamese');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: "Inter", Arial, sans-serif;
+    color: #1a1a1a;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ════════════════════════════════
+   TOP-LEVEL LAYOUT — 2 equal columns
+════════════════════════════════ */
+.auth-bg {
+    height: 100vh;
+    width: 100vw;
+}
+
+.layout-split {
+    display: grid;
+    grid-template-columns: 4fr 6fr;
+    height: 100vh;
+}
+
+/* ════════════════════════════════
+   LEFT PANEL — dark crimson
+════════════════════════════════ */
+.panel-left {
+    background-color: #8b1010;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.panel-left__inner {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 48px 10% 24px;
+    gap: 28px;
+    justify-content: flex-start;
+}
+
+/* Brand logo row */
+.brand-logo-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    justify-content: center;
+}
+
+.brand-logo-icon {
+    width: 64px;
+    height: 64px;
+    background: #FFF6DA;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.logo-icon-img {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
+}
+
+.brand-name {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    color: #ffd700;
+}
+
+/* Hero text */
+.hero-text {
+    margin-top: 8px;
+}
+
+.hero-text h1 {
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: #FEF3C7;
+    margin-bottom: 20px;
+}
+
+.hero-sub {
+    font-size: 20px;
+    line-height: 1.75;
+    color: rgba(255,255,255,0.75);
+    max-width: 100%;
+}
+
+/* Feature pills */
+.feature-pills {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #FEF3C7;
+}
+
+.pill svg {
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
+/* Mascot */
+.mascot-container {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 0;
+    min-height: 0;
+}
+
+.mascot-img {
+    max-height: 245px;
+    max-width: 100%;
+    object-fit: contain;
+    display: block;
+    filter: drop-shadow(0 8px 32px rgba(0,0,0,0.35));
+    font-size: 100px;
+    text-align: center;
+}
+
+/* Panel footer */
+.panel-footer {
+    font-size: 14px;
+    color: rgba(255,255,255,0.35);
+    text-align: center;
+    padding-bottom: 4px;
+    flex-shrink: 0;
+}
+
+/* ════════════════════════════════
+   RIGHT PANEL — light grey background
+════════════════════════════════ */
+.panel-right {
+    background: #f0ede8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 48px;
+    overflow-y: auto;
+    gap: 20px;
+}
+
+/* Form card */
+.form-card {
+    background: #fdf6e3;
+    border-radius: 18px;
+    border: 1.5px solid #F7A848;
+    padding: 40px 50px;
+    width: 100%;
+    max-width: 620px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.07);
+}
+
+.form-heading {
+    font-size: 30px;
+    font-weight: 900;
+    color: #1a1a1a;
+    margin-bottom: 10px;
+}
+
+.form-sub {
+    font-size: 20px;
+    color: #666;
+    margin-bottom: 28px;
+    line-height: 1.75;
+}
+
+/* ── Field groups ── */
+.field-group {
+    margin-bottom: 20px;
+}
+
+.field-group label {
+    display: block;
+    font-size: 20px;
+    font-weight: 400;
+    color: #7A1E24;
+    margin-bottom: 10px;
+}
+
+.label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.label-row label {
+    font-size: 20px;
+    font-weight: 400;
+    color: #7A1E24;
+}
+
+.forgot-link {
+    font-size: 20px;
+    color: #c0392b;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.forgot-link:hover { text-decoration: underline; }
+
+/* Input wrapper with icon */
+.input-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 15px;
+    color: #999;
+    pointer-events: none;
+    flex-shrink: 0;
+}
+
+.input-icon-wrap input {
+    width: 100%;
+    height: 54px;
+    border: 1.5px solid #F7A848;
+    border-radius: 10px;
+    background: #fff;
+    padding: 0 48px 0 42px;
+    font-size: 18px !important;
+    font-family: "Inter", Arial, sans-serif !important;
+    color: #1a1a1a;
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input-icon-wrap input::placeholder {
+    color: #bbb;
+    font-size: 18px !important;
+    font-family: "Inter", Arial, sans-serif !important;
+}
+
+.input-icon-wrap input:focus {
+    border-color: #8b1010;
+    box-shadow: 0 0 0 3px rgba(139,16,16,0.10);
+}
+
+/* Password toggle */
+.password-toggle {
+    position: absolute;
+    right: 15px;
+    border: none;
+    background: transparent;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+}
+
+.password-toggle:focus { outline: none; }
+
+/* Remember me */
+.remember-row {
+    margin-bottom: 22px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+    color: #444;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-custom {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #8b1010;
+    border-radius: 5px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
+    background: #8b1010;
+}
+
+.checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
+    content: '';
+    display: block;
+    width: 5px;
+    height: 9px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg) translateY(-1px);
+}
+
+/* Error */
+.form-error {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 20px;
+    margin-bottom: 16px;
+}
+
+/* Submit button */
+.submit-btn {
+    width: 100%;
+    height: 58px;
+    background: #8b1010;
+    color: #ffd700;
+    font-size: 20px;
+    font-weight: 900;
+    font-family: "Inter", Arial, sans-serif;
+    letter-spacing: 0.5px;
+    transition: background 0.15s, transform 0.1s;
+    
+    border: 1.5px solid #FFBB00;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.submit-btn:hover {
+    background: #a51212;
+    transform: translateY(-1px);
+ 
+}
+
+.submit-btn:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+/* Divider */
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin: 20px 0;
+    color: #aaa;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #ddd;
+}
+
+/* Google button */
+.google-btn {
+    width: 100%;
+    height: 50px;
+    background: #fff;
+    border: 1.5px solid #ddd;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 18px;
+    font-family: "Inter", Arial, sans-serif;
+    color: #333;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.google-btn:hover {
+    border-color: #aaa;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* Switch link */
+.switch-link {
+    margin-top: 20px;
+    font-size: 20px;
+    color: #555;
+    text-align: center;
+}
+
+.switch-link a {
+    color: #8b1010;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.switch-link a:hover { text-decoration: underline; }
+
+/* Right panel footer links */
+.panel-right__footer {
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+}
+
+.panel-right__footer a {
+    color: #888;
+    text-decoration: none;
+}
+
+.panel-right__footer a:hover {
+    color: #333;
+    text-decoration: underline;
+}
+
+/* ════════════════════════════════
+   SIGNUP CARD  (single centered)
+════════════════════════════════ */
+.signup-card {
+    background: #fdf3d8;
+    border: 1.5px solid #c8a84b;
+    border-radius: 20px;
+    padding: 32px 36px;
+    width: 800px;
+    max-width: 100%;
+    margin: 0 auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px 28px;
+    margin-bottom: 28px;
+}
+
+/* ── Responsive ── */
+@media (min-width: 1600px) {
+    .layout-split {
+        grid-template-columns: minmax(560px, 4fr) minmax(920px, 6fr);
+    }
+
+    .panel-left__inner {
+        padding: 64px 10% 32px;
+        gap: 34px;
+    }
+
+    .brand-logo-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .logo-icon-img {
+        width: 50px;
+        height: 50px;
+    }
+
+    .brand-name {
+        font-size: 34px;
+    }
+
+    .hero-text h1 {
+        font-size: 52px;
+    }
+
+    .hero-sub {
+        font-size: 24px;
+    }
+
+    .pill {
+        font-size: 18px;
+    }
+
+    .panel-right {
+        padding: 48px clamp(72px, 7vw, 140px);
+        gap: 28px;
+    }
+
+    .form-card {
+        max-width: 820px;
+        padding: 58px 68px;
+        border-radius: 24px;
+    }
+
+    .form-heading {
+        font-size: 42px;
+    }
+
+    .form-sub {
+        font-size: 24px;
+        margin-bottom: 34px;
+    }
+
+    .field-group {
+        margin-bottom: 26px;
+    }
+
+    .field-group label,
+    .label-row label,
+    .forgot-link,
+    .checkbox-label,
+    .switch-link {
+        font-size: 22px;
+    }
+
+    .input-icon-wrap input {
+        height: 68px;
+        padding-left: 52px;
+        font-size: 22px !important;
+    }
+
+    .input-icon-wrap input::placeholder {
+        font-size: 22px !important;
+    }
+
+    .input-icon {
+        left: 20px;
+        width: 20px;
+        height: 20px;
+    }
+
+    .password-toggle {
+        right: 20px;
+    }
+
+    .checkbox-custom {
+        width: 24px;
+        height: 24px;
+    }
+
+    .submit-btn {
+        height: 70px;
+        font-size: 24px;
+    }
+
+    .divider {
+        margin: 28px 0;
+        font-size: 20px;
+    }
+
+    .google-btn {
+        height: 64px;
+        font-size: 22px;
+    }
+
+    .panel-right__footer {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 900px) {
+    body { overflow: auto; }
+
+    .layout-split {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .panel-left {
+        padding: 32px 28px;
+        min-height: auto;
+    }
+
+    .mascot-container {
+        display: none;
+    }
+
+    .panel-right {
+        padding: 32px 20px;
+    }
+
+    .form-card {
+        padding: 28px 24px;
+    }
+
+    .panel-right__footer {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}

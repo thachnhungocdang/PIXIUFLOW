@@ -1,0 +1,243 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixiu Flow - Quản lý tài chính doanh nghiệp nhỏ</title>
+    <link rel="stylesheet" href="{% static 'core/css/landing.css' %}">
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header class="top-header">
+        <div class="header-content">
+            <div class="brand-area">
+                <div class="logo-box">
+                    <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Pixiu Flow logo">
+                </div>
+                <span class="brand-name">PIXIU FLOW</span>
+            </div>
+
+            <nav class="nav-actions" aria-label="Tài khoản">
+                <a href="{% url 'login' %}" class="nav-btn">Đăng nhập</a>
+                <a href="{% url 'signup' %}" class="nav-btn">Đăng kí</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- PAGE FRAME -->
+    <div class="page-frame">
+        <main class="landing-main">
+
+            <!-- HERO -->
+            <section class="hero-section">
+                <div class="hero-left">
+                    <div class="badge">
+                        <span class="badge-icon">☆</span>
+                        Phần mềm quản lý tài chính phổ biến nhất
+                    </div>
+
+                    <h1>Quản lý tài chính đơn giản cho doanh nghiệp nhỏ</h1>
+
+                    <p class="hero-desc">
+                        Theo dõi thu chi, quản lý hàng tồn kho và xem báo cáo lợi nhuận
+                        chỉ trong vài phút - không cần kiến thức kế toán chuyên sâu
+                    </p>
+
+                    <div class="hero-buttons">
+                        <a href="{% url 'signup' %}" class="primary-btn">Dùng thử miễn phí</a>
+                        <a href="{% url 'dashboard' %}" class="secondary-btn">
+                            <span>▻</span>
+                            Xem demo
+                        </a>
+                    </div>
+
+                    <div class="mini-feature-row">
+                        <div class="mini-feature">
+                            <span class="mini-icon">✓</span>
+                            <span>Ghi nhận chi tiêu, chi phí tự động</span>
+                        </div>
+                        <div class="mini-feature">
+                            <span class="mini-icon">▣</span>
+                            <span>Theo dõi tồn kho, và thời gian thực</span>
+                        </div>
+                        <div class="mini-feature">
+                            <span class="mini-icon">▥</span>
+                            <span>Báo cáo lãi lỗ tức thì</span>
+                        </div>
+                        <div class="mini-feature">
+                            <span class="mini-icon">♙</span>
+                            <span>Hỗ trợ tiếng Việt dễ sử dụng</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-right">
+                    <div class="laptop">
+                        <div class="laptop-screen">
+                            <div class="camera"></div>
+                        </div>
+                        <div class="laptop-base">
+                            <div class="laptop-touchpad"></div>
+                            <div class="laptop-bottom-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TARGET AUDIENCE -->
+            <section class="target-section">
+                <h3>
+                    <span>☆</span>
+                    Được thiết kế dành riêng cho hộ kinh doanh và doanh nghiệp siêu nhỏ tại Việt Nam
+                </h3>
+
+                <div class="target-grid">
+                    <div class="target-item">
+                        <img class="target-icon-img" src="{% static 'core/images/shop.svg' %}" alt="">
+                        <span>Cửa hàng bán lẻ</span>
+                    </div>
+                    <div class="target-item">
+                        <img class="target-icon-img" src="{% static 'core/images/cafe.svg' %}" alt="">
+                        <span>Quán cà phê, nhà hàng</span>
+                    </div>
+                    <div class="target-item">
+                        <img class="target-icon-img" src="{% static 'core/images/shop online.svg' %}" alt="">
+                        <span>Shop online</span>
+                    </div>
+                    <div class="target-item">
+                        <img class="target-icon-img" src="{% static 'core/images/Dịch vụ cá nhân.svg' %}" alt="">
+                        <span>Dịch vụ cá nhân</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FEATURE CARDS -->
+            <div class="feature-cards">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--image">
+                        <img src="{% static 'core/images/Theo dõi thu chi.svg' %}" alt="">
+                    </div>
+                    <div>
+                        <h4>Theo dõi thu chi</h4>
+                        <p>Ghi nhận mọi giao dịch tiền mặt và ngân hàng nhanh chóng</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📦</div>
+                    <div>
+                        <h4>Quản lý hàng tồn kho</h4>
+                        <p>Biết chính xác số lượng hàng hoá còn lại</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">▥</div>
+                    <div>
+                        <h4>Báo cáo tài chính</h4>
+                        <p>Xem doanh thu, chi phí, và lợi nhuận theo ngày, tuần và tháng</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon--image">
+                        <img src="{% static 'core/images/Nhắc nhở thông minh.svg' %}" alt="">
+                    </div>
+                    <div>
+                        <h4>Nhắc nhở thông minh</h4>
+                        <p>Cảnh báo khi hàng tồn kho thấp</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CTA BANNER -->
+            <div class="cta-banner">
+                <img class="cta-mascot" src="{% static 'core/images/pixiu_logo.png' %}" alt="Pixiu mascot">
+                <div class="cta-text">
+                    <h2>Sẵn sàng đơn giản hoá việc kế toán</h2>
+                    <p>Bắt đầu sử dụng Pixiu Flow ngay hôm nay để quản lý doanh nghiệp dễ dàng hơn,</p>
+                </div>
+                <div class="cta-action">
+                    <a href="{% url 'signup' %}" class="cta-btn">
+                        <span class="cta-days">14 NGÀY</span>
+                        Dùng thử miễn phí
+                    </a>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ABOUT SECTION -->
+    <section class="about-section">
+        <div class="about-header">
+            <h2 class="about-title">VỀ CHÚNG TÔI</h2>
+            <div class="about-ornament">
+                    <span class="ornament-line"></span>
+                    <span class="ornament-diamond">❖</span>
+                    <span class="ornament-line"></span>
+</div>
+            <p class="about-subtitle">Từ những trăn trở thực tế, chúng tôi tạo nên PIXIU FLOW</p>
+            <p class="about-desc">PIXIU FLOW được xây dựng bởi nhóm sinh viên trường Đại học Ngoại Thương với mong muốn giúp các hộ kinh doanh và doanh nghiệp nhỏ quản lý tài chính đơn giản, trực quan và hiệu quả hơn.</p>
+        </div>
+
+        <div class="about-cards">
+            <div class="about-card">
+                <h3 class="about-card-title">PIXIU FLOW là gì ?</h3>
+                <p>PIXIU FLOW là website giúp người bán theo dõi doanh thu, chi phí, lợi nhuận và hàng tồn kho dễ dàng.</p>
+                <ul class="about-list">
+                    <li>Không cần nhiều file Excel phức tạp</li>
+                    <li>Không cần tính toán thủ công</li>
+                    <li>Không cần đoán xem sản phẩm nào đang thực sự có lời</li>
+                </ul>
+                <div class="about-card-visual">
+                    <img src="{% static 'core/images/pixiu_ftu_vay_tay.png' %}" alt="Pixiu mascot" class="about-mascot">
+                    <div class="about-laptop">
+                        <div class="about-laptop-screen"></div>
+                        <div class="about-laptop-base"></div>
+                    </div>
+                </div>
+                <p class="about-card-footer">Pixiflow giúp bạn nhìn thấy bức tranh kinh doanh rõ ràng hơn: tiền đến từ đâu, tiền đi về đâu, sản phẩm nào bán tốt, chi phí nào cần kiểm soát và lợi nhuận thực sự là bao nhiêu.</p>
+            </div>
+
+            <div class="about-card about-card--center">
+                <h3 class="about-card-title">CHÚNG TÔI LÀ AI?</h3>
+                <p>Chúng tôi là một nhóm sinh viên Trường Đại học Ngoại Thương cùng chung 1 câu hỏi:</p>
+                <div class="about-quote">
+                    <span class="quote-mark quote-mark--start">“</span>
+                    <p>“Làm thế nào để việc quản lý kinh doanh trở nên dễ hơn cho những kinh doanh nhỏ”</p>
+                    <span class="quote-mark quote-mark--end">”</span>
+                </div>
+                <p>Từ những shop online, dự án cá nhân đến các mô hình kinh doanh nhỏ, chúng tôi nhận thấy rất nhiều người vẫn đang theo dõi doanh thu, chi phí và lợi nhuận rời rạc, dễ sai sót, hoặc không theo dõi, dẫn đến các doanh nghiệp khó kiểm soát lỗ và lãi thực sự của mình.</p>
+                <p class="about-highlight">Vì vậy, PIXIU FLOW ra đời.</p>
+                <div class="about-team-img">
+                    <img src="{% static 'core/images/who.png' %}" alt="Team illustration" class="about-team">
+                </div>
+            </div>
+
+            <div class="about-card">
+                <h3 class="about-card-title">SỨ MỆNH<br>của chúng tôi</h3>
+                <p>Chúng tôi tin rằng một người bán nhỏ cũng xứng đáng có công cụ quản lý rõ ràng, thông minh và dễ sử dụng như một doanh nghiệp lớn.</p>
+                <p>Pixiflow không chỉ giúp người dùng ghi nhận con số, mà còn giúp người dùng hiểu ý nghĩa đằng sau con số.</p>
+                
+                <div class="mission-flow">
+                    <div class="mission-step"> Dữ liệu không nằm yên trong bảng.</div>
+                    <div class="mission-arrow">↓</div>
+                    <div class="mission-step">Dữ liệu trở thành gợi ý.</div>
+                    <div class="mission-arrow">↓</div>
+                    <div class="mission-step">Gợi ý trở thành quyết định</div>
+                    <div class="mission-arrow">↓</div>
+                    <div class="mission-step">Quyết định tốt hơn tạo ra tăng trưởng bền vững hơn.</div>
+                </div>
+                <div class="about-chart">
+                    <img src="{% static 'core/images/growth.png' %}" alt="Growth chart">
+                </div>
+            </div>
+        </div>
+
+        <div class="about-tagline">
+            "Pixiflow – Từ số liệu đến hành động"
+        </div>
+    </section>
+
+</body>
+</html>

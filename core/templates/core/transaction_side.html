@@ -1,0 +1,64 @@
+{% load format_utils %}
+{% load static %}
+
+<aside class="transaction-side">
+    <section class="transaction-stat">
+        <div>
+            <span>Tổng doanh thu hôm nay</span>
+            <strong>{{ today_income|vnd }}</strong>
+            <small class="{% if today_income_change >= 0 %}positive{% else %}negative{% endif %}">
+                {% if today_income_change >= 0 %}↗{% else %}↘{% endif %}
+                {{ today_income_change|floatformat:1 }}% so với hôm qua
+            </small>
+        </div>
+        <i data-lucide="trending-up"></i>
+    </section>
+
+    <section class="transaction-stat transaction-stat--dark">
+        <div>
+            <span>Tổng chi phí hôm nay</span>
+            <strong>{{ today_cost|vnd }}</strong>
+            <small class="{% if today_cost_change > 0 %}negative{% else %}positive{% endif %}">
+                {% if today_cost_change > 0 %}↗{% else %}↘{% endif %}
+                {{ today_cost_change|floatformat:1 }}% so với hôm qua
+            </small>
+        </div>
+        <i data-lucide="trending-down"></i>
+    </section>
+
+    <section class="transaction-stat">
+        <div>
+            <span>Lợi nhuận hôm nay</span>
+            <strong>{{ today_profit|vnd }}</strong>
+            <small class="{% if today_profit_change >= 0 %}positive{% else %}negative{% endif %}">
+                {% if today_profit_change >= 0 %}↗{% else %}↘{% endif %}
+                {{ today_profit_change|floatformat:1 }}% so với hôm qua
+            </small>
+        </div>
+        <i data-lucide="wallet-cards"></i>
+    </section>
+
+    <section class="recent-mini">
+        <h2>Giao dịch gần đây</h2>
+        {% for sale in recent_sales %}
+        <a href="/transactions/history/?type=income" class="recent-mini__item">
+            <span class="recent-mini__icon"><i data-lucide="badge-dollar-sign"></i></span>
+            <span>
+                <strong>{{ sale.product.name|truncatechars:24 }}</strong>
+                <small>{{ sale.date|date:"d/m/Y" }}</small>
+            </span>
+            <b>+{{ sale.total_amount|vnd }}</b>
+        </a>
+        {% endfor %}
+        {% for expense in recent_expenses %}
+        <a href="/transactions/history/?type=expense" class="recent-mini__item expense">
+            <span class="recent-mini__icon"><i data-lucide="receipt-text"></i></span>
+            <span>
+                <strong>{{ expense.get_expense_type_display|truncatechars:24 }}</strong>
+                <small>{{ expense.date|date:"d/m/Y" }}</small>
+            </span>
+            <b>-{{ expense.amount|vnd }}</b>
+        </a>
+        {% endfor %}
+    </section>
+</aside>
