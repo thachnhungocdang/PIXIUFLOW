@@ -8,6 +8,7 @@ from django.db.models import F, Sum, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 from .models import Product, Purchase, Sale, Expense, OpeningStock, Category
 from .forms import ProductForm, PurchaseForm, SaleForm, ExpenseForm
 from django.db.models.functions import TruncMonth
@@ -16,6 +17,33 @@ from django.shortcuts import render, redirect
 
 UNCATEGORIZED_CATEGORY_LABEL = '\u0043\u0048\u01af\u0041 \u0043\u00d3 \u0044\u0041\u004e\u0048 \u004d\u1ee4\u0043 \u0043\u1ea4\u0050 1'
 PAYMENT_WARNING_DAYS = 7
+
+# views.py — thêm view đăng ký
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
+
+def register_view(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('onboarding_welcome')
+    else:
+        form = UserCreationForm()
+    return render(request, 'core/register.html', {'form': form})
+
+
+def for_user(model, user):
+    if not user or not user.is_authenticated:
+        return model.objects.none()
+    return model.objects.filter(user=user)
+
+
+def set_user(instance, user):
+    if user and user.is_authenticated and not instance.user_id:
+        instance.user = user
+    return instance
 
 
 def save_business_profile_from_request(request):
@@ -45,7 +73,7 @@ def month_count_between(start, end):
     return (end.year - start.year) * 12 + end.month - start.month + 1
 
 
-def recognized_expense_summary(start_date=None, end_date=None):
+def recognized_expense_summary(start_date=None, end_date=None, user=None):
     period_end = end_date or timezone.now().date()
     period_start_month = month_start_date(start_date) if start_date else None
     period_end_month = month_start_date(period_end)
@@ -53,7 +81,8 @@ def recognized_expense_summary(start_date=None, end_date=None):
     by_type = {}
     by_month = {}
 
-    for expense in Expense.objects.all():
+    expenses = for_user(Expense, user) if user is not None else Expense.objects.all()
+    for expense in expenses:
         amount = Decimal(expense.amount or 0)
         if expense.expense_type == Expense.EXPENSE_TYPE_EQUIPMENT and expense.estimated_lifetime_months:
             depreciation_start = month_start_date(expense.date)
@@ -89,13 +118,13 @@ def recognized_expense_summary(start_date=None, end_date=None):
     }
 
 
-def cogs_summary(start_date=None, end_date=None):
+def cogs_summary(start_date=None, end_date=None, user=None):
     """
     COGS = gia von hang da ban trong ky.
     Lay tu sale.cogs_amount da luu tai thoi diem ban; khong dung Purchase
     vi nhap hang la ton kho/tai san cho den khi hang duoc ban.
     """
-    qs = Sale.objects.all()
+    qs = for_user(Sale, user) if user is not None else Sale.objects.all()
     if start_date:
         qs = qs.filter(date__gte=start_date)
     if end_date:
@@ -111,7 +140,7 @@ def cogs_summary(start_date=None, end_date=None):
     return {'total': total, 'by_month': by_month}
 
 
-def cash_flow_summary(start_date=None, end_date=None):
+def cash_flow_summary(start_date=None, end_date=None, user=None):
     def in_period(value):
         if start_date and value < start_date:
             return False
@@ -126,7 +155,11 @@ def cash_flow_summary(start_date=None, end_date=None):
     purchase_by_date = {}
     expense_by_date = {}
 
-    for sale in Sale.objects.select_related('product').exclude(payment_method=Sale.PAYMENT_METHOD_DEBT):
+    sales = (for_user(Sale, user) if user is not None else Sale.objects.all()).select_related('product')
+    purchases = (for_user(Purchase, user) if user is not None else Purchase.objects.all()).select_related('product')
+    expenses = for_user(Expense, user) if user is not None else Expense.objects.all()
+
+    for sale in sales.exclude(payment_method=Sale.PAYMENT_METHOD_DEBT):
         cash_date = sale.payment_date or sale.date
         if not in_period(cash_date):
             continue
@@ -134,7 +167,7 @@ def cash_flow_summary(start_date=None, end_date=None):
         income += amount
         income_by_date[cash_date] = income_by_date.get(cash_date, Decimal('0')) + amount
 
-    for purchase in Purchase.objects.select_related('product').exclude(payment_method=Purchase.PAYMENT_METHOD_DEBT):
+    for purchase in purchases.exclude(payment_method=Purchase.PAYMENT_METHOD_DEBT):
         cash_date = purchase.payment_date or purchase.date
         if not in_period(cash_date):
             continue
@@ -142,7 +175,7 @@ def cash_flow_summary(start_date=None, end_date=None):
         purchase_out += amount
         purchase_by_date[cash_date] = purchase_by_date.get(cash_date, Decimal('0')) + amount
 
-    for expense in Expense.objects.exclude(payment_method=Expense.PAYMENT_METHOD_DEBT):
+    for expense in expenses.exclude(payment_method=Expense.PAYMENT_METHOD_DEBT):
         cash_date = expense.payment_date or expense.date
         if not in_period(cash_date):
             continue
@@ -242,14 +275,18 @@ def payment_warning_days(request):
     return max(0, min(value, 60))
 
 
-def build_payment_alerts(warning_days=None, limit=None):
+def build_payment_alerts(warning_days=None, limit=None, user=None):
     today = timezone.now().date()
     warning_days = PAYMENT_WARNING_DAYS if warning_days is None else warning_days
     payment_warning_until = today + timedelta(days=warning_days)
     customer_alerts = []
     supplier_alerts = []
 
-    customer_debt_sales = Sale.objects.select_related('product').filter(
+    sales = (for_user(Sale, user) if user is not None else Sale.objects.all()).select_related('product')
+    purchases = (for_user(Purchase, user) if user is not None else Purchase.objects.all()).select_related('product')
+    expenses = for_user(Expense, user) if user is not None else Expense.objects.all()
+
+    customer_debt_sales = sales.filter(
         payment_method=Sale.PAYMENT_METHOD_DEBT
     ).filter(Q(payment_due_date__isnull=True) | Q(payment_due_date__lte=payment_warning_until))
     for sale in customer_debt_sales.order_by('payment_due_date', '-created_at'):
@@ -266,7 +303,7 @@ def build_payment_alerts(warning_days=None, limit=None):
             'url': f"/transactions/history/?type=income&q=SP-{sale.product_id:03d}",
         })
 
-    purchase_payment_alerts = Purchase.objects.select_related('product').filter(
+    purchase_payment_alerts = purchases.filter(
         payment_method=Purchase.PAYMENT_METHOD_DEBT
     ).filter(Q(payment_due_date__isnull=True) | Q(payment_due_date__lte=payment_warning_until))
     for lot in purchase_payment_alerts.order_by('payment_due_date', '-created_at'):
@@ -283,7 +320,7 @@ def build_payment_alerts(warning_days=None, limit=None):
             'url': f"/transactions/history/?type=purchase&q=LOT-{lot.date.year}-{lot.id:03d}",
         })
 
-    expense_payment_alerts = Expense.objects.filter(
+    expense_payment_alerts = expenses.filter(
         payment_method=Expense.PAYMENT_METHOD_DEBT
     ).filter(Q(payment_due_date__isnull=True) | Q(payment_due_date__lte=payment_warning_until))
     for expense in expense_payment_alerts.order_by('payment_due_date', '-created_at'):
@@ -443,9 +480,10 @@ def opening_stock_wizard_view(request):
         if not errors:
             with transaction.atomic():
                 for row in valid_rows:
-                    product, created = Product.objects.get_or_create(
+                    product, created = for_user(Product, request.user).get_or_create(
                         name=row['product_name'],
                         defaults={
+                            'user': request.user,
                             'category': row['category'],
                             'unit': row['unit'] or 'cái',
                             'price_buy_latest': row['estimated_unit_cost_value'],
@@ -465,9 +503,10 @@ def opening_stock_wizard_view(request):
                             product.price_sell = row['estimated_price_sell_value']
                         product.save()
                     if row['category']:
-                        create_category_path(row['category'])
+                        create_category_path(row['category'], user=request.user)
 
                     OpeningStock.objects.create(
+                        user=request.user,
                         product=product,
                         quantity=row['quantity_value'],
                         estimated_unit_cost=row['estimated_unit_cost_value'],
@@ -497,7 +536,7 @@ def opening_stock_wizard_view(request):
     })
 
 def inventory_view(request):
-    products = Product.objects.filter(is_active=True).order_by('name')
+    products = for_user(Product, request.user).filter(is_active=True).order_by('name')
     active_products = products
     products_missing_stock = products.filter(
         stock_quantity=0,
@@ -515,7 +554,7 @@ def inventory_view(request):
             new_product_ids.append(created_product_id)
     else:
         created_product_id = None
-    new_products = Product.objects.filter(pk__in=new_product_ids).order_by('name')
+    new_products = for_user(Product, request.user).filter(pk__in=new_product_ids).order_by('name')
 
     low_stock_products = products.filter(
         stock_quantity__lte=F('alert_threshold'),
@@ -535,7 +574,7 @@ def inventory_view(request):
     )
     alert_count = out_of_stock_products.count() + low_stock_products.count()
     top_sellers = (
-        Sale.objects.select_related('product')
+        for_user(Sale, request.user).select_related('product')
         .values('product__name')
         .annotate(quantity=Sum('quantity'), revenue=Sum('total_amount'))
         .order_by('-quantity')[:5]
@@ -546,14 +585,14 @@ def inventory_view(request):
         .order_by('-product_count')
     )
     supplier_stats = (
-        Purchase.objects.exclude(supplier_name='')
+        for_user(Purchase, request.user).exclude(supplier_name='')
         .values('supplier_name')
         .annotate(total_value=Sum('total_amount'), purchase_count=Count('id'))
         .order_by('-total_value')
     )
-    recent_lots = Purchase.objects.select_related('product').order_by('-date', '-created_at')[:5]
+    recent_lots = for_user(Purchase, request.user).select_related('product').order_by('-date', '-created_at')[:5]
     today = timezone.now().date()
-    alerts = build_payment_alerts(payment_warning_days(request), limit=4)
+    alerts = build_payment_alerts(payment_warning_days(request), limit=4, user=request.user)
     customer_payment_alerts = alerts['customer_payment_alerts']
     supplier_payment_alerts = [item for item in alerts['supplier_payment_alerts'] if item['kind'] == 'purchase']
     other_payable_alerts = [item for item in alerts['supplier_payment_alerts'] if item['kind'] == 'expense'][:3]
@@ -591,7 +630,7 @@ def inventory_view(request):
             node['note'] = note
         return node
 
-    for category in Category.objects.all():
+    for category in for_user(Category, request.user):
         add_category_path(category.path, category.note)
 
     for product in products:
@@ -665,7 +704,7 @@ def inventory_view(request):
     supplier_rows = []
     for supplier in supplier_stats:
         latest_lot = (
-            Purchase.objects.select_related('product')
+            for_user(Purchase, request.user).select_related('product')
             .filter(supplier_name=supplier['supplier_name'])
             .order_by('-date', '-created_at')
             .first()
@@ -676,14 +715,14 @@ def inventory_view(request):
             'total_value': supplier['total_value'] or Decimal('0'),
             'latest_lot': latest_lot,
             'payment_summary': purchase_payment_summary(
-                Purchase.objects.select_related('product')
+                for_user(Purchase, request.user).select_related('product')
                 .filter(supplier_name=supplier['supplier_name'])
                 .order_by('-date', '-created_at'),
                 today,
             ),
         })
 
-    equipment_expenses = Expense.objects.filter(
+    equipment_expenses = for_user(Expense, request.user).filter(
         expense_type=Expense.EXPENSE_TYPE_EQUIPMENT
     ).order_by('-date', '-created_at')
     equipment_rows = []
@@ -816,7 +855,7 @@ def inventory_view(request):
 
 @require_POST
 def inventory_inline_update_view(request, pk):
-    product = get_object_or_404(Product, pk=pk, is_active=True)
+    product = get_object_or_404(for_user(Product, request.user), pk=pk, is_active=True)
     try:
         import json
         payload = json.loads(request.body.decode('utf-8') or '{}')
@@ -874,7 +913,7 @@ def inventory_category_bulk_move_view(request):
     if target_category == UNCATEGORIZED_CATEGORY_LABEL:
         target_category = ''
 
-    updated = Product.objects.filter(pk__in=product_ids, is_active=True).update(category=target_category)
+    updated = for_user(Product, request.user).filter(pk__in=product_ids, is_active=True).update(category=target_category)
     return JsonResponse({'ok': True, 'updated': updated, 'target_category': target_category})
 
 
@@ -892,7 +931,7 @@ def inventory_category_delete_view(request):
     if not category_path:
         return JsonResponse({'ok': False, 'error': 'Thieu danh muc can xoa.'}, status=400)
 
-    products = Product.objects.filter(
+    products = for_user(Product, request.user).filter(
         Q(category=category_path) | Q(category__startswith=f'{category_path} / '),
         is_active=True,
     )
@@ -911,7 +950,7 @@ def inventory_category_delete_view(request):
     elif mode == 'clear':
         products.update(category='')
 
-    Category.objects.filter(Q(path=category_path) | Q(path__startswith=f'{category_path} / ')).delete()
+    for_user(Category, request.user).filter(Q(path=category_path) | Q(path__startswith=f'{category_path} / ')).delete()
     return JsonResponse({'ok': True, 'affected': affected, 'mode': mode})
 
 
@@ -941,7 +980,7 @@ def inventory_category_create_view(request):
         return JsonResponse({'ok': False, 'error': 'Danh muc chi ho tro toi da 4 cap.'}, status=400)
 
     path = ' / '.join(parent_parts + [name])
-    category, created = Category.objects.get_or_create(path=path, defaults={'name': name, 'note': note})
+    category, created = for_user(Category, request.user).get_or_create(path=path, defaults={'user': request.user, 'name': name, 'note': note})
     if not created:
         category.name = name
         category.note = note
@@ -949,7 +988,7 @@ def inventory_category_create_view(request):
 
     moved = 0
     if action == 'move_selected' and product_ids:
-        moved = Product.objects.filter(pk__in=product_ids, is_active=True).update(category=path)
+        moved = for_user(Product, request.user).filter(pk__in=product_ids, is_active=True).update(category=path)
 
     return JsonResponse({
         'ok': True,
@@ -980,11 +1019,11 @@ def inventory_category_rename_view(request):
 
     parent_parts = [part.strip() for part in old_path.split('/') if part.strip()][:-1]
     new_path = ' / '.join(parent_parts + [new_name])
-    if new_path != old_path and Category.objects.filter(path=new_path).exists():
+    if new_path != old_path and for_user(Category, request.user).filter(path=new_path).exists():
         return JsonResponse({'ok': False, 'error': 'Da co danh muc cung ten o cap nay.'}, status=400)
 
     with transaction.atomic():
-        for category in Category.objects.filter(Q(path=old_path) | Q(path__startswith=f'{old_path} / ')):
+        for category in for_user(Category, request.user).filter(Q(path=old_path) | Q(path__startswith=f'{old_path} / ')):
             suffix = category.path[len(old_path):]
             category.path = f'{new_path}{suffix}'
             if category.path == new_path:
@@ -992,24 +1031,26 @@ def inventory_category_rename_view(request):
                 category.note = note
             category.save(update_fields=['path', 'name', 'note', 'updated_at'])
 
-        for product in Product.objects.filter(Q(category=old_path) | Q(category__startswith=f'{old_path} / '), is_active=True):
+        for product in for_user(Product, request.user).filter(Q(category=old_path) | Q(category__startswith=f'{old_path} / '), is_active=True):
             suffix = product.category[len(old_path):]
             product.category = f'{new_path}{suffix}'
             product.save(update_fields=['category', 'updated_at'])
 
-        Category.objects.update_or_create(path=new_path, defaults={'name': new_name, 'note': note})
+        for_user(Category, request.user).update_or_create(path=new_path, defaults={'user': request.user, 'name': new_name, 'note': note})
 
     return JsonResponse({'ok': True, 'old_path': old_path, 'path': new_path})
 
 def product_delete_view(request, pk):
-    product = get_object_or_404(Product, pk=pk)
+    product = get_object_or_404(for_user(Product, request.user), pk=pk)
     product.delete()
     return redirect('inventory')
 
-def product_category_levels():
+def product_category_levels(user=None):
     levels = {1: set(), 2: set(), 3: set(), 4: set()}
-    categories = list(Product.objects.exclude(category='').values_list('category', flat=True))
-    categories += list(Category.objects.values_list('path', flat=True))
+    product_qs = for_user(Product, user) if user is not None else Product.objects.all()
+    category_qs = for_user(Category, user) if user is not None else Category.objects.all()
+    categories = list(product_qs.exclude(category='').values_list('category', flat=True))
+    categories += list(category_qs.values_list('path', flat=True))
     for category in categories:
         parts = [part.strip() for part in category.split('/') if part.strip()]
         for index, part in enumerate(parts[:4], start=1):
@@ -1019,10 +1060,12 @@ def product_category_levels():
         for level, options in levels.items()
     ]
 
-def product_category_tree():
+def product_category_tree(user=None):
     tree = {}
-    categories = list(Product.objects.exclude(category='').values_list('category', flat=True))
-    categories += list(Category.objects.values_list('path', flat=True))
+    product_qs = for_user(Product, user) if user is not None else Product.objects.all()
+    category_qs = for_user(Category, user) if user is not None else Category.objects.all()
+    categories = list(product_qs.exclude(category='').values_list('category', flat=True))
+    categories += list(category_qs.values_list('path', flat=True))
     for category in categories:
         parts = [part.strip() for part in category.split('/') if part.strip()]
         if not parts:
@@ -1040,16 +1083,18 @@ def product_category_tree():
     return tree
 
 
-def create_category_path(path, note=''):
+def create_category_path(path, note='', user=None):
     if not path:
         return None
     parts = [part.strip() for part in path.split('/') if part.strip()]
     category = None
     for index, part in enumerate(parts):
         current_path = ' / '.join(parts[:index + 1])
-        category, created = Category.objects.get_or_create(
+        qs = for_user(Category, user) if user is not None else Category.objects.all()
+        category, created = qs.get_or_create(
             path=current_path,
             defaults={
+                'user': user,
                 'name': part,
                 'note': note if index == len(parts) - 1 else ''
             }
@@ -1116,10 +1161,11 @@ def sale_new_product_ajax_view(request):
         return JsonResponse({'ok': False, 'error': 'Nhập danh mục cấp 1 cho sản phẩm mới.'}, status=400)
 
     with transaction.atomic():
-        product = Product.objects.filter(name__iexact=name).first()
+        product = for_user(Product, request.user).filter(name__iexact=name).first()
         created_product = False
         if product is None:
             product = Product.objects.create(
+                user=request.user,
                 name=name,
                 category=category_path,
                 unit=unit,
@@ -1137,10 +1183,11 @@ def sale_new_product_ajax_view(request):
             product.save()
 
         if category_path:
-            create_category_path(category_path)
+            create_category_path(category_path, user=request.user)
 
         if stock_origin == 'purchase':
             Purchase.objects.create(
+                user=request.user,
                 product=product,
                 date=stock_purchase_date_value,
                 supplier_name=stock_supplier_name,
@@ -1150,6 +1197,7 @@ def sale_new_product_ajax_view(request):
             )
         else:
             OpeningStock.objects.create(
+                user=request.user,
                 product=product,
                 quantity=stock_quantity_value,
                 estimated_unit_cost=stock_unit_cost_value,
@@ -1193,10 +1241,11 @@ def expense_new_product_ajax_view(request):
         return JsonResponse({'ok': False, 'error': 'Giá bán mặc định không hợp lệ.'}, status=400)
 
     with transaction.atomic():
-        product = Product.objects.filter(name__iexact=name).first()
+        product = for_user(Product, request.user).filter(name__iexact=name).first()
         created_product = False
         if product is None:
             product = Product.objects.create(
+                user=request.user,
                 name=name,
                 category=category_path,
                 unit=unit,
@@ -1234,7 +1283,7 @@ def product_create_view(request):
     next_target = request.GET.get('next') or request.POST.get('next') or ''
     product_id = request.GET.get('product_id') or request.POST.get('product_id')
     category_query = request.GET.get('category') or ''
-    product_instance = Product.objects.filter(pk=product_id).first() if product_id else None
+    product_instance = for_user(Product, request.user).filter(pk=product_id).first() if product_id else None
     product_errors = []
     category_values = (
         [part.strip() for part in product_instance.category.split('/')[:4]]
@@ -1275,7 +1324,7 @@ def product_create_view(request):
             'stock_origin': request.POST.get('stock_origin') if request.POST.get('stock_origin') in ('later', 'opening', 'purchase') else 'later',
         }
 
-        form = ProductForm(post_data, instance=product_instance)
+        form = ProductForm(post_data, instance=product_instance, user=request.user)
 
         purchase_quantity = 0
         purchase_unit_price = Decimal('0')
@@ -1311,12 +1360,15 @@ def product_create_view(request):
 
         if form.is_valid() and not product_errors:
             with transaction.atomic():
-                product = form.save()
+                product = form.save(commit=False)
+                set_user(product, request.user)
+                product.save()
                 if product.category:
-                    create_category_path(product.category)
+                    create_category_path(product.category, user=request.user)
                 if purchase_quantity > 0:
                     if initial_purchase['stock_origin'] == 'purchase':
                         Purchase.objects.create(
+                            user=request.user,
                             product=product,
                             date=purchase_date,
                             supplier_name=initial_purchase['supplier_name'],
@@ -1326,6 +1378,7 @@ def product_create_view(request):
                         )
                     else:
                         OpeningStock.objects.create(
+                            user=request.user,
                             product=product,
                             quantity=purchase_quantity,
                             estimated_unit_cost=purchase_unit_price,
@@ -1335,9 +1388,9 @@ def product_create_view(request):
                 return redirect(f'/expenses/create/?mode=purchase&product_id={product.id}')
             return redirect(f'/inventory/?created={product.id}')
     else:
-        form = ProductForm(instance=product_instance)
+        form = ProductForm(instance=product_instance, user=request.user)
 
-    category_level_options = product_category_levels()
+    category_level_options = product_category_levels(request.user)
     for level in category_level_options:
         selected = category_values[level['level'] - 1] if level['level'] - 1 < len(category_values) else ''
         level['selected'] = selected
@@ -1354,39 +1407,43 @@ def product_create_view(request):
     })
 
 def purchase_delete_view(request, pk):
-    purchase = get_object_or_404(Purchase, pk=pk)
+    purchase = get_object_or_404(for_user(Purchase, request.user), pk=pk)
     purchase.delete()
     return redirect('transaction_history')
 
 def purchase_edit_view(request, pk):
-    purchase = get_object_or_404(Purchase, pk=pk)
+    purchase = get_object_or_404(for_user(Purchase, request.user), pk=pk)
     if request.method == 'POST':
-        form = PurchaseForm(request.POST, instance=purchase)
+        form = PurchaseForm(request.POST, instance=purchase, user=request.user)
         if form.is_valid():
-            form.save()
+            purchase = form.save(commit=False)
+            set_user(purchase, request.user)
+            purchase.save()
             return redirect('transaction_history')
     return redirect('transaction_history')
 
 def sale_delete_view(request, pk):
-    sale = get_object_or_404(Sale, pk=pk)
+    sale = get_object_or_404(for_user(Sale, request.user), pk=pk)
     sale.delete()
     return redirect('transaction_history')
 
 
 def sale_edit_view(request, pk):
-    sale = get_object_or_404(Sale, pk=pk)
+    sale = get_object_or_404(for_user(Sale, request.user), pk=pk)
     if request.method == 'POST':
-        form = SaleForm(request.POST, instance=sale)
+        form = SaleForm(request.POST, instance=sale, user=request.user)
         if form.is_valid():
-            sale = form.save()
+            sale = form.save(commit=False)
+            set_user(sale, request.user)
+            sale.save()
             if form.cleaned_data.get('update_product_price'):
                 sale.product.price_sell = sale.unit_price
                 sale.product.save()
             return redirect('transaction_history')
     else:
-        form = SaleForm(instance=sale)
+        form = SaleForm(instance=sale, user=request.user)
 
-    products = Product.objects.filter(is_active=True).order_by('name')
+    products = for_user(Product, request.user).filter(is_active=True).order_by('name')
     product_prices = {
         str(product.id): float(product.price_sell or 0)
         for product in products
@@ -1399,7 +1456,7 @@ def sale_edit_view(request, pk):
         }
         for product in products
     ]
-    context = transaction_page_context()
+    context = transaction_page_context(request.user)
     context.update({
         'edit_mode': True,
         'form': form,
@@ -1421,13 +1478,13 @@ def sale_edit_view(request, pk):
         }],
         'sale_errors': [],
         'payment_method_choices': Sale.PAYMENT_METHOD_CHOICES,
-        'category_levels': product_category_levels(),
-        'category_tree': product_category_tree(),
+        'category_levels': product_category_levels(request.user),
+        'category_tree': product_category_tree(request.user),
     })
     return render(request, 'core/sale_form.html', context)
 
 def sale_create_view(request):
-    products = Product.objects.filter(is_active=True).order_by('name')
+    products = for_user(Product, request.user).filter(is_active=True).order_by('name')
     today = timezone.now().date()
     sale_values = {
         'customer_name': '',
@@ -1525,7 +1582,7 @@ def sale_create_view(request):
                 if not row['category_level_1'].strip():
                     sale_errors.append(f"{row_label}: Sản phẩm mới cần có danh mục cấp 1.")
                     continue
-                product = Product.objects.filter(name__iexact=row['new_product_name'].strip()).first()
+                product = for_user(Product, request.user).filter(name__iexact=row['new_product_name'].strip()).first()
             else:
                 try:
                     product = products.get(pk=row['product'])
@@ -1612,6 +1669,7 @@ def sale_create_view(request):
                         except ValueError:
                             alert_threshold = 10
                         product = Product.objects.create(
+                            user=request.user,
                             name=record['new_product_name'],
                             category=' / '.join([level for level in record['category_levels'] if level]),
                             unit=record['new_product_unit'],
@@ -1620,6 +1678,7 @@ def sale_create_view(request):
                         )
                         if record['stock_origin'] == 'purchase':
                             Purchase.objects.create(
+                                user=request.user,
                                 product=product,
                                 date=record['stock_purchase_date'],
                                 supplier_name=record['stock_supplier_name'],
@@ -1629,12 +1688,14 @@ def sale_create_view(request):
                             )
                         else:
                             OpeningStock.objects.create(
+                                user=request.user,
                                 product=product,
                                 quantity=record['stock_quantity'],
                                 estimated_unit_cost=record['stock_unit_cost'],
                                 note='Ton kho khoi diem khai bao khi tao san pham tu man hinh doanh thu.',
                             )
                     sale = Sale(
+                        user=request.user,
                         product=product,
                         date=sale_date,
                         customer_name=sale_values['customer_name'],
@@ -1685,7 +1746,7 @@ def sale_create_view(request):
         for product in products
     ]
 
-    context = transaction_page_context()
+    context = transaction_page_context(request.user)
     context.update({
         'products': products,
         'product_prices': product_prices,
@@ -1694,28 +1755,30 @@ def sale_create_view(request):
         'sale_rows': sale_rows,
         'sale_errors': sale_errors,
         'payment_method_choices': Sale.PAYMENT_METHOD_CHOICES,
-        'category_levels': product_category_levels(),
-        'category_tree': product_category_tree(),
+        'category_levels': product_category_levels(request.user),
+        'category_tree': product_category_tree(request.user),
     })
     return render(request, 'core/sale_form.html', context)
 
 def expense_delete_view(request, pk):
-    expense = get_object_or_404(Expense, pk=pk)
+    expense = get_object_or_404(for_user(Expense, request.user), pk=pk)
     expense.delete()
     return redirect('transaction_history')
 
 
 def expense_edit_view(request, pk):
-    expense = get_object_or_404(Expense, pk=pk)
-    products = Product.objects.filter(is_active=True).order_by('name')
+    expense = get_object_or_404(for_user(Expense, request.user), pk=pk)
+    products = for_user(Product, request.user).filter(is_active=True).order_by('name')
     if request.method == 'POST':
         form = ExpenseForm(request.POST, instance=expense)
         if form.is_valid():
-            form.save()
+            expense = form.save(commit=False)
+            set_user(expense, request.user)
+            expense.save()
             return redirect('transaction_history')
     else:
         form = ExpenseForm(instance=expense)
-    context = transaction_page_context()
+    context = transaction_page_context(request.user)
     context.update({
         'form': form,
         'edit_mode': True,
@@ -1742,12 +1805,12 @@ def expense_edit_view(request, pk):
         'other_expense_rows': [],
         'payment_method_choices': Purchase.PAYMENT_METHOD_CHOICES,
         'expense_errors': [],
-        'category_tree': product_category_tree(),
+        'category_tree': product_category_tree(request.user),
     })
     return render(request, 'core/expense_form.html', context)
 
 def expense_create_view(request):
-    products = Product.objects.filter(is_active=True).order_by('name')
+    products = for_user(Product, request.user).filter(is_active=True).order_by('name')
     today = timezone.now().date()
     expense_mode = request.POST.get('expense_mode', 'other') if request.method == 'POST' else request.GET.get('mode', 'purchase')
     product_id = request.GET.get('product_id')
@@ -1825,7 +1888,7 @@ def expense_create_view(request):
                     if not new_product_name:
                         expense_errors.append(f"{row_label}: Nhập tên sản phẩm mới.")
                         continue
-                    product = Product.objects.filter(name__iexact=new_product_name).first()
+                    product = for_user(Product, request.user).filter(name__iexact=new_product_name).first()
                 else:
                     try:
                         product = products.get(pk=row['product'])
@@ -1861,6 +1924,7 @@ def expense_create_view(request):
                         product = record['product']
                         if product is None:
                             product = Product.objects.create(
+                                user=request.user,
                                 name=record['new_product_name'],
                                 category='',
                                 unit='cái',
@@ -1870,6 +1934,7 @@ def expense_create_view(request):
                             created_product_ids.append(product.id)
 
                         Purchase.objects.create(
+                            user=request.user,
                             product=product,
                             date=purchase_date,
                             supplier_name=record['supplier_name'],
@@ -1953,6 +2018,7 @@ def expense_create_view(request):
                     expense_note = row['note']
 
                 expense = Expense(
+                    user=request.user,
                     date=expense_date,
                     expense_type=row['expense_type'],
                     amount=amount,
@@ -1993,7 +2059,7 @@ def expense_create_view(request):
             'equipment_memo': '',
         }]
 
-    context = transaction_page_context()
+    context = transaction_page_context(request.user)
     context.update({
         'form': form,
         'expense_mode': expense_mode,
@@ -2010,7 +2076,7 @@ def expense_create_view(request):
         'expense_type_choices': Expense.EXPENSE_TYPE_CHOICES,
         'payment_method_choices': Purchase.PAYMENT_METHOD_CHOICES,
         'expense_errors': expense_errors,
-        'category_tree': product_category_tree(),
+        'category_tree': product_category_tree(request.user),
     })
     return render(request, 'core/expense_form.html', context)
 
@@ -2029,7 +2095,7 @@ def mark_transaction_paid_view(request, kind, pk):
     model = model_map.get(kind)
     if not model:
         return JsonResponse({'ok': False, 'error': 'Loại giao dịch không hợp lệ.'}, status=400)
-    record = get_object_or_404(model, pk=pk)
+    record = get_object_or_404(for_user(model, request.user), pk=pk)
     payment_method = request.POST.get('payment_method') or model.PAYMENT_METHOD_CASH
     if payment_method not in dict(model.PAYMENT_METHOD_CHOICES):
         payment_method = model.PAYMENT_METHOD_CASH
@@ -2067,7 +2133,7 @@ def extend_transaction_due_view(request, kind, pk):
     model = model_map.get(kind)
     if not model:
         return JsonResponse({'ok': False, 'error': 'Loại giao dịch không hợp lệ.'}, status=400)
-    record = get_object_or_404(model, pk=pk)
+    record = get_object_or_404(for_user(model, request.user), pk=pk)
     due_raw = request.POST.get('new_due_date', '').strip()
     try:
         new_due_date = datetime.strptime(due_raw, "%Y-%m-%d").date()
@@ -2096,7 +2162,7 @@ def extend_transaction_due_view(request, kind, pk):
 
 
 def bulk_transaction_create_view(request):
-    products = Product.objects.filter(is_active=True).order_by('name')
+    products = for_user(Product, request.user).filter(is_active=True).order_by('name')
     expense_type_choices = Expense.EXPENSE_TYPE_CHOICES
     rows = []
     row_errors = {}
@@ -2199,6 +2265,7 @@ def bulk_transaction_create_view(request):
                     try:
                         product = products.get(pk=row['product'])
                         record = Sale(
+                            user=request.user,
                             product=product,
                             date=row_date,
                             customer_name=row['partner'],
@@ -2219,6 +2286,7 @@ def bulk_transaction_create_view(request):
                     try:
                         product = products.get(pk=row['product'])
                         record = Purchase(
+                            user=request.user,
                             product=product,
                             date=row_date,
                             supplier_name=row['partner'],
@@ -2247,6 +2315,7 @@ def bulk_transaction_create_view(request):
                         if lifetime_months <= 0:
                             errors.append("Nhập estimated lifetime của thiết bị theo số tháng.")
                     record = Expense(
+                        user=request.user,
                         date=row_date,
                         expense_type=row['expense_type'],
                         amount=unit_price * quantity,
@@ -2278,7 +2347,7 @@ def bulk_transaction_create_view(request):
             for _ in range(8)
         ]
 
-    context = transaction_page_context()
+    context = transaction_page_context(request.user)
     context.update({
         'products': products,
         'expense_type_choices': expense_type_choices,
@@ -2325,11 +2394,14 @@ def transaction_history_view(request):
     sort_dir = request.GET.get('dir', '').strip()
     transactions = []
     today = timezone.now().date()
+    user_sales = for_user(Sale, request.user)
+    user_purchases = for_user(Purchase, request.user)
+    user_expenses = for_user(Expense, request.user)
 
     all_dates = []
-    all_dates.extend(Sale.objects.values_list('date', flat=True))
-    all_dates.extend(Purchase.objects.values_list('date', flat=True))
-    all_dates.extend(Expense.objects.values_list('date', flat=True))
+    all_dates.extend(user_sales.values_list('date', flat=True))
+    all_dates.extend(user_purchases.values_list('date', flat=True))
+    all_dates.extend(user_expenses.values_list('date', flat=True))
     earliest_date = min(all_dates) if all_dates else timezone.now().date()
     if not date_from_raw:
         date_from_raw = earliest_date.isoformat()
@@ -2393,7 +2465,7 @@ def transaction_history_view(request):
         quantity_min_raw, quantity_max_raw = quantity_max_raw, quantity_min_raw
 
     if tx_type in ('all', 'income'):
-        for sale in Sale.objects.select_related('product').all():
+        for sale in user_sales.select_related('product'):
             transactions.append({
                 'id': sale.id,
                 'kind': 'income',
@@ -2424,7 +2496,7 @@ def transaction_history_view(request):
             })
 
     if tx_type in ('all', 'purchase'):
-        for purchase in Purchase.objects.select_related('product').all():
+        for purchase in user_purchases.select_related('product'):
             lot_code = f'LOT-{purchase.date.year}-{purchase.id:03d}'
             transactions.append({
                 'id': purchase.id,
@@ -2456,7 +2528,7 @@ def transaction_history_view(request):
             })
 
     if tx_type in ('all', 'expense'):
-        for expense in Expense.objects.all():
+        for expense in user_expenses:
             transactions.append({
                 'id': expense.id,
                 'kind': 'expense',
@@ -2819,8 +2891,8 @@ def transaction_history_view(request):
             if item['amount'] < 0 and item['payment_status']['key'] == 'paid'
         ))
     else:
-        sales_for_summary = Sale.objects.all()
-        purchases_for_summary = Purchase.objects.all()
+        sales_for_summary = user_sales
+        purchases_for_summary = user_purchases
         if date_from:
             sales_for_summary = sales_for_summary.filter(date__gte=date_from)
             purchases_for_summary = purchases_for_summary.filter(date__gte=date_from)
@@ -2828,14 +2900,14 @@ def transaction_history_view(request):
             sales_for_summary = sales_for_summary.filter(date__lte=date_to)
             purchases_for_summary = purchases_for_summary.filter(date__lte=date_to)
         recognized_income = sales_for_summary.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-        recognized_out = cogs_summary(date_from, date_to)['total'] + recognized_expense_summary(date_from, date_to)['total']
-        cash_summary = cash_flow_summary(date_from, date_to)
+        recognized_out = cogs_summary(date_from, date_to, request.user)['total'] + recognized_expense_summary(date_from, date_to, request.user)['total']
+        cash_summary = cash_flow_summary(date_from, date_to, request.user)
         cash_income = cash_summary['income']
         cash_out = cash_summary['outflow']
     recognized_profit = recognized_income - recognized_out
     cash_net = cash_income - cash_out
 
-    products = Product.objects.filter(is_active=True).order_by('name')
+    products = for_user(Product, request.user).filter(is_active=True).order_by('name')
     expense_type_choices = Expense.EXPENSE_TYPE_CHOICES
 
     return render(request, 'core/transaction_history.html', {
@@ -2886,29 +2958,31 @@ def transaction_history_view(request):
     })
 
 
-def transaction_page_context():
+def transaction_page_context(user=None):
     today = timezone.now().date()
     yesterday = today - timedelta(days=1)
+    sales = for_user(Sale, user) if user is not None else Sale.objects.all()
+    expenses = for_user(Expense, user) if user is not None else Expense.objects.all()
 
     def percent_change(current, previous):
         if previous == 0:
             return None
         return round(((float(current) - float(previous)) / abs(float(previous))) * 100, 1)
 
-    today_income = Sale.objects.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    today_cogs = cogs_summary(today, today)['total']
-    today_expense = recognized_expense_summary(today, today)['total']
+    today_income = sales.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    today_cogs = cogs_summary(today, today, user)['total']
+    today_expense = recognized_expense_summary(today, today, user)['total']
     today_cost = today_cogs + today_expense
     today_profit = today_income - today_cost
 
-    yesterday_income = Sale.objects.filter(date=yesterday).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    yesterday_cogs = cogs_summary(yesterday, yesterday)['total']
-    yesterday_expense = recognized_expense_summary(yesterday, yesterday)['total']
+    yesterday_income = sales.filter(date=yesterday).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    yesterday_cogs = cogs_summary(yesterday, yesterday, user)['total']
+    yesterday_expense = recognized_expense_summary(yesterday, yesterday, user)['total']
     yesterday_cost = yesterday_cogs + yesterday_expense
     yesterday_profit = yesterday_income - yesterday_cost
 
-    recent_sales = list(Sale.objects.select_related('product').order_by('-date', '-created_at')[:2])
-    recent_expenses = list(Expense.objects.order_by('-date', '-created_at')[:2])
+    recent_sales = list(sales.select_related('product').order_by('-date', '-created_at')[:2])
+    recent_expenses = list(expenses.order_by('-date', '-created_at')[:2])
 
     return {
         'today_income': today_income,
@@ -2932,6 +3006,10 @@ def dashboard_view(request):
 
     today = timezone.now().date()
     month_start = today.replace(day=1)
+    user_products = for_user(Product, request.user)
+    user_sales = for_user(Sale, request.user)
+    user_purchases = for_user(Purchase, request.user)
+    user_expenses = for_user(Expense, request.user)
 
     def parse_date(value, fallback):
         if not value:
@@ -2942,9 +3020,9 @@ def dashboard_view(request):
             return fallback
 
     all_dates = []
-    all_dates.extend(Sale.objects.values_list('date', flat=True))
-    all_dates.extend(Purchase.objects.values_list('date', flat=True))
-    all_dates.extend(Expense.objects.values_list('date', flat=True))
+    all_dates.extend(user_sales.values_list('date', flat=True))
+    all_dates.extend(user_purchases.values_list('date', flat=True))
+    all_dates.extend(user_expenses.values_list('date', flat=True))
     earliest_date = min(all_dates) if all_dates else today
     start_date = parse_date(request.GET.get('start_date'), month_start)
     end_date = parse_date(request.GET.get('end_date'), today)
@@ -2968,19 +3046,19 @@ def dashboard_view(request):
     else:
         active_period = 'custom'
 
-    sales_in_range = Sale.objects.filter(date__gte=start_date, date__lte=end_date)
-    purchases_in_range = Purchase.objects.filter(date__gte=start_date, date__lte=end_date)
-    expenses_in_range = Expense.objects.filter(date__gte=start_date, date__lte=end_date)
+    sales_in_range = user_sales.filter(date__gte=start_date, date__lte=end_date)
+    purchases_in_range = user_purchases.filter(date__gte=start_date, date__lte=end_date)
+    expenses_in_range = user_expenses.filter(date__gte=start_date, date__lte=end_date)
 
     total_income = sales_in_range.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     total_purchase = purchases_in_range.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    cogs_total = cogs_summary(start_date, end_date)['total']
-    recognized_expenses = recognized_expense_summary(start_date, end_date)
+    cogs_total = cogs_summary(start_date, end_date, request.user)['total']
+    recognized_expenses = recognized_expense_summary(start_date, end_date, request.user)
     operating_expense_total = recognized_expenses['total']
     total_expense = operating_expense_total
     total_recognized_cost = cogs_total + operating_expense_total
     total_expense_all = total_recognized_cost
-    cash_summary = cash_flow_summary(start_date, end_date)
+    cash_summary = cash_flow_summary(start_date, end_date, request.user)
     cash_income = cash_summary['income']
     cash_expense = cash_summary['expense_out']
     cash_purchase = cash_summary['purchase_out']
@@ -3018,11 +3096,11 @@ def dashboard_view(request):
         previous_end = start_date - timedelta(days=1)
         previous_start = previous_end - timedelta(days=period_days - 1)
 
-    previous_income = Sale.objects.filter(date__gte=previous_start, date__lte=previous_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    previous_purchase = Purchase.objects.filter(date__gte=previous_start, date__lte=previous_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    previous_cogs = cogs_summary(previous_start, previous_end)['total']
-    previous_cash_summary = cash_flow_summary(previous_start, previous_end)
-    previous_expense = recognized_expense_summary(previous_start, previous_end)['total']
+    previous_income = user_sales.filter(date__gte=previous_start, date__lte=previous_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    previous_purchase = user_purchases.filter(date__gte=previous_start, date__lte=previous_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    previous_cogs = cogs_summary(previous_start, previous_end, request.user)['total']
+    previous_cash_summary = cash_flow_summary(previous_start, previous_end, request.user)
+    previous_expense = recognized_expense_summary(previous_start, previous_end, request.user)['total']
     previous_expense_all = previous_cogs + previous_expense
     previous_cash_flow = previous_cash_summary['net']
     previous_gross_profit = previous_income - previous_cogs
@@ -3049,41 +3127,41 @@ def dashboard_view(request):
     cash_flow_change = percent_change(net_cash_flow, previous_cash_flow)
     profit_change = percent_change(estimated_profit, previous_profit)
 
-    today_sales = Sale.objects.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or 0
-    today_sales_count = Sale.objects.filter(date=today).count()
-    today_purchases = Purchase.objects.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or 0
-    today_expenses = Expense.objects.filter(date=today).aggregate(total=Sum('amount'))['total'] or 0
+    today_sales = user_sales.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or 0
+    today_sales_count = user_sales.filter(date=today).count()
+    today_purchases = user_purchases.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or 0
+    today_expenses = user_expenses.filter(date=today).aggregate(total=Sum('amount'))['total'] or 0
 
     # Product metrics
-    total_products = Product.objects.filter(is_active=True).count()
-    out_of_stock_products = Product.objects.filter(stock_quantity=0).filter(
+    total_products = user_products.filter(is_active=True).count()
+    out_of_stock_products = user_products.filter(stock_quantity=0).filter(
         Q(purchases__isnull=False) | Q(opening_stocks__isnull=False)
     ).distinct()
-    products_missing_stock = Product.objects.filter(
+    products_missing_stock = user_products.filter(
         is_active=True,
         stock_quantity=0,
         purchases__isnull=True,
         opening_stocks__isnull=True,
     ).distinct().order_by('name')
-    low_stock_products = Product.objects.filter(
+    low_stock_products = user_products.filter(
         stock_quantity__gt=0,
         stock_quantity__lte=F('alert_threshold')
     )
     alert_count = out_of_stock_products.count() + low_stock_products.count()
 
     # Recent transactions (sales, purchases, expenses)
-    recent_sales = Sale.objects.select_related('product').order_by('-date', '-created_at')[:5]
-    recent_purchases = Purchase.objects.select_related('product').order_by('-date', '-created_at')[:5]
-    recent_expenses = Expense.objects.order_by('-date', '-created_at')[:3]
+    recent_sales = user_sales.select_related('product').order_by('-date', '-created_at')[:5]
+    recent_purchases = user_purchases.select_related('product').order_by('-date', '-created_at')[:5]
+    recent_expenses = user_expenses.order_by('-date', '-created_at')[:3]
 
     # This month metrics
-    month_income = Sale.objects.filter(date__gte=month_start).aggregate(total=Sum('total_amount'))['total'] or 0
-    month_purchase = Purchase.objects.filter(date__gte=month_start).aggregate(total=Sum('total_amount'))['total'] or 0
-    month_expense_only = Expense.objects.filter(date__gte=month_start).aggregate(total=Sum('amount'))['total'] or 0
-    month_cogs = cogs_summary(month_start, today)['total']
+    month_income = user_sales.filter(date__gte=month_start).aggregate(total=Sum('total_amount'))['total'] or 0
+    month_purchase = user_purchases.filter(date__gte=month_start).aggregate(total=Sum('total_amount'))['total'] or 0
+    month_expense_only = recognized_expense_summary(month_start, today, request.user)['total']
+    month_cogs = cogs_summary(month_start, today, request.user)['total']
     month_expense = month_cogs + month_expense_only
     month_profit = month_income - month_expense
-    month_sales_count = Sale.objects.filter(date__gte=month_start).count()
+    month_sales_count = user_sales.filter(date__gte=month_start).count()
 
     daily_income = {
         item['date']: item['total'] or Decimal('0')
@@ -3123,7 +3201,7 @@ def dashboard_view(request):
     onboarding_complete = has_products and has_transactions and has_viewed_report
     show_inventory_tip = bool(request.session.get('show_inventory_tip'))
     warning_days = payment_warning_days(request)
-    payment_alerts = build_payment_alerts(warning_days, limit=5)
+    payment_alerts = build_payment_alerts(warning_days, limit=5, user=request.user)
 
     if previous_start == previous_end:
         prev_dates = previous_start.strftime('%d/%m/%Y')
@@ -3246,10 +3324,16 @@ def report_view(request):
     if cash_granularity not in ('day', 'week', 'month'):
         cash_granularity = 'month'
 
-    purchases = Purchase.objects.all()
-    sales = Sale.objects.all()
-    expenses = Expense.objects.all()
-    all_expenses = Expense.objects.all()
+    user_products = for_user(Product, request.user)
+    user_sales = for_user(Sale, request.user)
+    user_purchases = for_user(Purchase, request.user)
+    user_expenses = for_user(Expense, request.user)
+    user_opening_stocks = for_user(OpeningStock, request.user)
+
+    purchases = user_purchases
+    sales = user_sales
+    expenses = user_expenses
+    all_expenses = user_expenses
 
     if start_date:
         purchases = purchases.filter(date__gte=start_date)
@@ -3289,9 +3373,9 @@ def report_view(request):
     min_data_date = None
     report_end_date = parsed_end_date or today
     for candidate in [
-        Sale.objects.order_by('date').values_list('date', flat=True).first(),
-        Purchase.objects.order_by('date').values_list('date', flat=True).first(),
-        Expense.objects.order_by('date').values_list('date', flat=True).first(),
+        user_sales.order_by('date').values_list('date', flat=True).first(),
+        user_purchases.order_by('date').values_list('date', flat=True).first(),
+        user_expenses.order_by('date').values_list('date', flat=True).first(),
         report_end_date,
     ]:
         if candidate and (min_data_date is None or candidate < min_data_date):
@@ -3300,9 +3384,9 @@ def report_view(request):
     if report_start_date > report_end_date:
         report_start_date, report_end_date = report_end_date, report_start_date
 
-    purchases = Purchase.objects.filter(date__gte=report_start_date, date__lte=report_end_date)
-    sales = Sale.objects.filter(date__gte=report_start_date, date__lte=report_end_date)
-    expenses = Expense.objects.filter(date__gte=report_start_date, date__lte=report_end_date)
+    purchases = user_purchases.filter(date__gte=report_start_date, date__lte=report_end_date)
+    sales = user_sales.filter(date__gte=report_start_date, date__lte=report_end_date)
+    expenses = user_expenses.filter(date__gte=report_start_date, date__lte=report_end_date)
 
     report_effective_start = report_start_date
     report_days = max(1, (report_end_date - report_effective_start).days + 1)
@@ -3348,16 +3432,16 @@ def report_view(request):
     total_purchase = purchases.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     total_income = sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     recognized_revenue = total_income
-    previous_report_income = Sale.objects.filter(date__gte=previous_report_start, date__lte=previous_report_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    previous_report_income = user_sales.filter(date__gte=previous_report_start, date__lte=previous_report_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     if previous_report_income:
         revenue_total_growth = round(((total_income - previous_report_income) / abs(previous_report_income)) * 100, 1)
     else:
         revenue_total_growth = 0
-    cash_summary = cash_flow_summary(report_start_date, report_end_date)
+    cash_summary = cash_flow_summary(report_start_date, report_end_date, request.user)
     cash_income = cash_summary['income']
     cash_expense = cash_summary['expense_out']
     cash_purchase = cash_summary['purchase_out']
-    cogs_data = cogs_summary(report_start_date, report_end_date)
+    cogs_data = cogs_summary(report_start_date, report_end_date, request.user)
     cogs = cogs_data['total']
     cogs_by_month = cogs_data['by_month']
     total_expense = expense_recognized_total
@@ -3372,12 +3456,12 @@ def report_view(request):
     profit = gross_profit - operating_expense
     net_profit = profit
 
-    opening_stock_declared = OpeningStock.objects.aggregate(total=Sum('quantity'))['total'] or 0
-    purchase_stock_declared = Purchase.objects.aggregate(total=Sum('quantity'))['total'] or 0
+    opening_stock_declared = user_opening_stocks.aggregate(total=Sum('quantity'))['total'] or 0
+    purchase_stock_declared = user_purchases.aggregate(total=Sum('quantity'))['total'] or 0
     period_purchase_stock = purchases.aggregate(total=Sum('quantity'))['total'] or 0
     opening_stock_current = 0
     purchase_stock_current = 0
-    for product in Product.objects.filter(is_active=True):
+    for product in user_products.filter(is_active=True):
         product_opening = product.opening_stocks.aggregate(total=Sum('quantity'))['total'] or 0
         product_sold = product.sales.aggregate(total=Sum('quantity'))['total'] or 0
         product_opening_left = max(product_opening - product_sold, 0)
@@ -3572,7 +3656,7 @@ def report_view(request):
     category_option_tree = []
     category_nodes = {}
     category_filter_paths = set(
-        Product.objects.filter(is_active=True).exclude(category='').values_list('category', flat=True)
+        user_products.filter(is_active=True).exclude(category='').values_list('category', flat=True)
     )
     category_filter_paths.update(
         sales.exclude(product__category='').values_list('product__category', flat=True)
@@ -3728,7 +3812,7 @@ def report_view(request):
         .order_by('-units')
         .first()
     )
-    slow_product = Product.objects.filter(stock_quantity__gt=0).order_by('-stock_quantity').first()
+    slow_product = user_products.filter(stock_quantity__gt=0).order_by('-stock_quantity').first()
     biggest_supplier = (
         purchases.exclude(supplier_name='')
         .values('supplier_name')
@@ -3736,16 +3820,16 @@ def report_view(request):
         .order_by('-total')
         .first()
     )
-    total_stock = Product.objects.filter(is_active=True).aggregate(total=Sum('stock_quantity'))['total'] or 0
-    alert_stock_count = Product.objects.filter(stock_quantity__gt=0, stock_quantity__lte=F('alert_threshold')).count()
+    total_stock = user_products.filter(is_active=True).aggregate(total=Sum('stock_quantity'))['total'] or 0
+    alert_stock_count = user_products.filter(stock_quantity__gt=0, stock_quantity__lte=F('alert_threshold')).count()
     inventory_value = sum(
         (product.price_buy_latest or Decimal('0')) * product.stock_quantity
-        for product in Product.objects.filter(is_active=True)
+        for product in user_products.filter(is_active=True)
     )
     daily_cogs = estimated_cogs / Decimal(report_days) if report_days else Decimal('0')
     inventory_days = round(float(inventory_value / daily_cogs), 1) if daily_cogs else None
     slow_inventory_rows = []
-    for product in Product.objects.filter(is_active=True, stock_quantity__gt=0).order_by('-stock_quantity'):
+    for product in user_products.filter(is_active=True, stock_quantity__gt=0).order_by('-stock_quantity'):
         sold_qty = sales.filter(product=product).aggregate(total=Sum('quantity'))['total'] or 0
         avg_daily_sales = Decimal(sold_qty) / Decimal(report_days) if report_days else Decimal('0')
         days_cover = None if avg_daily_sales <= 0 else round(float(Decimal(product.stock_quantity) / avg_daily_sales), 1)
@@ -3946,4 +4030,36 @@ def report_view(request):
         'purchase_stock_current': purchase_stock_current,
         'total_outflow': total_outflow,
     })
+
+
+for _view_name in [
+    'onboarding_welcome_view',
+    'opening_stock_wizard_view',
+    'dashboard_view',
+    'inventory_view',
+    'inventory_inline_update_view',
+    'inventory_category_bulk_move_view',
+    'inventory_category_delete_view',
+    'inventory_category_create_view',
+    'inventory_category_rename_view',
+    'product_delete_view',
+    'sale_new_product_ajax_view',
+    'expense_new_product_ajax_view',
+    'product_create_view',
+    'purchase_delete_view',
+    'purchase_edit_view',
+    'sale_delete_view',
+    'sale_edit_view',
+    'sale_create_view',
+    'expense_delete_view',
+    'expense_edit_view',
+    'expense_create_view',
+    'transaction_create_view',
+    'mark_transaction_paid_view',
+    'extend_transaction_due_view',
+    'bulk_transaction_create_view',
+    'transaction_history_view',
+    'report_view',
+]:
+    globals()[_view_name] = login_required(globals()[_view_name])
 

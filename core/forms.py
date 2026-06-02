@@ -3,6 +3,10 @@ from .models import Product, Purchase, Sale, Expense
 
 
 class ProductForm(forms.ModelForm):
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
     class Meta:
         model = Product
         fields = [
@@ -25,6 +29,7 @@ class ProductForm(forms.ModelForm):
 
         if name and unit:
             existing_product = Product.objects.filter(
+                user=self.user,
                 name__iexact=name.strip(),
                 unit__iexact=unit.strip(),
                 category__iexact=(category or '').strip()
@@ -42,6 +47,11 @@ class ProductForm(forms.ModelForm):
 
 
 class PurchaseForm(forms.ModelForm):
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['product'].queryset = Product.objects.filter(user=user, is_active=True).order_by('name')
+
     class Meta:
         model = Purchase
         fields = [
@@ -78,6 +88,11 @@ class SaleForm(forms.ModelForm):
         required=False,
         label="Cập nhật giá này thành giá bán mặc định mới"
     )
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields['product'].queryset = Product.objects.filter(user=user, is_active=True).order_by('name')
 
     class Meta:
         model = Sale

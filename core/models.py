@@ -1,9 +1,10 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-
+from django.contrib.auth.models import User
 
 class TimeStampedModel(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -12,6 +13,7 @@ class TimeStampedModel(models.Model):
 
 
 class Product(TimeStampedModel):
+
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=100, blank=True)
     unit = models.CharField(max_length=50)
@@ -26,6 +28,7 @@ class Product(TimeStampedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
+        
         ordering = ['name']
 
     def __str__(self):
@@ -57,11 +60,12 @@ class Product(TimeStampedModel):
 
 
 class Category(TimeStampedModel):
-    path = models.CharField(max_length=255, unique=True)
+    path = models.CharField(max_length=255)
     name = models.CharField(max_length=100)
     note = models.TextField(blank=True)
 
     class Meta:
+        unique_together = ('user', 'path')
         ordering = ['path']
 
     def __str__(self):
@@ -96,6 +100,7 @@ class Purchase(TimeStampedModel):
     note = models.TextField(blank=True)
 
     class Meta:
+      
         ordering = ['-date', '-created_at']
 
     def __str__(self):
@@ -166,6 +171,7 @@ class OpeningStock(TimeStampedModel):
     note = models.TextField(blank=True)
 
     class Meta:
+ 
         ordering = ['-created_at']
 
     def __str__(self):
@@ -233,6 +239,7 @@ class Sale(TimeStampedModel):
     note = models.TextField(blank=True)
     
     class Meta:
+
         ordering = ['-date', '-created_at']
 
     def __str__(self):
@@ -319,6 +326,7 @@ class Expense(TimeStampedModel):
     note = models.TextField(blank=True)
 
     class Meta:
+       
         ordering = ['-date', '-created_at']
 
     def __str__(self):
