@@ -365,8 +365,8 @@
 #step1 .sc-grid--3col {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
-        "email password"
-        ". confirm";
+        "email owner"
+        "password confirm";
     gap: 26px 34px;
     margin-bottom: 34px;
 }
@@ -376,10 +376,14 @@
 }
 
 #step1 .sc-grid--3col .sc-field:nth-child(2) {
-    grid-area: password;
+    grid-area: owner;
 }
 
 #step1 .sc-grid--3col .sc-field:nth-child(3) {
+    grid-area: password;
+}
+
+#step1 .sc-grid--3col .sc-field:nth-child(4) {
     grid-area: confirm;
 }
 

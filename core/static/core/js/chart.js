@@ -58,7 +58,7 @@ window.initAnalyticsCharts = function () {
                     },
                     {
                         type: 'bar',
-                        label: 'Lợi nhuận ghi nhận',
+                        label: 'Lợi nhuận thuần',
                         data: profitData,
                         backgroundColor: profitData.map(value => value >= 0 ? '#26a949' : '#d92d20'),
                         borderRadius: 4,

@@ -18,6 +18,16 @@ UNCATEGORIZED_CATEGORY_LABEL = '\u0043\u0048\u01af\u0041 \u0043\u00d3 \u0044\u00
 PAYMENT_WARNING_DAYS = 7
 
 
+def save_business_profile_from_request(request):
+    owner_name = (request.POST.get('owner_name') or '').strip()
+    if owner_name and owner_name != 'Tên chủ doanh nghiệp':
+        request.session['owner_name'] = owner_name
+
+    business_name = (request.POST.get('biz_name') or '').strip()
+    if business_name:
+        request.session['business_name'] = business_name
+
+
 def month_start_date(value):
     return datetime(value.year, value.month, 1).date()
 
@@ -77,6 +87,28 @@ def recognized_expense_summary(start_date=None, end_date=None):
         'by_type': by_type,
         'by_month': by_month,
     }
+
+
+def cogs_summary(start_date=None, end_date=None):
+    """
+    COGS = gia von hang da ban trong ky.
+    Lay tu sale.cogs_amount da luu tai thoi diem ban; khong dung Purchase
+    vi nhap hang la ton kho/tai san cho den khi hang duoc ban.
+    """
+    qs = Sale.objects.all()
+    if start_date:
+        qs = qs.filter(date__gte=start_date)
+    if end_date:
+        qs = qs.filter(date__lte=end_date)
+
+    total = qs.aggregate(total=Sum('cogs_amount'))['total'] or Decimal('0')
+    by_month = {}
+    for item in qs.annotate(month=TruncMonth('date')).values('month').annotate(total=Sum('cogs_amount')):
+        if not item['month']:
+            continue
+        by_month[item['month'].strftime('%Y-%m')] = item['total'] or Decimal('0')
+
+    return {'total': total, 'by_month': by_month}
 
 
 def cash_flow_summary(start_date=None, end_date=None):
@@ -286,6 +318,7 @@ def landing_view(request):
 
 def signup_view(request):
     if request.method == "POST":
+        save_business_profile_from_request(request)
         request.session['onboarding_started'] = True
         return redirect("onboarding_welcome")
     return render(request, "core/signup.html")
@@ -298,6 +331,7 @@ def login_view(request):
 
 def onboarding_welcome_view(request):
     if request.method == "POST":
+        save_business_profile_from_request(request)
         has_stock = request.POST.get('has_stock')
         if has_stock == 'yes':
             request.session['onboarding_has_stock'] = True
@@ -316,19 +350,36 @@ def opening_stock_wizard_view(request):
         names = request.POST.getlist('product_name[]')
         quantities = request.POST.getlist('quantity[]')
         unit_costs = request.POST.getlist('estimated_unit_cost[]')
+        sell_prices = request.POST.getlist('estimated_price_sell[]')
         alert_thresholds = request.POST.getlist('alert_threshold[]')
         units = request.POST.getlist('unit[]')
+        category_level_1 = request.POST.getlist('category_level_1[]')
+        category_level_2 = request.POST.getlist('category_level_2[]')
         categories = request.POST.getlist('category[]')
-        max_rows = max(len(names), len(quantities), len(unit_costs), len(alert_thresholds), len(units), len(categories), 0)
+        max_rows = max(
+            len(names), len(quantities), len(unit_costs), len(sell_prices), len(alert_thresholds),
+            len(units), len(category_level_1), len(category_level_2), len(categories), 0
+        )
 
         for index in range(max_rows):
+            category_1 = category_level_1[index].strip() if index < len(category_level_1) else ''
+            category_2 = category_level_2[index].strip() if index < len(category_level_2) else ''
+            legacy_category = categories[index].strip() if index < len(categories) else ''
+            if legacy_category and not category_1:
+                parts = [part.strip() for part in legacy_category.split('/') if part.strip()]
+                category_1 = parts[0] if parts else ''
+                category_2 = parts[1] if len(parts) > 1 else ''
+            category_path = ' / '.join([level for level in [category_1, category_2] if level])
             row = {
                 'product_name': names[index].strip() if index < len(names) else '',
                 'quantity': quantities[index].strip() if index < len(quantities) else '',
                 'estimated_unit_cost': unit_costs[index].strip() if index < len(unit_costs) else '',
+                'estimated_price_sell': sell_prices[index].strip() if index < len(sell_prices) else '',
                 'alert_threshold': alert_thresholds[index].strip() if index < len(alert_thresholds) else '',
                 'unit': units[index].strip() if index < len(units) else 'cái',
-                'category': categories[index].strip() if index < len(categories) else '',
+                'category_level_1': category_1,
+                'category_level_2': category_2,
+                'category': category_path,
             }
             rows.append(row)
 
@@ -370,8 +421,19 @@ def opening_stock_wizard_view(request):
                 errors.append(f"{row_label}: Giá vốn ước tính không được âm.")
                 continue
 
+            try:
+                estimated_price_sell = Decimal(str(row['estimated_price_sell'] or '0').replace('.', '').replace(',', ''))
+            except Exception:
+                errors.append(f"{row_label}: Giá bán ước tính không hợp lệ.")
+                continue
+
+            if estimated_price_sell < 0:
+                errors.append(f"{row_label}: Giá bán ước tính không được âm.")
+                continue
+
             row['quantity_value'] = quantity
             row['estimated_unit_cost_value'] = estimated_unit_cost
+            row['estimated_price_sell_value'] = estimated_price_sell
             row['alert_threshold_value'] = alert_threshold
 
         valid_rows = [row for row in rows if row.get('quantity_value')]
@@ -387,6 +449,7 @@ def opening_stock_wizard_view(request):
                             'category': row['category'],
                             'unit': row['unit'] or 'cái',
                             'price_buy_latest': row['estimated_unit_cost_value'],
+                            'price_sell': row['estimated_price_sell_value'],
                             'alert_threshold': row['alert_threshold_value'],
                         }
                     )
@@ -398,7 +461,11 @@ def opening_stock_wizard_view(request):
                         product.alert_threshold = row['alert_threshold_value']
                         if row['estimated_unit_cost_value']:
                             product.price_buy_latest = row['estimated_unit_cost_value']
+                        if row['estimated_price_sell_value']:
+                            product.price_sell = row['estimated_price_sell_value']
                         product.save()
+                    if row['category']:
+                        create_category_path(row['category'])
 
                     OpeningStock.objects.create(
                         product=product,
@@ -411,7 +478,17 @@ def opening_stock_wizard_view(request):
 
     if not rows:
         rows = [
-            {'product_name': '', 'quantity': '', 'estimated_unit_cost': '', 'alert_threshold': '10', 'unit': 'cái', 'category': ''}
+            {
+                'product_name': '',
+                'quantity': '',
+                'estimated_unit_cost': '',
+                'estimated_price_sell': '',
+                'alert_threshold': '10',
+                'unit': 'cái',
+                'category': '',
+                'category_level_1': '',
+                'category_level_2': '',
+            }
         ]
 
     return render(request, 'core/opening_stock_wizard.html', {
@@ -422,10 +499,22 @@ def opening_stock_wizard_view(request):
 def inventory_view(request):
     products = Product.objects.filter(is_active=True).order_by('name')
     active_products = products
+    products_missing_stock = products.filter(
+        stock_quantity=0,
+        purchases__isnull=True,
+        opening_stocks__isnull=True,
+    ).distinct()
     new_product_ids = [
         int(pk) for pk in request.GET.get('new_products', '').split(',')
         if pk.isdigit()
     ]
+    created_product_id = request.GET.get('created')
+    if created_product_id and created_product_id.isdigit():
+        created_product_id = int(created_product_id)
+        if created_product_id not in new_product_ids:
+            new_product_ids.append(created_product_id)
+    else:
+        created_product_id = None
     new_products = Product.objects.filter(pk__in=new_product_ids).order_by('name')
 
     low_stock_products = products.filter(
@@ -433,9 +522,9 @@ def inventory_view(request):
         stock_quantity__gt=0
     )
 
-    out_of_stock_products = products.filter(
-        stock_quantity=0,
-    )
+    out_of_stock_products = products.filter(stock_quantity=0).filter(
+        Q(purchases__isnull=False) | Q(opening_stocks__isnull=False)
+    ).distinct()
     adequate_products = active_products.filter(stock_quantity__gt=F('alert_threshold'))
     urgent_products = list(out_of_stock_products[:3]) + list(low_stock_products[:3])
 
@@ -545,9 +634,10 @@ def inventory_view(request):
         node['products'].append(product)
 
     stock_status_priority = {
-        'het_hang': 0,
-        'sap_het': 1,
-        'day_du': 2,
+        'chua_nhap_hang': 0,
+        'het_hang': 1,
+        'sap_het': 2,
+        'day_du': 3,
     }
     product_rows.sort(key=lambda row: (
         stock_status_priority.get(row['product'].stock_status, 3),
@@ -693,6 +783,8 @@ def inventory_view(request):
         'total_stock': total_stock,
         'inventory_value': inventory_value,
         'alert_count': alert_count,
+        'products_missing_stock': products_missing_stock,
+        'products_missing_stock_count': products_missing_stock.count(),
         'adequate_count': adequate_products.count(),
         'top_sellers': top_sellers,
         'category_stats': category_stats,
@@ -718,6 +810,7 @@ def inventory_view(request):
         'out_of_stock_products': out_of_stock_products,
         'urgent_products': urgent_products[:5],
         'new_products': new_products,
+        'created_product_id': created_product_id,
         'payment_warning_days': payment_warning_days(request),
     })
 
@@ -1155,6 +1248,7 @@ def product_create_view(request):
         'unit_price': '',
         'supplier_name': '',
         'date': timezone.now().date().isoformat(),
+        'stock_origin': 'later',
     }
 
     if request.method == 'POST':
@@ -1178,6 +1272,7 @@ def product_create_view(request):
             'unit_price': request.POST.get('initial_unit_cost', '').strip(),
             'supplier_name': request.POST.get('initial_supplier_name', '').strip(),
             'date': request.POST.get('initial_purchase_date') or timezone.now().date().isoformat(),
+            'stock_origin': request.POST.get('stock_origin') if request.POST.get('stock_origin') in ('later', 'opening', 'purchase') else 'later',
         }
 
         form = ProductForm(post_data, instance=product_instance)
@@ -1185,14 +1280,18 @@ def product_create_view(request):
         purchase_quantity = 0
         purchase_unit_price = Decimal('0')
         purchase_date = timezone.now().date()
-        try:
-            purchase_quantity = int(initial_purchase['quantity'] or '0')
-            if purchase_quantity < 0:
-                product_errors.append("Số tồn kho ban đầu không được âm.")
-        except ValueError:
-            product_errors.append("Số tồn kho ban đầu không hợp lệ.")
+        if initial_purchase['stock_origin'] == 'later':
+            purchase_quantity = 0
+            purchase_unit_price = Decimal('0')
+        else:
+            try:
+                purchase_quantity = int(initial_purchase['quantity'] or '0')
+                if purchase_quantity < 0:
+                    product_errors.append("Số tồn kho ban đầu không được âm.")
+            except ValueError:
+                product_errors.append("Số tồn kho ban đầu không hợp lệ.")
 
-        if initial_purchase['unit_price']:
+        if initial_purchase['stock_origin'] != 'later' and initial_purchase['unit_price']:
             try:
                 purchase_unit_price = Decimal(str(initial_purchase['unit_price']).replace('.', '').replace(',', ''))
                 if purchase_unit_price < 0:
@@ -1200,8 +1299,10 @@ def product_create_view(request):
             except Exception:
                 product_errors.append("Giá vốn nhập không hợp lệ.")
 
-        if purchase_quantity > 0 and purchase_unit_price <= 0:
-            product_errors.append("Khi có tồn kho ban đầu, cần nhập giá vốn nhập hàng.")
+        if initial_purchase['stock_origin'] != 'later' and purchase_quantity <= 0:
+            product_errors.append("Nếu khai báo tồn kho ngay, nhập số lượng lớn hơn 0 hoặc chọn để sau.")
+        if initial_purchase['stock_origin'] == 'purchase' and purchase_unit_price <= 0:
+            product_errors.append("Khi chọn nhập hàng có tính chi phí, cần nhập giá vốn.")
 
         try:
             purchase_date = datetime.strptime(initial_purchase['date'], "%Y-%m-%d").date()
@@ -1211,25 +1312,41 @@ def product_create_view(request):
         if form.is_valid() and not product_errors:
             with transaction.atomic():
                 product = form.save()
+                if product.category:
+                    create_category_path(product.category)
                 if purchase_quantity > 0:
-                    Purchase.objects.create(
-                        product=product,
-                        date=purchase_date,
-                        supplier_name=initial_purchase['supplier_name'],
-                        quantity=purchase_quantity,
-                        unit_price=purchase_unit_price,
-                        note="Nhập hàng ban đầu khi tạo sản phẩm",
-                    )
+                    if initial_purchase['stock_origin'] == 'purchase':
+                        Purchase.objects.create(
+                            product=product,
+                            date=purchase_date,
+                            supplier_name=initial_purchase['supplier_name'],
+                            quantity=purchase_quantity,
+                            unit_price=purchase_unit_price,
+                            note="Nhập hàng ban đầu khi tạo sản phẩm",
+                        )
+                    else:
+                        OpeningStock.objects.create(
+                            product=product,
+                            quantity=purchase_quantity,
+                            estimated_unit_cost=purchase_unit_price,
+                            note="Hàng có sẵn khi tạo sản phẩm",
+                        )
             if next_target == 'expense_purchase':
                 return redirect(f'/expenses/create/?mode=purchase&product_id={product.id}')
             return redirect(f'/inventory/?created={product.id}')
     else:
         form = ProductForm(instance=product_instance)
 
+    category_level_options = product_category_levels()
+    for level in category_level_options:
+        selected = category_values[level['level'] - 1] if level['level'] - 1 < len(category_values) else ''
+        level['selected'] = selected
+        level['selected_is_option'] = selected in level['options']
+
     return render(request, 'core/product_form.html', {
         'form': form,
         'product_instance': product_instance,
-        'category_levels': product_category_levels(),
+        'category_levels': category_level_options,
         'category_values': category_values,
         'initial_purchase': initial_purchase,
         'next_target': next_target,
@@ -2711,7 +2828,7 @@ def transaction_history_view(request):
             sales_for_summary = sales_for_summary.filter(date__lte=date_to)
             purchases_for_summary = purchases_for_summary.filter(date__lte=date_to)
         recognized_income = sales_for_summary.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-        recognized_out = (purchases_for_summary.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')) + recognized_expense_summary(date_from, date_to)['total']
+        recognized_out = cogs_summary(date_from, date_to)['total'] + recognized_expense_summary(date_from, date_to)['total']
         cash_summary = cash_flow_summary(date_from, date_to)
         cash_income = cash_summary['income']
         cash_out = cash_summary['outflow']
@@ -2775,19 +2892,19 @@ def transaction_page_context():
 
     def percent_change(current, previous):
         if previous == 0:
-            return 100 if current > 0 else 0
+            return None
         return round(((float(current) - float(previous)) / abs(float(previous))) * 100, 1)
 
     today_income = Sale.objects.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    today_purchase = Purchase.objects.filter(date=today).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    today_cogs = cogs_summary(today, today)['total']
     today_expense = recognized_expense_summary(today, today)['total']
-    today_cost = today_purchase + today_expense
+    today_cost = today_cogs + today_expense
     today_profit = today_income - today_cost
 
     yesterday_income = Sale.objects.filter(date=yesterday).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    yesterday_purchase = Purchase.objects.filter(date=yesterday).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    yesterday_cogs = cogs_summary(yesterday, yesterday)['total']
     yesterday_expense = recognized_expense_summary(yesterday, yesterday)['total']
-    yesterday_cost = yesterday_purchase + yesterday_expense
+    yesterday_cost = yesterday_cogs + yesterday_expense
     yesterday_profit = yesterday_income - yesterday_cost
 
     recent_sales = list(Sale.objects.select_related('product').order_by('-date', '-created_at')[:2])
@@ -2833,6 +2950,23 @@ def dashboard_view(request):
     end_date = parse_date(request.GET.get('end_date'), today)
     if start_date > end_date:
         start_date, end_date = end_date, start_date
+    week_start = today - timedelta(days=6)
+    year_start = today.replace(month=1, day=1)
+    requested_period = request.GET.get('period', '')
+    if requested_period in {'all', 'today', 'week', 'month', 'year'}:
+        active_period = requested_period
+    elif start_date == month_start and end_date == today:
+        active_period = 'month'
+    elif start_date == year_start and end_date == today:
+        active_period = 'year'
+    elif start_date == today and end_date == today:
+        active_period = 'today'
+    elif start_date == week_start and end_date == today:
+        active_period = 'week'
+    elif start_date == earliest_date and end_date == today:
+        active_period = 'all'
+    else:
+        active_period = 'custom'
 
     sales_in_range = Sale.objects.filter(date__gte=start_date, date__lte=end_date)
     purchases_in_range = Purchase.objects.filter(date__gte=start_date, date__lte=end_date)
@@ -2840,16 +2974,21 @@ def dashboard_view(request):
 
     total_income = sales_in_range.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     total_purchase = purchases_in_range.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    cogs_total = cogs_summary(start_date, end_date)['total']
     recognized_expenses = recognized_expense_summary(start_date, end_date)
-    total_expense = recognized_expenses['total']
-    total_expense_all = total_purchase + total_expense
+    operating_expense_total = recognized_expenses['total']
+    total_expense = operating_expense_total
+    total_recognized_cost = cogs_total + operating_expense_total
+    total_expense_all = total_recognized_cost
     cash_summary = cash_flow_summary(start_date, end_date)
     cash_income = cash_summary['income']
     cash_expense = cash_summary['expense_out']
     cash_purchase = cash_summary['purchase_out']
     cash_outflow = cash_summary['outflow']
     net_cash_flow = cash_summary['net']
-    estimated_profit = total_income - total_expense_all
+    gross_profit = total_income - cogs_total
+    net_profit = gross_profit - operating_expense_total
+    estimated_profit = net_profit
 
     total_sales_count = sales_in_range.count()
     total_purchases_count = purchases_in_range.count()
@@ -2857,22 +2996,55 @@ def dashboard_view(request):
     total_transactions = total_sales_count + total_purchases_count + total_expenses_count
 
     period_days = (end_date - start_date).days + 1
-    previous_end = start_date - timedelta(days=1)
-    previous_start = previous_end - timedelta(days=period_days - 1)
+    if active_period == 'year':
+        try:
+            previous_start = start_date.replace(year=start_date.year - 1)
+        except ValueError:
+            previous_start = start_date.replace(year=start_date.year - 1, day=28)
+        previous_end = previous_start + timedelta(days=period_days - 1)
+    elif active_period == 'month':
+        if start_date.month == 1:
+            previous_start = start_date.replace(year=start_date.year - 1, month=12)
+        else:
+            previous_start = start_date.replace(month=start_date.month - 1)
+        previous_end = previous_start + timedelta(days=period_days - 1)
+    elif active_period == 'week':
+        previous_end = start_date - timedelta(days=1)
+        previous_start = previous_end - timedelta(days=6)
+    elif active_period == 'today':
+        previous_end = start_date - timedelta(days=1)
+        previous_start = previous_end
+    else:
+        previous_end = start_date - timedelta(days=1)
+        previous_start = previous_end - timedelta(days=period_days - 1)
+
     previous_income = Sale.objects.filter(date__gte=previous_start, date__lte=previous_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     previous_purchase = Purchase.objects.filter(date__gte=previous_start, date__lte=previous_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    previous_cogs = cogs_summary(previous_start, previous_end)['total']
     previous_cash_summary = cash_flow_summary(previous_start, previous_end)
     previous_expense = recognized_expense_summary(previous_start, previous_end)['total']
-    previous_expense_all = previous_purchase + previous_expense
+    previous_expense_all = previous_cogs + previous_expense
     previous_cash_flow = previous_cash_summary['net']
-    previous_profit = previous_income - previous_expense_all
+    previous_gross_profit = previous_income - previous_cogs
+    previous_profit = previous_gross_profit - previous_expense
+    has_comparison_data = any([
+        previous_income,
+        previous_cogs,
+        previous_expense,
+        previous_expense_all,
+        previous_cash_flow,
+        previous_profit,
+    ])
 
     def percent_change(current, previous):
         if previous == 0:
-            return 100 if current > 0 else 0
+            return None
         return round(((float(current) - float(previous)) / abs(float(previous))) * 100, 1)
 
     income_change = percent_change(total_income, previous_income)
+    cogs_change = percent_change(cogs_total, previous_cogs)
+    gross_profit_change = percent_change(gross_profit, previous_gross_profit)
+    operating_expense_change = percent_change(operating_expense_total, previous_expense)
     expense_change = percent_change(total_expense_all, previous_expense_all)
     cash_flow_change = percent_change(net_cash_flow, previous_cash_flow)
     profit_change = percent_change(estimated_profit, previous_profit)
@@ -2884,7 +3056,15 @@ def dashboard_view(request):
 
     # Product metrics
     total_products = Product.objects.filter(is_active=True).count()
-    out_of_stock_products = Product.objects.filter(stock_quantity=0)
+    out_of_stock_products = Product.objects.filter(stock_quantity=0).filter(
+        Q(purchases__isnull=False) | Q(opening_stocks__isnull=False)
+    ).distinct()
+    products_missing_stock = Product.objects.filter(
+        is_active=True,
+        stock_quantity=0,
+        purchases__isnull=True,
+        opening_stocks__isnull=True,
+    ).distinct().order_by('name')
     low_stock_products = Product.objects.filter(
         stock_quantity__gt=0,
         stock_quantity__lte=F('alert_threshold')
@@ -2900,7 +3080,8 @@ def dashboard_view(request):
     month_income = Sale.objects.filter(date__gte=month_start).aggregate(total=Sum('total_amount'))['total'] or 0
     month_purchase = Purchase.objects.filter(date__gte=month_start).aggregate(total=Sum('total_amount'))['total'] or 0
     month_expense_only = Expense.objects.filter(date__gte=month_start).aggregate(total=Sum('amount'))['total'] or 0
-    month_expense = month_purchase + month_expense_only
+    month_cogs = cogs_summary(month_start, today)['total']
+    month_expense = month_cogs + month_expense_only
     month_profit = month_income - month_expense
     month_sales_count = Sale.objects.filter(date__gte=month_start).count()
 
@@ -2935,7 +3116,7 @@ def dashboard_view(request):
     avg_income_per_day = total_income / period_days if period_days else Decimal('0')
     avg_expense_per_day = total_expense_all / period_days if period_days else Decimal('0')
     avg_cash_out_per_day = cash_outflow / period_days if period_days else Decimal('0')
-    gross_margin = round((float(estimated_profit) / float(total_income)) * 100, 1) if total_income else 0
+    gross_margin = round((float(gross_profit) / float(total_income)) * 100, 1) if total_income else 0
     has_products = total_products > 0
     has_transactions = total_transactions > 0
     has_viewed_report = bool(request.session.get('report_viewed'))
@@ -2944,12 +3125,43 @@ def dashboard_view(request):
     warning_days = payment_warning_days(request)
     payment_alerts = build_payment_alerts(warning_days, limit=5)
 
+    if previous_start == previous_end:
+        prev_dates = previous_start.strftime('%d/%m/%Y')
+    else:
+        prev_dates = f"{previous_start.strftime('%d/%m/%Y')} - {previous_end.strftime('%d/%m/%Y')}"
+
+    if active_period == 'today':
+        comparison_label = "Hôm qua"
+        previous_period_text = f"so với hôm qua ({prev_dates})"
+    elif active_period == 'week':
+        comparison_label = "7 ngày trước đó"
+        previous_period_text = f"so với 7 ngày trước đó ({prev_dates})"
+    elif active_period == 'month':
+        comparison_label = "Cùng số ngày đã qua của tháng trước"
+        previous_period_text = f"so với cùng số ngày đã qua của tháng trước ({prev_dates})"
+    elif active_period == 'year':
+        comparison_label = "Cùng số ngày đã qua của năm ngoái"
+        previous_period_text = f"so với cùng số ngày đã qua của năm ngoái ({prev_dates})"
+    elif active_period == 'all':
+        comparison_label = "Kỳ trước cùng số ngày"
+        previous_period_text = f"so với kỳ trước cùng số ngày ({prev_dates})"
+    else:
+        comparison_label = "Kỳ trước cùng số ngày"
+        previous_period_text = f"so với kỳ trước cùng số ngày ({prev_dates})"
+
     context = {
         # Financial metrics
         'total_income': total_income,
         'total_purchase': total_purchase,
         'total_expense': total_expense,
         'total_expense_all': total_expense_all,
+        'recognized_revenue': total_income,
+        'cogs': cogs_total,
+        'gross_profit': gross_profit,
+        'operating_expense': operating_expense_total,
+        'net_profit': net_profit,
+        'cash_in': cash_income,
+        'cash_out': cash_outflow,
         'cash_expense': cash_expense,
         'cash_purchase': cash_purchase,
         'cash_income': cash_income,
@@ -2957,6 +3169,9 @@ def dashboard_view(request):
         'net_cash_flow': net_cash_flow,
         'estimated_profit': estimated_profit,
         'income_change': income_change,
+        'cogs_change': cogs_change,
+        'gross_profit_change': gross_profit_change,
+        'operating_expense_change': operating_expense_change,
         'expense_change': expense_change,
         'cash_flow_change': cash_flow_change,
         'profit_change': profit_change,
@@ -2970,6 +3185,8 @@ def dashboard_view(request):
         # Product metrics
         'total_products': total_products,
         'out_of_stock_products': out_of_stock_products,
+        'products_missing_stock': products_missing_stock,
+        'products_missing_stock_count': products_missing_stock.count(),
         'low_stock_products': low_stock_products,
         'alert_count': alert_count,
         
@@ -2988,10 +3205,15 @@ def dashboard_view(request):
         'end_date': end_date,
         'date_range_label': f"{start_date.strftime('%d/%m/%Y')} - {end_date.strftime('%d/%m/%Y')}",
         'previous_period_label': f"{previous_start.strftime('%d/%m/%Y')} - {previous_end.strftime('%d/%m/%Y')}",
-        'today_query': f"start_date={today.isoformat()}&end_date={today.isoformat()}",
-        'week_query': f"start_date={(today - timedelta(days=6)).isoformat()}&end_date={today.isoformat()}",
-        'month_query': f"start_date={month_start.isoformat()}&end_date={today.isoformat()}",
-        'all_query': f"start_date={earliest_date.isoformat()}&end_date={today.isoformat()}",
+        'previous_period_text': previous_period_text,
+        'comparison_label': comparison_label,
+        'has_comparison_data': has_comparison_data,
+        'today_query': f"period=today&start_date={today.isoformat()}&end_date={today.isoformat()}",
+        'week_query': f"period=week&start_date={week_start.isoformat()}&end_date={today.isoformat()}",
+        'month_query': f"period=month&start_date={month_start.isoformat()}&end_date={today.isoformat()}",
+        'year_query': f"period=year&start_date={year_start.isoformat()}&end_date={today.isoformat()}",
+        'all_query': f"period=all&start_date={earliest_date.isoformat()}&end_date={today.isoformat()}",
+        'active_period': active_period,
         'chart_data': chart_data,
         'avg_income_per_day': avg_income_per_day,
         'avg_expense_per_day': avg_expense_per_day,
@@ -3123,27 +3345,32 @@ def report_view(request):
         expense_recognized_total += recognized_amount
         expense_recognized_by_type[expense.expense_type] = expense_recognized_by_type.get(expense.expense_type, Decimal('0')) + recognized_amount
 
-    total_purchase = purchases.aggregate(total=Sum('total_amount'))['total'] or 0
-    total_income = sales.aggregate(total=Sum('total_amount'))['total'] or 0
+    total_purchase = purchases.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    total_income = sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    recognized_revenue = total_income
     previous_report_income = Sale.objects.filter(date__gte=previous_report_start, date__lte=previous_report_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     if previous_report_income:
         revenue_total_growth = round(((total_income - previous_report_income) / abs(previous_report_income)) * 100, 1)
     else:
-        revenue_total_growth = 100 if total_income else 0
+        revenue_total_growth = 0
     cash_summary = cash_flow_summary(report_start_date, report_end_date)
     cash_income = cash_summary['income']
     cash_expense = cash_summary['expense_out']
     cash_purchase = cash_summary['purchase_out']
+    cogs_data = cogs_summary(report_start_date, report_end_date)
+    cogs = cogs_data['total']
+    cogs_by_month = cogs_data['by_month']
     total_expense = expense_recognized_total
-    accounting_outflow = total_purchase + total_expense
+    operating_expense = total_expense
+    accounting_outflow = cogs + operating_expense
+    total_recognized_cost = accounting_outflow
     cash_outflow = cash_summary['outflow']
     net_cash_flow = cash_summary['net']
-    estimated_cogs = sum(
-        (sale.product.price_buy_latest or Decimal('0')) * sale.quantity
-        for sale in sales.select_related('product')
-    )
-    gross_profit = total_income - estimated_cogs
-    profit = total_income - accounting_outflow
+    estimated_cogs = cogs
+    gross_profit = recognized_revenue - cogs
+    gross_margin_pct = round(float(gross_profit / recognized_revenue * 100), 1) if recognized_revenue else 0
+    profit = gross_profit - operating_expense
+    net_profit = profit
 
     opening_stock_declared = OpeningStock.objects.aggregate(total=Sum('quantity'))['total'] or 0
     purchase_stock_declared = Purchase.objects.aggregate(total=Sum('quantity'))['total'] or 0
@@ -3183,10 +3410,9 @@ def report_view(request):
         month_map.setdefault(key, {'income': 0, 'purchase': 0, 'expense': 0})
         month_map[key]['income'] = float(item['total'] or 0)
 
-    for item in purchases_by_month:
-        key = item['month'].strftime('%Y-%m')
+    for key, total in cogs_by_month.items():
         month_map.setdefault(key, {'income': 0, 'purchase': 0, 'expense': 0})
-        month_map[key]['purchase'] = float(item['total'] or 0)
+        month_map[key]['purchase'] = float(total or 0)
 
     for key, total in expense_recognized_by_month.items():
         month_map.setdefault(key, {'income': 0, 'purchase': 0, 'expense': 0})
@@ -3196,6 +3422,10 @@ def report_view(request):
     chart_income = [month_map[m]['income'] for m in chart_labels]
     chart_purchase = [month_map[m]['purchase'] for m in chart_labels]
     chart_expense = [month_map[m]['expense'] for m in chart_labels]
+    chart_gross_profit = [
+        month_map[m]['income'] - month_map[m]['purchase']
+        for m in chart_labels
+    ]
     chart_profit = [
         month_map[m]['income'] - month_map[m]['purchase'] - month_map[m]['expense']
         for m in chart_labels
@@ -3276,9 +3506,8 @@ def report_view(request):
     for sale in revenue_sales.select_related('product'):
         parts = [part.strip() for part in (sale.product.category or '').split('/') if part.strip()] or ['Hàng hóa']
         revenue = sale.total_amount or Decimal('0')
-        cost = (sale.product.price_buy_latest or Decimal('0')) * sale.quantity
-        allocated_accounting_expense = (total_expense * revenue / total_income) if total_income and revenue else Decimal('0')
-        sale_profit = revenue - cost - allocated_accounting_expense
+        cost = sale.cogs_amount or Decimal('0')
+        sale_profit = revenue - cost
         path_parts = []
         for level, part in enumerate(parts[:4], start=1):
             path_parts.append(part)
@@ -3310,12 +3539,11 @@ def report_view(request):
             row_sales = revenue_sales.select_related('product').filter(product__name=item[revenue_group_field])
         else:
             row_sales = revenue_sales.select_related('product').filter(product__category=item[revenue_group_field] or '')
-        row_cost = sum((sale.product.price_buy_latest or Decimal('0')) * sale.quantity for sale in row_sales)
-        row_allocated_expense = (total_expense * total / total_income) if total_income and total else Decimal('0')
+        row_cost = sum((sale.cogs_amount or Decimal('0')) for sale in row_sales)
         revenue_by_category.append({
             'name': item[revenue_group_field] or 'Hàng hóa',
             'total': total,
-            'profit': total - row_cost - row_allocated_expense,
+            'profit': total - row_cost,
             'share': share,
             'growth': 0,
         })
@@ -3323,11 +3551,11 @@ def report_view(request):
     expense_breakdown = []
     expense_labels = dict(Expense.EXPENSE_TYPE_CHOICES)
     total_outflow = accounting_outflow
-    if total_purchase:
+    if cogs:
         expense_breakdown.append({
-            'name': 'Chi phí nhập hàng trong kỳ',
-            'total': total_purchase,
-            'share': round((total_purchase / total_outflow * 100), 1) if total_outflow else 0,
+            'name': 'Giá vốn hàng bán',
+            'total': cogs,
+            'share': round((cogs / total_outflow * 100), 1) if total_outflow else 0,
             'previous_total': Decimal('0'),
         })
     for expense_type, total in sorted(expense_recognized_by_type.items(), key=lambda item: item[1], reverse=True):
@@ -3402,9 +3630,8 @@ def report_view(request):
         if profit_category_filter and not ' / '.join(parts).startswith(profit_category_filter):
             continue
         revenue = sale.total_amount or Decimal('0')
-        cost = (sale.product.price_buy_latest or Decimal('0')) * sale.quantity
-        allocated_accounting_expense = (total_expense * revenue / total_income) if total_income and revenue else Decimal('0')
-        row_profit = revenue - cost - allocated_accounting_expense
+        cost = sale.cogs_amount or Decimal('0')
+        row_profit = revenue - cost
         path_parts = []
         parent = None
         for level, part in enumerate(parts[:4], start=1):
@@ -3437,11 +3664,10 @@ def report_view(request):
             revenue = item['total'] or Decimal('0')
             category_sales_rows = sales.select_related('product').filter(product__name=category_name)
             estimated_cost = sum(
-                (sale.product.price_buy_latest or Decimal('0')) * sale.quantity
+                sale.cogs_amount or Decimal('0')
                 for sale in category_sales_rows
             )
-            allocated_accounting_expense = (total_expense * revenue / total_income) if total_income and revenue else Decimal('0')
-            category_profit = revenue - estimated_cost - allocated_accounting_expense
+            category_profit = revenue - estimated_cost
             margin = round((category_profit / revenue * 100), 1) if revenue else 0
             profit_by_category.append({
                 'name': category_name,
@@ -3587,7 +3813,12 @@ def report_view(request):
             'label': label[-2:],
             'period': label,
             'income': income_value,
+            'revenue': income_value,
+            'cogs': chart_purchase[index] if index < len(chart_purchase) else 0,
+            'gross_profit': chart_gross_profit[index] if index < len(chart_gross_profit) else 0,
+            'operating_expense': chart_expense[index] if index < len(chart_expense) else 0,
             'profit': profit_value,
+            'net_profit': profit_value,
             'income_top': income_metrics['top'],
             'income_bottom': income_metrics['bottom'],
             'income_height': income_metrics['height'],
@@ -3640,17 +3871,25 @@ def report_view(request):
         'preserved_filter_query': preserved_filter_query,
         'total_purchase': total_purchase,
         'total_income': total_income,
+        'recognized_revenue': recognized_revenue,
         'revenue_total_growth': revenue_total_growth,
         'total_expense': total_expense,
+        'operating_expense': operating_expense,
+        'cogs': cogs,
+        'total_recognized_cost': total_recognized_cost,
         'cash_expense': cash_expense,
         'cash_purchase': cash_purchase,
         'cash_income': cash_income,
+        'cash_in': cash_income,
         'cash_outflow': cash_outflow,
+        'cash_out': cash_outflow,
         'net_cash_flow': net_cash_flow,
         'accounting_outflow': accounting_outflow,
         'estimated_cogs': estimated_cogs,
         'gross_profit': gross_profit,
+        'gross_margin_pct': gross_margin_pct,
         'profit': profit,
+        'net_profit': net_profit,
         'purchases': purchases,
         'sales': sales,
         'expenses': expenses,
@@ -3658,6 +3897,7 @@ def report_view(request):
         'chart_income': chart_income,
         'chart_purchase': chart_purchase,
         'chart_expense': chart_expense,
+        'chart_gross_profit': chart_gross_profit,
         'chart_profit': chart_profit,
         'cash_chart_labels': cash_chart_labels,
         'cash_chart_in': cash_chart_in,

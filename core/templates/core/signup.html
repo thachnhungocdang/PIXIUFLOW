@@ -20,13 +20,13 @@
         </div>
 
         <nav class="sb-steps">
-            <div class="sb-step sb-step--done" data-step="1">
+            <div class="sb-step sb-step--active" data-step="1">
                 <div class="sb-step__dot">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <span>Tạo tài khoản</span>
             </div>
-            <div class="sb-step sb-step--active" data-step="2">
+            <div class="sb-step" data-step="2">
                 <div class="sb-step__dot">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
                 </div>
@@ -45,7 +45,7 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div class="sb-user__info">
-                <span class="sb-user__name">Kiều Xuân Thuý</span>
+                <span class="sb-user__name" id="sidebarOwnerName">{{ owner_name }}</span>
                 <span class="sb-user__status">Đang thiết lập...</span>
             </div>
         </div>
@@ -92,6 +92,13 @@
                             <div class="sc-input-wrap">
                                 <svg class="sc-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                                 <input type="text" id="phone_email" name="phone_email" placeholder="Ví dụ: xuanthuyceo@business.com">
+                            </div>
+                        </div>
+                        <div class="sc-field sc-field--wide">
+                            <label for="owner_name">Tên chủ doanh nghiệp</label>
+                            <div class="sc-input-wrap">
+                                <svg class="sc-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                <input type="text" id="owner_name" name="owner_name" value="{{ request.session.owner_name|default:'' }}" placeholder="Ví dụ: Nguyễn Minh Anh">
                             </div>
                         </div>
                         <div class="sc-field">
@@ -141,7 +148,7 @@
                             <label for="biz_name">Tên doanh nghiệp / Cửa hàng</label>
                             <div class="sc-input-wrap">
                                 <svg class="sc-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                                <input type="text" id="biz_name" name="biz_name" placeholder="Ví dụ: Công ty TNHH Pixiu Tech">
+                                <input type="text" id="biz_name" name="biz_name" value="{{ business_name|default:'' }}" placeholder="Ví dụ: Công ty TNHH Pixiu Tech">
                             </div>
                         </div>
                         <div class="sc-field">
@@ -260,6 +267,14 @@ function togglePwd(id, btn) {
     const input = document.getElementById(id);
     input.type = input.type === 'password' ? 'text' : 'password';
     btn.style.opacity = input.type === 'text' ? '1' : '0.5';
+}
+
+const ownerNameInput = document.getElementById('owner_name');
+const sidebarOwnerName = document.getElementById('sidebarOwnerName');
+if (ownerNameInput && sidebarOwnerName) {
+    ownerNameInput.addEventListener('input', () => {
+        sidebarOwnerName.textContent = ownerNameInput.value.trim() || 'Tên chủ doanh nghiệp';
+    });
 }
 </script>
 </body>

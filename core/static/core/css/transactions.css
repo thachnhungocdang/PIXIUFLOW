@@ -1388,26 +1388,26 @@
 }
 
 .bulk-table {
-    width: 100%;
-    min-width: 1480px;
+    width: max-content;
+    min-width: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 18px;
-    table-layout: fixed;
+    font-size: 16px;
+    table-layout: auto;
 }
 
-/* Column widths */
-.bulk-table th:nth-child(1),  .bulk-table td:nth-child(1)  { width: 52px; }
-.bulk-table th:nth-child(2),  .bulk-table td:nth-child(2)  { width: 64px; }
-.bulk-table th:nth-child(3),  .bulk-table td:nth-child(3)  { width: 12%; }
-.bulk-table th:nth-child(4),  .bulk-table td:nth-child(4)  { width: 12%; }
-.bulk-table th:nth-child(5),  .bulk-table td:nth-child(5)  { width: 16.5%; }
-.bulk-table th:nth-child(6),  .bulk-table td:nth-child(6)  { width: 14.5%; }
-.bulk-table th:nth-child(7),  .bulk-table td:nth-child(7)  { width: 10.5%; }
-.bulk-table th:nth-child(8),  .bulk-table td:nth-child(8)  { width: 8%; }
-.bulk-table th:nth-child(9),  .bulk-table td:nth-child(9)  { width: 9%; }
-.bulk-table th:nth-child(10), .bulk-table td:nth-child(10) { width: 13%; }
-.bulk-table th:nth-child(11), .bulk-table td:nth-child(11) { width: 9.4%; }
+/* Column sizing follows content while keeping each input usable. */
+.bulk-table th:nth-child(1),  .bulk-table td:nth-child(1)  { width: 46px;  min-width: 46px; }
+.bulk-table th:nth-child(2),  .bulk-table td:nth-child(2)  { width: 56px;  min-width: 56px; }
+.bulk-table th:nth-child(3),  .bulk-table td:nth-child(3)  { min-width: 150px; }
+.bulk-table th:nth-child(4),  .bulk-table td:nth-child(4)  { min-width: 168px; }
+.bulk-table th:nth-child(5),  .bulk-table td:nth-child(5)  { min-width: 260px; max-width: 360px; }
+.bulk-table th:nth-child(6),  .bulk-table td:nth-child(6)  { min-width: 210px; max-width: 300px; }
+.bulk-table th:nth-child(7),  .bulk-table td:nth-child(7)  { min-width: 142px; }
+.bulk-table th:nth-child(8),  .bulk-table td:nth-child(8)  { min-width: 110px; }
+.bulk-table th:nth-child(9),  .bulk-table td:nth-child(9)  { min-width: 150px; }
+.bulk-table th:nth-child(10), .bulk-table td:nth-child(10) { min-width: 190px; }
+.bulk-table th:nth-child(11), .bulk-table td:nth-child(11) { min-width: 180px; max-width: 260px; }
 
 .bulk-table thead th {
     position: sticky;
@@ -1418,10 +1418,12 @@
     border-bottom: 1.3px solid #d2a74f;
     padding: 12px 10px;
     text-transform: uppercase;
-    font-size: 20px;
+    font-size: 16px;
+    line-height: 1.25;
     font-weight: 600;
     text-align: left;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 /* Sticky columns */
@@ -1435,7 +1437,7 @@
 .bulk-table th:nth-child(2),
 .bulk-table td:nth-child(2) {
     position: sticky;
-    left: 52px;
+    left: 46px;
     z-index: 3;
 }
 
@@ -1496,13 +1498,15 @@
 
 .bulk-table td {
     border-bottom: 1px solid #eee1c6;
-    padding: 12px 8px;
-    vertical-align: middle;
+    padding: 10px 8px;
+    vertical-align: top;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 /* Checkbox column */
 .bulk-table .select-col {
-    width: 52px;
+    width: 46px;
     text-align: center;
 }
 
@@ -1540,6 +1544,7 @@
 .bulk-table input,
 .bulk-table select {
     width: 100%;
+    max-width: 100%;
     min-height: 38px;
     border: 1px solid transparent;
     border-radius: 7px;
@@ -1563,8 +1568,8 @@
 }
 
 .bulk-table input[type="date"] {
-    width: min(150px, 100%);
-    min-width: 0;
+    width: 100%;
+    min-width: 152px;
     padding-left: 10px;
     padding-right: 8px;
 }
@@ -1637,12 +1642,14 @@
     width: 100%;
     color: #111827;
     white-space: nowrap;
+    font-size: 16px;
 }
 
 /* Payment cell */
 .bulk-payment-cell {
     display: grid;
     gap: 6px;
+    min-width: 0;
 }
 
 .bulk-payment-due-date[hidden] { display: none; }

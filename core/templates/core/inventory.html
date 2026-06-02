@@ -52,7 +52,30 @@
             </div>
             {% endif %}
 
+            {% if products_missing_stock %}
+            <div class="inventory-new-product-alert inventory-stock-reminder">
+                <i data-lucide="clipboard-list"></i>
+                <div>
+                    <strong>Có {{ products_missing_stock_count }} sản phẩm chưa có tồn kho ban đầu</strong>
+                    <span>Các sản phẩm này đang để tồn kho 0 vì bạn chọn khai báo sau. Bổ sung số lượng để cảnh báo kho và bán hàng chính xác hơn.</span>
+                </div>
+                <div class="inventory-new-product-actions">
+                    {% for product in products_missing_stock|slice:":3" %}
+                    <a href="/products/create/?product_id={{ product.id }}">Thêm tồn kho {{ product.name|truncatechars:22 }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <div class="inventory-status-strip" aria-label="Lọc nhanh trạng thái tồn kho">
+                <button type="button" class="inventory-status-card inventory-status-card--setup" data-stock-filter="chua_nhap_hang">
+                    <div class="inventory-status-card__top">
+                        <span class="inventory-status-card__icon"><i data-lucide="clipboard-list"></i></span>
+                    </div>
+                    <span>Chưa khai báo tồn kho</span>
+                    <strong>{{ products_missing_stock_count }}</strong>
+                    <small>Sản phẩm đã tạo nhưng để bổ sung kho sau</small>
+                </button>
                 <button type="button" class="inventory-status-card inventory-status-card--danger" data-stock-filter="het_hang">
                     <div class="inventory-status-card__top">
                         <span class="inventory-status-card__icon"><i data-lucide="package-x"></i></span>
@@ -314,10 +337,7 @@
                                     </td>
                                     <td class="inventory-col-status">
                                         <span class="stock-badge stock-badge--{{ p.stock_status }}">
-                                            {% if p.stock_status == "het_hang" %}Hết hàng
-                                            {% elif p.stock_status == "sap_het" %}Sắp hết
-                                            {% else %}Còn hàng
-                                            {% endif %}
+                                            {{ p.stock_status_label }}
                                         </span>
                                     </td>
                                     <td class="inventory-col-payment">
@@ -327,7 +347,7 @@
                                         {% endif %}
                                     </td>
                                     <td class="inventory-actions inventory-col-actions">
-                                        {% if p.stock_status == "het_hang" or p.stock_status == "sap_het" %}
+                                        {% if p.stock_status == "het_hang" or p.stock_status == "sap_het" or p.stock_status == "chua_nhap_hang" %}
                                         <a href="/expenses/create/?mode=purchase&product_id={{ p.id }}" aria-label="Nhập thêm hàng">
                                             <i data-lucide="package-plus"></i>
                                         </a>
@@ -686,7 +706,8 @@
                     <div class="inventory-urgent-item inventory-urgent-item--{{ p.stock_status }}">
                         <strong>{{ p.name|truncatechars:20 }}</strong>
                         <span data-payment-due-text>
-                            {% if p.stock_status == "het_hang" %}Hết hàng
+                            {% if p.stock_status == "chua_nhap_hang" %}Chưa khai báo tồn kho
+                            {% elif p.stock_status == "het_hang" %}Hết hàng
                             {% else %}Còn {{ p.stock_quantity }} / ngưỡng {{ p.alert_threshold }}
                             {% endif %}
                         </span>
@@ -971,6 +992,7 @@
 </div>
 
 {{ product_details|json_script:"inventoryProductDetails" }}
+{{ created_product_id|json_script:"inventoryCreatedProductId" }}
 
 <script>
 (function () {
@@ -986,6 +1008,7 @@
     const tabButtons = Array.from(document.querySelectorAll('[data-inventory-tab]'));
     const panes = Array.from(document.querySelectorAll('[data-inventory-pane]'));
     const details = JSON.parse(document.getElementById('inventoryProductDetails').textContent || '[]');
+    const createdProductId = JSON.parse(document.getElementById('inventoryCreatedProductId').textContent || 'null');
     const detailById = new Map(details.map(item => [String(item.id), item]));
     const noProductsState = document.getElementById('inventoryNoProductsState');
     const noFilterState = document.getElementById('inventoryNoFilterState');
@@ -1042,6 +1065,7 @@
 
     const filterLabels = {
         all: 'Tất cả trạng thái',
+        chua_nhap_hang: 'Chưa khai báo tồn kho',
         het_hang: 'Hết hàng',
         sap_het: 'Sắp hết',
         day_du: 'Đủ hàng'
@@ -1431,6 +1455,15 @@
     }
     document.querySelectorAll('[data-open-product]').forEach(btn => btn.addEventListener('click', () => openDetail(btn.dataset.openProduct)));
     document.getElementById('closeProductDetail')?.addEventListener('click', () => { detailPanel.hidden = true; });
+    if (createdProductId) {
+        const row = document.querySelector(`tr[data-product-id="${createdProductId}"]`);
+        if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            row.classList.add('is-just-created');
+        }
+        openDetail(createdProductId);
+        showToast('Đã lưu sản phẩm thành công. Đang mở chi tiết sản phẩm vừa lưu.', 'confirm');
+    }
 
     // ── Column toggle ──────────────────────────────────────────────
     const columnTrigger = document.getElementById('columnMenuTrigger');

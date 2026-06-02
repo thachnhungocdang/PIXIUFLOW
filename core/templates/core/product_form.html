@@ -16,10 +16,10 @@
             </button>
             <div class="topbar-user">
                 <div>
-                    <strong>Kiều Xuân Thuý</strong>
+                    <strong>{{ owner_name }}</strong>
                     <span>Chủ doanh nghiệp</span>
                 </div>
-                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="{{ owner_name }}">
             </div>
         </div>
     </header>
@@ -75,24 +75,29 @@
             <div class="product-form-section">
                 <div>
                     <h2>Danh mục cấp 1-4</h2>
-                    <p>Chọn trong danh mục đã có, hoặc nhập danh mục mới ở cấp tương ứng.</p>
+                    <p>Chọn hoặc nhập cấp 1 trước. Bấm dấu + để thêm cấp chi tiết hơn khi cần.</p>
                 </div>
                 <div class="category-builder">
                     {% for level in category_levels %}
-                    <div class="category-level-row">
+                    <div class="category-level-row" data-category-level="{{ level.level }}" {% if level.level > 1 and not level.selected %}hidden{% endif %}>
                         <label>
                             <span>Danh mục cấp {{ level.level }}</span>
                             <select name="category_level_{{ level.level }}" class="category-select">
                                 <option value="">Chọn danh mục đã có</option>
                                 {% for option in level.options %}
-                                <option value="{{ option }}">{{ option }}</option>
+                                <option value="{{ option }}" {% if level.selected == option %}selected{% endif %}>{{ option }}</option>
                                 {% endfor %}
                             </select>
                         </label>
                         <label>
                             <span>Hoặc thêm danh mục cấp {{ level.level }}</span>
-                            <input type="text" name="category_level_{{ level.level }}_new" class="category-new" placeholder="Nhập danh mục mới">
+                            <input type="text" name="category_level_{{ level.level }}_new" class="category-new" value="{% if level.selected and not level.selected_is_option %}{{ level.selected }}{% endif %}" placeholder="Nhập danh mục mới">
                         </label>
+                        {% if level.level < 4 %}
+                        <button type="button" class="category-level-add" data-show-category-level="{{ level.level|add:1 }}" aria-label="Thêm danh mục cấp {{ level.level|add:1 }}">
+                            <i data-lucide="plus"></i>
+                        </button>
+                        {% endif %}
                     </div>
                     {% endfor %}
                     {{ form.category.errors }}
@@ -101,31 +106,56 @@
 
             <div class="product-form-section product-form-section--stock">
                 <div>
-                    <h2>Nhập hàng ban đầu</h2>
-                    <p>Tồn kho và giá vốn được ghi nhận bằng phiếu nhập hàng để số liệu kho luôn có lịch sử đối soát.</p>
+                    <h2>Tồn kho ban đầu</h2>
+                    <p>Bạn có thể chỉ tạo sản phẩm trước. Khi nhớ số lượng hoặc có đơn nhập hàng, bổ sung tồn kho sau.</p>
                 </div>
-                <div class="initial-stock-box">
-                    <label>
-                        <span>Số tồn kho nhập ban đầu</span>
-                        <input type="number" name="initial_stock_quantity" min="0" step="1" value="{{ initial_purchase.quantity }}" placeholder="0">
-                    </label>
-                    <label>
-                        <span>Giá vốn nhập (VND)</span>
-                        <input type="text" name="initial_unit_cost" class="money-input" inputmode="numeric" value="{{ initial_purchase.unit_price }}" placeholder="Nhập giá vốn nếu có tồn kho">
-                    </label>
-                    <label>
-                        <span>Nhà cung cấp</span>
-                        <input type="text" name="initial_supplier_name" value="{{ initial_purchase.supplier_name }}" placeholder="Ví dụ: Công ty Alpha">
-                    </label>
-                    <label>
-                        <span>Ngày nhập hàng</span>
-                        <input type="date" name="initial_purchase_date" value="{{ initial_purchase.date }}">
-                    </label>
+                <div>
+                    <div class="stock-origin-options">
+                        <label class="stock-origin-card">
+                            <input type="radio" name="stock_origin" value="later" {% if initial_purchase.stock_origin == 'later' %}checked{% endif %}>
+                            <span>
+                                <strong>Để sau</strong>
+                                <small>Chỉ lưu thông tin sản phẩm. Tồn kho hiện tại để 0 và có thể bổ sung sau.</small>
+                            </span>
+                        </label>
+                        <label class="stock-origin-card">
+                            <input type="radio" name="stock_origin" value="opening" {% if initial_purchase.stock_origin == 'opening' %}checked{% endif %}>
+                            <span>
+                                <strong>Hàng có sẵn</strong>
+                                <small>Chỉ tăng tồn kho, không ghi chi phí nhập hàng kỳ này.</small>
+                            </span>
+                        </label>
+                        <label class="stock-origin-card">
+                            <input type="radio" name="stock_origin" value="purchase" {% if initial_purchase.stock_origin == 'purchase' %}checked{% endif %}>
+                            <span>
+                                <strong>Nhập hàng có tính chi phí</strong>
+                                <small>Tạo phiếu nhập hàng, cộng tồn kho và tính vào chi phí mua hàng.</small>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="initial-stock-box">
+                        <label>
+                            <span>Số tồn kho ban đầu</span>
+                            <input type="number" name="initial_stock_quantity" min="0" step="1" value="{{ initial_purchase.quantity }}" placeholder="Ví dụ: 20">
+                        </label>
+                        <label>
+                            <span>Giá vốn/đơn vị (VND)</span>
+                            <input type="text" name="initial_unit_cost" class="money-input" inputmode="numeric" value="{{ initial_purchase.unit_price }}" placeholder="Nhập giá vốn nếu có tồn kho">
+                        </label>
+                        <label data-purchase-only>
+                            <span>Nhà cung cấp</span>
+                            <input type="text" name="initial_supplier_name" value="{{ initial_purchase.supplier_name }}" placeholder="Ví dụ: Công ty Alpha">
+                        </label>
+                        <label data-purchase-only>
+                            <span>Ngày nhập hàng</span>
+                            <input type="date" name="initial_purchase_date" value="{{ initial_purchase.date }}">
+                        </label>
+                    </div>
+                    <a class="product-purchase-link" href="/expenses/create/?mode=purchase">
+                        <i data-lucide="package-plus"></i>
+                        Sau khi lưu có thể vào nhập hàng để bổ sung tồn kho
+                    </a>
                 </div>
-                <a class="product-purchase-link" href="/expenses/create/?mode=purchase">
-                    <i data-lucide="package-plus"></i>
-                    Muốn nhập hàng sau? Đi tới chi phí nhập hàng
-                </a>
             </div>
 
             <div class="product-form-footer">
@@ -153,6 +183,7 @@
     function updateCategoryValue() {
         const values = [];
         document.querySelectorAll('.category-level-row').forEach(row => {
+            if (row.hidden) return;
             const newValue = row.querySelector('.category-new').value.trim();
             const selectedValue = row.querySelector('.category-select').value.trim();
             if (newValue || selectedValue) values.push(newValue || selectedValue);
@@ -161,13 +192,37 @@
     }
 
     function restoreInitialCategory() {
-        const parts = String(categoryValue.dataset.initial || '').split('/').map(part => part.trim()).filter(Boolean);
-        document.querySelectorAll('.category-level-row').forEach((row, index) => {
-            const current = parts[index] || '';
+        document.querySelectorAll('.category-level-row').forEach(row => {
             const select = row.querySelector('.category-select');
-            if (current && [...select.options].some(option => option.value === current)) {
-                select.value = current;
+            const custom = row.querySelector('.category-new');
+            if (select.value || custom.value.trim()) row.hidden = false;
+        });
+    }
+
+    function syncCategoryRowsFrom(level) {
+        for (let next = level + 1; next <= 4; next += 1) {
+            const row = document.querySelector(`[data-category-level="${next}"]`);
+            if (!row || row.hidden) continue;
+            const prevRow = document.querySelector(`[data-category-level="${next - 1}"]`);
+            const prevHasValue = prevRow && (
+                prevRow.querySelector('.category-new').value.trim() ||
+                prevRow.querySelector('.category-select').value.trim()
+            );
+            if (!prevHasValue) {
+                row.hidden = true;
+                row.querySelector('.category-select').value = '';
+                row.querySelector('.category-new').value = '';
             }
+        }
+        updateCategoryValue();
+    }
+
+    function updateStockOrigin() {
+        const origin = document.querySelector('input[name="stock_origin"]:checked')?.value || 'later';
+        const stockBox = document.querySelector('.initial-stock-box');
+        if (stockBox) stockBox.hidden = origin === 'later';
+        document.querySelectorAll('[data-purchase-only]').forEach(field => {
+            field.hidden = origin !== 'purchase';
         });
     }
 
@@ -180,7 +235,24 @@
 
     document.querySelectorAll('.category-select, .category-new').forEach(input => {
         input.addEventListener('input', updateCategoryValue);
-        input.addEventListener('change', updateCategoryValue);
+        input.addEventListener('change', event => {
+            const row = event.target.closest('.category-level-row');
+            syncCategoryRowsFrom(Number(row.dataset.categoryLevel));
+        });
+    });
+
+    document.querySelectorAll('.category-level-add').forEach(button => {
+        button.addEventListener('click', () => {
+            const row = document.querySelector(`[data-category-level="${button.dataset.showCategoryLevel}"]`);
+            if (row) {
+                row.hidden = false;
+                row.querySelector('.category-select').focus();
+            }
+        });
+    });
+
+    document.querySelectorAll('input[name="stock_origin"]').forEach(input => {
+        input.addEventListener('change', updateStockOrigin);
     });
 
     form.addEventListener('submit', () => {
@@ -189,6 +261,9 @@
             input.value = parseMoney(input.value);
         });
     });
+
+    updateCategoryValue();
+    updateStockOrigin();
 })();
 </script>
 {% endblock %}

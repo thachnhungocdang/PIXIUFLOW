@@ -37,6 +37,8 @@ class Product(TimeStampedModel):
 
     @property
     def stock_status(self):
+        if self.stock_quantity <= 0 and not self.has_imported:
+            return "chua_nhap_hang"
         if self.stock_quantity <= 0:
             return "het_hang"
         if self.stock_quantity <= self.alert_threshold:
@@ -46,7 +48,7 @@ class Product(TimeStampedModel):
     @property
     def stock_status_label(self):
         mapping = {
-            "chua_nhap_hang": "Chưa nhập hàng",
+            "chua_nhap_hang": "Chưa khai báo tồn kho",
             "het_hang": "Hết hàng",
             "sap_het": "Sắp hết",
             "day_du": "Đầy đủ",
@@ -218,6 +220,12 @@ class Sale(TimeStampedModel):
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=12, decimal_places=0)
     total_amount = models.DecimalField(max_digits=12, decimal_places=0, default=0)
+    cogs_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=0,
+        help_text="Gia von tai thoi diem ban, tinh tu price_buy_latest cua san pham",
+    )
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default=PAYMENT_METHOD_CASH)
     payment_due_date = models.DateField(blank=True, null=True)
     payment_date = models.DateField(blank=True, null=True)
@@ -250,6 +258,8 @@ class Sale(TimeStampedModel):
         else:
             self.payment_date = None
         self.total_amount = self.quantity * self.unit_price
+        if not self.cogs_amount and self.product_id:
+            self.cogs_amount = (self.product.price_buy_latest or 0) * self.quantity
 
         is_new = self.pk is None
         old_quantity = 0

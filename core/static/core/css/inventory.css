@@ -65,6 +65,11 @@
     font-weight: 900;
 }
 
+.inventory-stock-reminder {
+    border-color: #ff9800;
+    background: #fff7e6;
+}
+
 .inventory-filter-row {
     display: flex;
     align-items: center;
@@ -202,6 +207,16 @@
 .inventory-table tbody tr:hover td,
 .inventory-mini-table tbody tr:hover td {
     background: #fff1d6;
+}
+
+.inventory-table tbody tr.is-just-created,
+.inventory-table tbody tr.is-just-created td {
+    background: #fff7e6;
+}
+
+.inventory-table tbody tr.is-just-created {
+    outline: 2px solid #ff9800;
+    outline-offset: -2px;
 }
 
 .inventory-table strong {
@@ -440,11 +455,16 @@
     white-space: nowrap;
 }
 
-.stock-badge--day_du,
-.stock-badge--chua_nhap_hang {
+.stock-badge--day_du {
     background: #cbf7df;
     color: #008f5f;
     border: 1px solid #91e8bd;
+}
+
+.stock-badge--chua_nhap_hang {
+    background: #fff3d2;
+    color: #92400e;
+    border: 1px solid #f3c25a;
 }
 
 .stock-badge--sap_het {
@@ -621,14 +641,14 @@
 
 .inventory-status-strip {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 14px;
     margin-bottom: 18px;
 }
 
 .inventory-status-card {
     position: relative;
-    min-height: 178px;
+    min-height: 148px;
     display: grid;
     justify-items: start;
     align-content: start;
@@ -652,8 +672,8 @@
 }
 
 .inventory-status-card__icon {
-    width: 56px;
-    height: 56px;
+    width: 50px;
+    height: 50px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -676,7 +696,7 @@
 
 .inventory-status-card > span {
     color: #566070;
-    font-size: 20px;
+    font-size: 16px;
     line-height: 1.25;
     font-weight: 700;
     text-transform: none;
@@ -684,15 +704,15 @@
 
 .inventory-status-card strong {
     color: #172033;
-    font-size: clamp(28px, 2.2vw, 38px);
+    font-size: clamp(22px, 2.2vw, 30px);
     line-height: 1;
-    font-weight: 900;
+    font-weight: 800;
 }
 
 .inventory-status-card small {
     max-width: 200px;
     color: #5d6777;
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1.35;
     font-weight: 600;
 }
@@ -757,6 +777,10 @@
     background: linear-gradient(180deg, #fff0d8 0%, #fff7df 100%);
 }
 
+.inventory-status-card--setup {
+    background: linear-gradient(180deg, #fff0d8 0%, #fff7df 100%);
+}
+
 .inventory-status-card--warning {
     background: linear-gradient(180deg, #fff0d8 0%, #fff7df 100%);
 }
@@ -787,8 +811,8 @@
 }
 
 .inventory-tab {
-    min-width: 220px;
-    min-height: 68px;
+    min-width: 150px;
+    min-height: 48px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -797,9 +821,9 @@
     border-radius: 8px;
     background: #ffffff;
     color: var(--red);
-    padding: 0 28px;
+    padding: 0 25px;
     font: inherit;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: 700;
     cursor: pointer;
     box-shadow: none;

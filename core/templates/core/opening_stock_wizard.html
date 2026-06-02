@@ -38,6 +38,7 @@
                             <th>Số lượng hiện có *</th>
                             <th>Cảnh báo tồn kho</th>
                             <th>Giá vốn ước tính/đơn vị</th>
+                            <th>Giá bán ước tính</th>
                             <th>Đơn vị</th>
                             <th>Danh mục</th>
                             <th></th>
@@ -50,8 +51,15 @@
                             <td><input type="number" name="quantity[]" value="{{ row.quantity }}" min="1" step="1" placeholder="20"></td>
                             <td><input type="number" name="alert_threshold[]" value="{{ row.alert_threshold|default:'10' }}" min="0" step="1" placeholder="10"></td>
                             <td><input type="text" name="estimated_unit_cost[]" value="{{ row.estimated_unit_cost }}" inputmode="numeric" class="opening-money" placeholder="5.000"></td>
+                            <td><input type="text" name="estimated_price_sell[]" value="{{ row.estimated_price_sell }}" inputmode="numeric" class="opening-money" placeholder="15.000"></td>
                             <td><input type="text" name="unit[]" value="{{ row.unit|default:'cái' }}" placeholder="cái"></td>
-                            <td><input type="text" name="category[]" value="{{ row.category }}" placeholder="Đồ uống"></td>
+                            <td>
+                                <div class="opening-category-cell">
+                                    <input type="text" name="category_level_1[]" value="{{ row.category_level_1|default:row.category }}" placeholder="Cấp 1: Đồ uống">
+                                    <button type="button" class="opening-category-add" aria-label="Thêm danh mục cấp 2"><i data-lucide="plus"></i></button>
+                                    <input type="text" name="category_level_2[]" value="{{ row.category_level_2 }}" class="opening-category-level-2" placeholder="Cấp 2: Cà phê" {% if not row.category_level_2 %}hidden{% endif %}>
+                                </div>
+                            </td>
                             <td><button type="button" class="opening-remove" aria-label="Xóa dòng"><i data-lucide="trash-2"></i></button></td>
                         </tr>
                         {% endfor %}
@@ -76,8 +84,15 @@
         <td><input type="number" name="quantity[]" min="1" step="1" placeholder="20"></td>
         <td><input type="number" name="alert_threshold[]" min="0" step="1" value="10" placeholder="10"></td>
         <td><input type="text" name="estimated_unit_cost[]" inputmode="numeric" class="opening-money" placeholder="5.000"></td>
+        <td><input type="text" name="estimated_price_sell[]" inputmode="numeric" class="opening-money" placeholder="15.000"></td>
         <td><input type="text" name="unit[]" value="cái" placeholder="cái"></td>
-        <td><input type="text" name="category[]" placeholder="Đồ uống"></td>
+        <td>
+            <div class="opening-category-cell">
+                <input type="text" name="category_level_1[]" placeholder="Cấp 1: Đồ uống">
+                <button type="button" class="opening-category-add" aria-label="Thêm danh mục cấp 2"><i data-lucide="plus"></i></button>
+                <input type="text" name="category_level_2[]" class="opening-category-level-2" placeholder="Cấp 2: Cà phê" hidden>
+            </div>
+        </td>
         <td><button type="button" class="opening-remove" aria-label="Xóa dòng"><i data-lucide="trash-2"></i></button></td>
     </tr>
 </template>
@@ -86,7 +101,7 @@
 (function () {
     const rows = document.getElementById('openingRows');
     const template = document.getElementById('openingRowTemplate');
-    const navigableSelector = 'input';
+    const navigableSelector = 'input:not([hidden])';
 
     function parseMoney(value) {
         return Number(String(value || '').replace(/[^\d]/g, '') || 0);
@@ -100,6 +115,11 @@
     function bindRow(row) {
         row.querySelector('.opening-remove').addEventListener('click', () => {
             if (rows.querySelectorAll('tr').length > 1) row.remove();
+        });
+        row.querySelector('.opening-category-add').addEventListener('click', () => {
+            const input = row.querySelector('.opening-category-level-2');
+            input.hidden = false;
+            input.focus();
         });
         row.querySelectorAll('.opening-money').forEach(input => {
             input.addEventListener('input', () => formatMoney(input));

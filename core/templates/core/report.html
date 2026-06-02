@@ -13,10 +13,10 @@
         </div>
         <div class="topbar-user analytics-user">
             <div>
-                <strong>Kiều Xuân Thuý</strong>
+                <strong>{{ owner_name }}</strong>
                 <span>Chủ doanh nghiệp</span>
             </div>
-            <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+            <img src="{% static 'core/images/pixiu_logo.png' %}" alt="{{ owner_name }}">
         </div>
     </header>
 
@@ -55,18 +55,23 @@
                 <div class="analytics-dual-metrics">
                     <article>
                         <span>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Số tiền đã bán/đã ghi đơn trong kỳ. Khách chưa trả tiền vẫn tính ở đây vì việc bán hàng đã xảy ra. Dùng để hiểu kỳ này cửa hàng tạo ra bao nhiêu doanh thu, không phải tiền thật đã thu.">?</span></span>
-                        <strong>{{ total_income|vnd }}</strong>
+                        <strong>{{ recognized_revenue|vnd }}</strong>
                         <small>Đã bán/đã ghi đơn, kể cả khách còn nợ.</small>
                     </article>
                     <article>
-                        <span>Chi phí ghi nhận <span class="metric-info" data-tooltip="Chi phí dùng để xem kỳ này lời hay lỗ. Chi phí phát sinh vẫn được tính dù bạn chưa trả tiền. Mua thiết bị lâu dài được chia dần theo vòng đời, nên không làm một kỳ bị lỗ nặng chỉ vì mua tài sản lớn.">?</span></span>
-                        <strong>{{ accounting_outflow|vnd }}</strong>
-                        <small>Chi phí của kỳ này, đã chia khấu hao thiết bị.</small>
+                        <span>Giá vốn hàng bán <span class="metric-info" data-tooltip="Giá nhập tại thời điểm bán nhân với số lượng đã bán trong kỳ. Hàng nhập kho nhưng chưa bán không tính là chi phí lãi/lỗ.">?</span></span>
+                        <strong>{{ cogs|vnd }}</strong>
+                        <small>Chỉ tính hàng đã bán trong kỳ.</small>
                     </article>
                     <article>
-                        <span>Lợi nhuận ghi nhận <span class="metric-info" data-tooltip="Công thức: Doanh thu ghi nhận trừ Chi phí ghi nhận. Chỉ số này cho biết hoạt động kinh doanh kỳ này lời hay lỗ, không phụ thuộc tiền đã thu hoặc đã trả chưa.">?</span></span>
-                        <strong>{{ profit|vnd }}</strong>
-                        <small>Kết quả kinh doanh của kỳ này.</small>
+                        <span>Chi phí vận hành <span class="metric-info" data-tooltip="Mặt bằng, điện, lương, chi phí khác và khấu hao thiết bị. Không bao gồm nhập hàng tồn kho.">?</span></span>
+                        <strong>{{ operating_expense|vnd }}</strong>
+                        <small>Chi phí chung của cửa hàng.</small>
+                    </article>
+                    <article>
+                        <span>Lợi nhuận thuần <span class="metric-info" data-tooltip="Công thức: Doanh thu ghi nhận trừ giá vốn hàng bán và chi phí vận hành. Đây là lãi/lỗ theo ghi nhận, không phải dòng tiền.">?</span></span>
+                        <strong>{{ net_profit|vnd }}</strong>
+                        <small>Lãi gộp trừ chi phí vận hành.</small>
                     </article>
                     <article>
                         <span>Tiền vào <span class="metric-info" data-tooltip="Số tiền thật sự đã thu trong kỳ. Nếu khách còn nợ, khoản đó chưa được tính vào đây. Dùng để xem tiền đang chảy vào cửa hàng.">?</span></span>
@@ -88,8 +93,8 @@
 
             <section class="analytics-card analytics-revenue-card">
                 <div class="analytics-card-head">
-                    <h2><i data-lucide="trending-up"></i> Doanh thu & lợi nhuận ghi nhận</h2>
-                    <span style="font-size: 0.875rem; color: var(--text-light); font-weight: 500;">Doanh thu ghi nhận: {{ total_income|vnd }}</span>
+                    <h2><i data-lucide="trending-up"></i> Doanh thu & lợi nhuận thuần</h2>
+                    <span style="font-size: 0.875rem; color: var(--text-light); font-weight: 500;">Doanh thu ghi nhận: {{ recognized_revenue|vnd }}</span>
                 </div>
                 <form method="get" class="analytics-profit-controls analytics-local-controls">
                     <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
@@ -187,7 +192,7 @@
                                 <tr>
                                     <th>{% if revenue_view_mode == 'product' %}Sản phẩm{% else %}Danh mục{% endif %}</th>
                                     <th>Doanh thu</th>
-                                    <th>Lợi nhuận</th>
+                                    <th>Lãi gộp</th>
                                     <th>Tăng trưởng</th>
                                 </tr>
                             </thead>
@@ -241,8 +246,8 @@
                             {% endif %}
                             <tr class="analytics-total-row">
                                 <td>Tổng cộng</td>
-                                <td><b>{{ total_income|vnd }}</b></td>
-                                <td class="{% if profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ profit|vnd }}</b></td>
+                                <td><b>{{ recognized_revenue|vnd }}</b></td>
+                                <td class="{% if gross_profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ gross_profit|vnd }}</b></td>
                                 <td class="{% if revenue_total_growth < 0 %}negative{% else %}positive{% endif %}">{{ revenue_total_growth }}%</td>
                             </tr>
                             </tbody>
@@ -422,7 +427,7 @@
                     <div class="analytics-profit-layout">
                         <div class="analytics-profit-table-panel">
                             <table class="analytics-mini-table analytics-profit-table">
-                                <thead><tr><th>Danh mục</th><th>Doanh thu</th><th>Lợi nhuận</th><th>Biên LN</th></tr></thead>
+                                <thead><tr><th>Danh mục</th><th>Doanh thu</th><th>Lãi gộp</th><th>Biên lãi gộp</th></tr></thead>
                                 <tbody class="analytics-profit-tree">
                                     {% for node in profit_roots %}
                                     <tr data-profit-row="{{ node.path }}" data-profit-level="1">
@@ -464,9 +469,9 @@
                         <div class="analytics-profit-bar-panel">
                             <div class="profit-chart-head">
                                 <div class="profit-chart-legend" aria-label="Chú thích biểu đồ lợi nhuận">
-                                    <span><b class="profit-legend-profit"></b>Lợi nhuận dương</span>
-                                    <span><b class="profit-legend-loss"></b>Lợi nhuận âm</span>
-                                    <span><b class="profit-legend-margin"></b>Biên lợi nhuận</span>
+                                    <span><b class="profit-legend-profit"></b>Lãi gộp dương</span>
+                                    <span><b class="profit-legend-loss"></b>Lãi gộp âm</span>
+                                    <span><b class="profit-legend-margin"></b>Biên lãi gộp</span>
                                 </div>
                                 <small>Bar = lợi nhuận, chấm = biên LN.</small>
                             </div>
@@ -484,8 +489,8 @@
                                     <span class="profit-tooltip" role="tooltip">
                                         <strong>{{ item.name }}</strong>
                                         <span><i class="profit-tooltip-revenue"></i>Doanh thu: {{ item.revenue|vnd }}</span>
-                                        <span><i class="{% if item.is_negative %}profit-tooltip-loss{% else %}profit-tooltip-profit{% endif %}"></i>Lợi nhuận: {{ item.profit|vnd }}</span>
-                                        <span><i class="profit-tooltip-margin"></i>Biên lợi nhuận: {{ item.margin }}%</span>
+                                        <span><i class="{% if item.is_negative %}profit-tooltip-loss{% else %}profit-tooltip-profit{% endif %}"></i>Lãi gộp: {{ item.profit|vnd }}</span>
+                                        <span><i class="profit-tooltip-margin"></i>Biên lãi gộp: {{ item.margin }}%</span>
                                         {% if item.margin < 0 %}<small>Biên âm: chi phí kỳ này cao hơn doanh thu. Kiểm tra nhập hàng, mặt bằng/lương, thiết bị khấu hao hoặc doanh thu thấp.</small>{% endif %}
                                     </span>
                                 </div>
@@ -495,7 +500,7 @@
                                 </div>
                             </div>
                             {% empty %}
-                            <p class="analytics-empty">Chưa có dữ liệu lợi nhuận.</p>
+                            <p class="analytics-empty">Chưa có dữ liệu lãi gộp.</p>
                             {% endfor %}
                         </div>
                     </div>
@@ -551,7 +556,7 @@
                     <strong>{% if top_product %}{{ top_product.product__name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
                 </article>
                 <article>
-                    <span>Danh mục biên lợi nhuận cao</span>
+                    <span>Danh mục biên lãi gộp cao</span>
                     <b>{% if profit_by_category %}{{ profit_by_category.0.margin }}%{% else %}0%{% endif %}</b>
                     <strong>{% if profit_by_category %}{{ profit_by_category.0.name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
                 </article>
@@ -566,9 +571,9 @@
                     <strong>{{ net_cash_flow|vnd }}</strong>
                 </article>
                 <article>
-                    <span>Lãi/lỗ theo khấu hao</span>
+                    <span>Lợi nhuận thuần</span>
                     <b>Kế toán</b>
-                    <strong>{{ profit|vnd }}</strong>
+                    <strong>{{ net_profit|vnd }}</strong>
                 </article>
                 <article>
                     <span>Đối tác cung cấp lớn nhất</span>

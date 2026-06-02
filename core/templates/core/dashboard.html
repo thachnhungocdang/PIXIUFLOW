@@ -14,8 +14,8 @@
         <div class="topbar-actions">
             <button type="button" class="icon-btn" aria-label="Thông báo"><i data-lucide="bell"></i></button>
             <div class="topbar-user">
-                <div><strong>Kiều Xuân Thuý</strong><span>Chủ doanh nghiệp</span></div>
-                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Kiều Xuân Thuý">
+                <div><strong>{{ owner_name }}</strong><span>Chủ doanh nghiệp</span></div>
+                <img src="{% static 'core/images/pixiu_logo.png' %}" alt="{{ owner_name }}">
             </div>
         </div>
     </header>
@@ -35,6 +35,20 @@
         </section>
         {% else %}
         <a href="/onboarding/" class="dashboard-guide-link"><i data-lucide="circle-help"></i> Xem hướng dẫn</a>
+        {% endif %}
+
+        {% if products_missing_stock %}
+        <div class="stock-alert stock-alert--setup">
+            <div>
+                <strong>Có {{ products_missing_stock_count }} sản phẩm chưa khai báo tồn kho</strong>
+                <span>
+                    {% for product in products_missing_stock|slice:":3" %}{{ product.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                    {% if products_missing_stock_count > 3 %}...{% endif %}
+                    đang có tồn kho 0 vì bạn đã chọn để sau.
+                </span>
+            </div>
+            <a href="/products/create/?product_id={{ products_missing_stock.0.id }}">Thêm tồn kho ngay</a>
+        </div>
         {% endif %}
 
         {% if out_of_stock_products or low_stock_products %}
@@ -105,41 +119,50 @@
         {% endif %}
 
         <form method="get" class="filter-bar filter-bar--global">
-            <span>Bộ lọc dữ liệu cho toàn bộ bảng:</span><a href="?{{ all_query }}">Tất cả</a><a href="?{{ today_query }}">Hôm nay</a><a href="?{{ week_query }}">7 ngày</a><a href="?{{ month_query }}">Tháng này</a>
+            <span>Bộ lọc dữ liệu cho toàn bộ bảng:</span>
+            <a href="?{{ all_query }}" class="{% if active_period == 'all' %}is-active{% endif %}">Tất cả</a>
+            <a href="?{{ today_query }}" class="{% if active_period == 'today' %}is-active{% endif %}">Hôm nay</a>
+            <a href="?{{ week_query }}" class="{% if active_period == 'week' %}is-active{% endif %}">7 ngày</a>
+            <a href="?{{ month_query }}" class="{% if active_period == 'month' %}is-active{% endif %}">Tháng này</a>
+            <a href="?{{ year_query }}" class="{% if active_period == 'year' %}is-active{% endif %}">Năm nay</a>
+            {% if has_comparison_data %}
+            <span class="filter-compare-note">So sánh với: <strong>{{ comparison_label }}</strong></span>
+            {% endif %}
             <div class="date-range"><i data-lucide="calendar-days"></i><input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" aria-label="Ngày bắt đầu"><span>-</span><input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" aria-label="Ngày kết thúc"></div>
             <button type="submit" class="apply-btn">Áp dụng</button>
         </form>
 
         <div class="metric-grid">
-            <article class="metric-card">
-                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="trending-up"></i></span><span class="metric-change {% if income_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if income_change < 0 %}↘{% else %}↗{% endif %} {{ income_change }}%</span></div>
-                <h3>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là số tiền bạn đã bán được theo các giao dịch đã ghi trong khoảng này. Nếu khách mua hàng nhưng chưa trả tiền, hệ thống vẫn tính vào đây vì việc bán hàng đã xảy ra. Chỉ số này không dùng để xem tiền thật đã thu.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ total_income|vnd }}{% endif %}</strong>
-                <small class="metric-help">Khoảng {{ date_range_label }}. Đã bán/đã ghi đơn, kể cả khách còn nợ.</small>
+            <article class="metric-card {% if income_change is None %}{% if has_comparison_data and recognized_revenue > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif income_change < 0 %}metric-card--negative{% else %}metric-card--positive{% endif %}">
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Bao gồm cả đơn khách chưa trả tiền vì việc bán hàng đã xảy ra.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ recognized_revenue|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--income"><i data-lucide="trending-up"></i></span></div>
+                <div class="metric-card__bottom">{% if income_change is None and not has_comparison_data %}<span class="metric-context metric-note">Bao gồm cả đơn khách chưa trả tiền.</span>{% elif income_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if income_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if income_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ income_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
             </article>
-            <article class="metric-card">
-                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="receipt-text"></i></span><span class="metric-change {% if expense_change > 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if expense_change > 0 %}↗{% else %}↘{% endif %} {{ expense_change }}%</span></div>
-                <h3>Chi phí ghi nhận <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là chi phí dùng để xem kinh doanh lời hay lỗ trong khoảng này. Mua thiết bị lâu dài không bị trừ hết một lần: số tiền được chia dần theo vòng đời bạn nhập.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ total_expense_all|vnd }}{% endif %}</strong>
-                <small class="metric-help">Khoảng {{ date_range_label }}. Chi phí đã chia khấu hao thiết bị.</small>
+
+            <article class="metric-card {% if gross_profit_change is None %}{% if has_comparison_data and gross_profit < 0 %}metric-card--negative{% elif has_comparison_data and gross_profit > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif gross_profit_change < 0 %}metric-card--negative{% else %}metric-card--positive{% endif %}">
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Lãi gộp <span class="metric-info" data-tooltip="Doanh thu ghi nhận trừ giá vốn hàng bán. Chưa trừ chi phí vận hành như điện, mặt bằng, khấu hao.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ gross_profit|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--profit"><i data-lucide="wallet-cards"></i></span></div>
+                <div class="metric-breakdown" aria-label="Chi tiết lãi gộp">
+                    <div class="metric-breakdown__row"><span>Doanh thu</span><strong>{% if dashboard_empty %}--{% else %}{{ recognized_revenue|vnd }}{% endif %}</strong></div>
+                    <div class="metric-breakdown__row is-cost"><span>Giá vốn</span><strong>{% if dashboard_empty %}--{% else %}-{{ cogs|vnd }}{% endif %}</strong></div>
+                </div>
+                <div class="metric-card__bottom">{% if gross_profit_change is None and not has_comparison_data %}<span class="metric-context metric-note">Doanh thu trừ giá vốn hàng đã bán.</span>{% elif gross_profit_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if gross_profit_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if gross_profit_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ gross_profit_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
             </article>
-            <article class="metric-card">
-                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="wallet-cards"></i></span><span class="metric-change {% if profit_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if profit_change < 0 %}↘{% else %}↗{% endif %} {{ profit_change }}%</span></div>
-                <h3>Lợi nhuận ghi nhận <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Công thức là Doanh thu ghi nhận trừ Chi phí ghi nhận. Số này trả lời: trong khoảng này kinh doanh lời hay lỗ. Nó có thể khác tiền mặt vì khách/NCC có thể chưa thanh toán.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ estimated_profit|vnd }}{% endif %}</strong>
-                <small class="metric-help">Khoảng {{ date_range_label }}. Kết quả kinh doanh của kỳ này.</small>
+
+            <article class="metric-card {% if profit_change is None %}{% if has_comparison_data and net_profit < 0 %}metric-card--negative{% elif has_comparison_data and net_profit > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif profit_change < 0 %}metric-card--negative{% else %}metric-card--positive{% endif %}">
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Lợi nhuận thuần <span class="metric-info" data-tooltip="Lãi gộp trừ chi phí vận hành trong kỳ. Đây là lãi/lỗ theo ghi nhận, không phải dòng tiền.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ net_profit|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--profit"><i data-lucide="badge-dollar-sign"></i></span></div>
+                <div class="metric-breakdown" aria-label="Chi tiết lợi nhuận thuần">
+                    <div class="metric-breakdown__row"><span>Lãi gộp</span><strong>{% if dashboard_empty %}--{% else %}{{ gross_profit|vnd }}{% endif %}</strong></div>
+                    <div class="metric-breakdown__row is-cost"><span>Chi phí vận hành</span><strong>{% if dashboard_empty %}--{% else %}-{{ operating_expense|vnd }}{% endif %}</strong></div>
+                </div>
+                <div class="metric-card__bottom">{% if profit_change is None and not has_comparison_data %}<span class="metric-context metric-note">Lãi gộp trừ chi phí vận hành.</span>{% elif profit_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if profit_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if profit_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ profit_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
             </article>
-            <article class="metric-card metric-card--cash">
-                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="banknote-arrow-up"></i></span></div>
-                <h3>Tiền vào <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là số tiền thật sự đã thu được trong khoảng này. Nếu đã ghi doanh thu nhưng khách còn nợ, khoản đó chưa tính vào Tiền vào.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ cash_income|vnd }}{% endif %}</strong>
-                <small class="metric-help">Khoảng {{ date_range_label }}. Chỉ tính khoản khách đã trả tiền.</small>
-            </article>
-            <article class="metric-card metric-card--cash">
-                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="banknote-arrow-down"></i></span></div>
-                <h3>Tiền ra <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là số tiền thật sự đã chi trong khoảng này. Nếu đã ghi chi phí nhưng còn nợ/chưa thanh toán, khoản đó chưa tính vào Tiền ra cho đến khi xác nhận đã thanh toán.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ cash_outflow|vnd }}{% endif %}</strong>
-                <small class="metric-help">Khoảng {{ date_range_label }}. Chỉ tính khoản đã trả tiền thật.</small>
-            </article>
-            <article class="metric-card">
-                <div class="metric-card__top"><span class="metric-icon"><i data-lucide="banknote-arrow-down"></i></span><span class="metric-change {% if cash_flow_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}">{% if cash_flow_change < 0 %}↘{% else %}↗{% endif %} {{ cash_flow_change }}%</span></div>
-                <h3>Dòng tiền thuần <span class="metric-info" data-tooltip="Khoảng đang xem: {{ date_range_label }}. Đây là Tiền vào trừ Tiền ra. Nếu dương, tiền thật tăng trong khoảng này; nếu âm, tiền thật giảm. Chỉ số này không phải lợi nhuận vì còn phụ thuộc khách đã trả tiền và bạn đã chi tiền hay chưa.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ net_cash_flow|vnd }}{% endif %}</strong>
-                <small class="metric-help">Khoảng {{ date_range_label }}. Tiền vào trừ tiền ra.</small>
+
+            <article class="metric-card metric-card--cash {% if cash_flow_change is None %}{% if has_comparison_data and net_cash_flow < 0 %}metric-card--negative-soft{% elif has_comparison_data and net_cash_flow > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif cash_flow_change < 0 %}metric-card--negative-soft{% else %}metric-card--positive{% endif %}">
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Dòng tiền thuần <span class="metric-info" data-tooltip="Tiền thực thu trừ tiền thực chi. Có thể khác lợi nhuận thuần.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ net_cash_flow|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--net-cash"><i data-lucide="coins"></i></span></div>
+                <div class="metric-breakdown" aria-label="Chi tiết dòng tiền thuần">
+                    <div class="metric-breakdown__row"><span>Tiền thực thu</span><strong>{% if dashboard_empty %}--{% else %}{{ cash_in|vnd }}{% endif %}</strong></div>
+                    <div class="metric-breakdown__row is-cost"><span>Tiền thực chi</span><strong>{% if dashboard_empty %}--{% else %}-{{ cash_out|vnd }}{% endif %}</strong></div>
+                </div>
+                <div class="metric-card__bottom">{% if cash_flow_change is None and not has_comparison_data %}<span class="metric-context metric-note">Tiền thu vào trừ tiền chi ra.</span>{% elif cash_flow_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if cash_flow_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if cash_flow_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ cash_flow_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
             </article>
         </div>
 

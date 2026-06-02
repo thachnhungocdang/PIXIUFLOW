@@ -25,6 +25,9 @@
             <div class="sidebar-logo">
                 <img src="{% static 'core/images/pixiu_logo.png' %}" alt="Pixiu" class="sidebar-logo-img">
                 <span>PIXIU FLOW</span>
+                <button type="button" class="sidebar-collapse-toggle" id="sidebarCollapseToggle" aria-label="Ẩn thanh điều hướng" aria-pressed="false">
+                    <i data-lucide="panel-left-close"></i>
+                </button>
             </div>
 
             <nav class="sidebar-menu">
@@ -70,6 +73,10 @@
                 </a>
             </div>
         </aside>
+
+        <button type="button" class="sidebar-restore-toggle" id="sidebarRestoreToggle" aria-label="Hiện thanh điều hướng" hidden>
+            <i data-lucide="panel-left-open"></i>
+        </button>
 
         <main class="main-content">
             {% block content %}{% endblock %}
@@ -120,6 +127,20 @@
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const sidebarCollapseToggle = document.getElementById('sidebarCollapseToggle');
+        const sidebarRestoreToggle = document.getElementById('sidebarRestoreToggle');
+        const sidebarCollapseKey = 'pixiu_sidebar_collapsed';
+
+        function setSidebarCollapsed(collapsed, persist = true) {
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            if (sidebarCollapseToggle) sidebarCollapseToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+            if (sidebarRestoreToggle) sidebarRestoreToggle.hidden = !collapsed;
+            if (persist) localStorage.setItem(sidebarCollapseKey, collapsed ? '1' : '0');
+        }
+
+        if (localStorage.getItem(sidebarCollapseKey) === '1') {
+            setSidebarCollapsed(true, false);
+        }
 
         function openSidebar() {
             sidebar.classList.add('sidebar-open');
@@ -139,6 +160,8 @@
         }
 
         if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+        if (sidebarCollapseToggle) sidebarCollapseToggle.addEventListener('click', () => setSidebarCollapsed(true));
+        if (sidebarRestoreToggle) sidebarRestoreToggle.addEventListener('click', () => setSidebarCollapsed(false));
 
         window.addEventListener('resize', function () {
             if (window.innerWidth > 1024) closeSidebar();
