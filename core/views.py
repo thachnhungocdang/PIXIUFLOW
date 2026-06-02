@@ -9,6 +9,9 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login, authenticate
+from django.contrib.auth.models import User
 from .models import Product, Purchase, Sale, Expense, OpeningStock, Category
 from .forms import ProductForm, PurchaseForm, SaleForm, ExpenseForm
 from django.db.models.functions import TruncMonth
@@ -354,15 +357,45 @@ def landing_view(request):
     return render(request, "core/landing.html")
 
 def signup_view(request):
+    errors = []
     if request.method == "POST":
-        save_business_profile_from_request(request)
-        request.session['onboarding_started'] = True
-        return redirect("onboarding_welcome")
-    return render(request, "core/signup.html")
+        email_or_phone = (request.POST.get('phone_email') or '').strip()
+        password1 = request.POST.get('password1') or ''
+        password2 = request.POST.get('password2') or ''
+
+        if not email_or_phone:
+            errors.append('Vui lòng nhập email hoặc số điện thoại.')
+        if not password1 or not password2:
+            errors.append('Vui lòng nhập mật khẩu và xác nhận mật khẩu.')
+        elif password1 != password2:
+            errors.append('Mật khẩu xác nhận không khớp.')
+
+        if not errors:
+            if User.objects.filter(username__iexact=email_or_phone).exists():
+                errors.append('Tài khoản này đã tồn tại. Vui lòng đăng nhập.')
+
+        if not errors:
+            user = User.objects.create_user(
+                username=email_or_phone,
+                email=email_or_phone,
+                password=password1
+            )
+            login(request, user)
+            save_business_profile_from_request(request)
+            request.session['onboarding_started'] = True
+            return redirect('onboarding_welcome')
+
+    return render(request, "core/signup.html", {'errors': errors})
 
 def login_view(request):
     if request.method == "POST":
-        return redirect("dashboard")
+        username = (request.POST.get('username') or '').strip()
+        password = request.POST.get('password') or ''
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('dashboard')
+        return render(request, "core/login.html", {'form': None, 'login_error': True})
     return render(request, "core/login.html")
 
 

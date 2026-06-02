@@ -71,6 +71,15 @@
 
         <form method="post" action="{% url 'signup' %}" class="signup-form">
             {% csrf_token %}
+            {% if errors %}
+            <div class="signup-errors">
+                <ul>
+                    {% for error in errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
 
             <div class="step-card step-card--active" id="step1">
                 <img src="{% static 'core/images/Pixiu_on_top.PNG' %}" alt="Pixiu" class="card-mascot">

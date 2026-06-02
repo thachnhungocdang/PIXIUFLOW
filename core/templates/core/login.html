@@ -96,7 +96,7 @@
                         </label>
                     </div>
 
-                    {% if form.errors %}
+                    {% if form.errors or login_error %}
                     <div class="form-error">Tên đăng nhập hoặc mật khẩu không đúng.</div>
                     {% endif %}
 
