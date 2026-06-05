@@ -1,345 +1,184 @@
-# Pixiu Flow - Quản lý tồn kho, giao dịch và phân tích tài chính
+# Pixiu Flow
 
-Pixiu Flow là một web app Django dành cho cửa hàng/doanh nghiệp nhỏ để ghi nhận bán hàng, nhập hàng, chi phí vận hành, theo dõi tồn kho, công nợ, dòng tiền và lãi/lỗ. Sản phẩm được thiết kế cho người dùng không có kiến thức kế toán sâu, nên giao diện ưu tiên các khái niệm dễ hiểu như "tiền vào", "tiền ra", "lợi nhuận ghi nhận", "cần thu/cần trả" và có tooltip giải thích cách tính.
+Pixiu Flow là một web app Django dành cho cửa hàng nhỏ để quản lý sản phẩm, tồn kho, bán hàng, nhập kho, chi phí, công nợ, dòng tiền và phân tích lợi nhuận. Sản phẩm được viết theo hướng dễ hiểu cho người không rành tài chính: giao diện tách rõ “lãi/lỗ ghi nhận” và “dòng tiền thật”, dùng nhãn tiếng Việt, tooltip giải thích công thức và các cảnh báo thao tác quan trọng.
 
-## Công nghệ
+## Mục Tiêu Sản Phẩm
 
-- Backend: Python, Django 5.2.x
+Pixiu Flow giúp chủ cửa hàng trả lời nhanh các câu hỏi:
+
+- Hôm nay/tháng này doanh thu bao nhiêu?
+- Giá vốn hàng đã bán là bao nhiêu?
+- Lợi nhuận gộp và lợi nhuận thuần đang thế nào?
+- Tiền thật đã thu, đã chi và dòng tiền thuần là bao nhiêu?
+- Sản phẩm nào sắp hết hàng, hết hàng hoặc chưa khai báo tồn kho?
+- Khách nào còn nợ, nhà cung cấp/khoản chi nào sắp đến hạn thanh toán?
+- Danh mục hoặc sản phẩm nào tạo doanh thu/lợi nhuận tốt nhất?
+- Chi phí đang phát sinh theo nhóm nào và theo thời gian ra sao?
+
+## Stack Kỹ Thuật
+
+- Backend: Python, Django 5.2
 - Database mặc định: SQLite (`db.sqlite3`)
+- Auth: Django built-in User/Auth
 - Frontend: Django templates, CSS thuần, JavaScript thuần
-- Chart: Chart.js cho một số biểu đồ canvas, kết hợp biểu đồ HTML/CSS ở các khu phân tích tùy biến
-- Ngôn ngữ/timezone: tiếng Việt, `Asia/Ho_Chi_Minh`
+- Static serving: Django static files, WhiteNoise khi production
+- Charts: phần lớn render bằng SVG/HTML/CSS inline để kiểm soát interaction và tránh phụ thuộc nặng vào Chart.js
+- Ngôn ngữ giao diện: tiếng Việt
+- Timezone: `Asia/Ho_Chi_Minh`
 
-## Cấu trúc chính
+## Cách Chạy Local
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+Mở app tại:
+
+```text
+http://127.0.0.1:8000/
+```
+
+Kiểm tra nhanh project:
+
+```bash
+python manage.py check
+```
+
+## Cấu Trúc Thư Mục
 
 ```text
 config/
-  settings.py              # Cấu hình Django, SQLite, static, locale
-  urls.py                  # Include URL của core
+  settings.py              # Cấu hình Django, database, auth, static, timezone
+  urls.py                  # Admin, core URLs, auth URLs
+  wsgi.py / asgi.py
 
 core/
-  models.py                # Product, Category, Purchase, Sale, Expense, OpeningStock
-  forms.py                 # Form sản phẩm, bán hàng, nhập hàng, chi phí
-  views.py                 # Toàn bộ logic màn hình, báo cáo, công nợ, cash flow
-  urls.py                  # Route của app
+  models.py                # Product, Category, OpeningStock, Purchase, Sale, Expense
+  forms.py                 # Form cho sản phẩm, bán hàng, nhập hàng, chi phí
+  views.py                 # Logic nghiệp vụ và render toàn bộ màn hình chính
+  urls.py                  # Routes của app core
+  admin.py                 # Django admin registration
+  context_processors.py    # Business profile dùng trong layout
   templatetags/
-    format_utils.py        # Format VND, xử lý một số text hiển thị
-  templates/core/          # HTML cho landing, dashboard, inventory, transactions, report
-  static/core/css/         # CSS theo module
-  static/core/js/          # JS inventory và chart
+    format_utils.py        # Format tiền VND và helper hiển thị
+  templates/core/
+    base.html
+    landing.html
+    login.html
+    signup.html
+    dashboard.html
+    inventory.html
+    setup_products.html
+    sale_form.html
+    expense_form.html
+    bulk_transaction_form.html
+    transaction_history.html
+    report.html
+  static/core/css/
+    base.css
+    sidebar.css
+    dashboard.css
+    inventory.css
+    transactions.css
+    analytics.css
+    onboarding.css
+    landing.css
+    login.css
+    signup.css
+  static/core/js/
+    inventory.js
+    chart.js
 ```
 
-## Các màn hình đang có
+## Data Model Chính
 
-### 1. Landing, đăng nhập, đăng ký, onboarding
+### User Scope
 
-- `/` - landing page giới thiệu Pixiu Flow.
-- `/login/`, `/signup/` - giao diện đăng nhập/đăng ký.
-- `/setup/products/` - thiết lập sản phẩm và hàng ban đầu.
+Các model nghiệp vụ kế thừa `TimeStampedModel`, gồm:
 
-### 2. Bảng theo dõi
+- `user = ForeignKey(User, null=True)`
+- `created_at`
+- `updated_at`
 
-Route: `/dashboard/`
-
-Mục tiêu: hiển thị nhanh tình hình hoạt động trong một khoảng thời gian.
-
-Đang có:
-
-- Bộ lọc thời gian dùng chung cho toàn trang: `Tất cả`, `Hôm nay`, `7 ngày`, `Tháng này`, date range.
-- KPI theo ghi nhận:
-  - Doanh thu ghi nhận
-  - Chi phí ghi nhận
-  - Lợi nhuận ghi nhận
-- KPI theo dòng tiền:
-  - Tiền vào
-  - Tiền ra
-  - Dòng tiền thuần
-- Tooltip giải thích từng KPI theo ngôn ngữ dễ hiểu.
-- Cảnh báo chưa thanh toán:
-  - Khách chưa thanh toán
-  - Cần thanh toán cho nhà cung cấp/chi phí
-  - Có ngưỡng cảnh báo trước hạn, mặc định 7 ngày, có thể chỉnh trong session.
-  - Có nút nhanh xác nhận "Đã thanh toán hôm nay".
-- Thống kê nhanh, biểu đồ xu hướng, cảnh báo tồn kho.
-
-### 3. Sản phẩm và tồn kho
-
-Route: `/inventory/`
-
-Mục tiêu: quản lý danh sách sản phẩm, danh mục, nhà cung cấp, lô hàng và tình trạng tồn kho.
-
-Đang có:
-
-- Thanh tìm kiếm topbar có nút xóa nhanh.
-- Bộ lọc nhanh trạng thái tồn kho:
-  - Hết hàng
-  - Sắp hết
-  - Tổng sản phẩm
-  - Giá trị tồn kho
-- Bảng sản phẩm:
-  - Tên, mã SP, đơn vị, ngày thêm, danh mục, tồn kho, ngưỡng, giá vốn, giá bán, margin, trạng thái, thanh toán, hành động.
-  - Filter/sort theo nhiều cột.
-  - Cột thanh toán có filter.
-  - Inline edit ngưỡng cảnh báo tồn kho.
-  - Action sửa/xóa/xem chi tiết.
-- Tab danh mục:
-  - Cây danh mục nhiều cấp.
-  - Thêm/sửa/xóa danh mục.
-  - Di chuyển sản phẩm giữa danh mục.
-- Tab nhà cung cấp/lô hàng:
-  - Xem nhà cung cấp.
-  - Xem lô nhập.
-  - Tìm kiếm/filter theo nhà cung cấp/lô hàng.
-- Panel bên phải:
-  - Tóm tắt kho.
-  - Box "Cần xử lý" gom tồn kho sắp hết và cảnh báo thanh toán.
-  - Bán chạy nhất.
-  - Danh mục lợi nhuận cao.
-
-### 4. Ghi nhận giao dịch lẻ
-
-Route: `/transactions/create/`
-
-Đây là entry chung, chuyển người dùng sang form phù hợp.
-
-Các form cụ thể:
-
-- `/sales/create/` - bán hàng/doanh thu.
-- `/expenses/create/?mode=purchase` - nhập hàng.
-- `/expenses/create/` - chi phí khác.
-
-Đang có:
-
-- Bán hàng:
-  - Chọn sản phẩm, ngày, khách hàng, số lượng, đơn giá.
-  - Kiểm tra không bán quá tồn kho.
-  - Có tùy chọn cập nhật giá bán mặc định.
-  - Hỗ trợ thanh toán ngay hoặc nợ/chưa thanh toán.
-- Nhập hàng:
-  - Chọn sản phẩm, ngày, nhà cung cấp, số lượng, đơn giá.
-  - Tự cập nhật tồn kho, giá nhập mới nhất và nhà cung cấp của sản phẩm.
-  - Hỗ trợ nợ nhà cung cấp.
-- Chi phí khác:
-  - Nhóm chi phí: tiền điện, nước, mặt bằng, lương, vận chuyển, mua thiết bị, khác.
-  - Nếu chọn `Mua thiết bị`, yêu cầu nhập `estimated_lifetime_months` để tính khấu hao/phân bổ chi phí.
-  - Nếu không phải mua thiết bị, không hiển thị vòng đời, chỉ dùng ghi chú.
-
-### 5. Ghi nhận nhiều giao dịch
-
-Route: `/transactions/bulk-create/`
-
-Mục tiêu: nhập nhiều dòng doanh thu/nhập hàng/chi phí cùng lúc.
-
-Đang có:
-
-- Nhiều row giao dịch trong một form.
-- Keyboard navigation giữa các ô, bao gồm text input và dropdown.
-- Date cần thanh toán tự có ngày hôm nay và không cho chọn ngày sớm hơn hôm nay.
-- Nếu dòng là mua thiết bị, hiển thị ô vòng đời thiết bị.
-- Nếu không phải mua thiết bị, chỉ hiển thị ghi chú.
-
-### 6. Lịch sử giao dịch
-
-Route: `/transactions/history/`
-
-Mục tiêu: xem, tìm kiếm, lọc, sửa, xóa và xác nhận thanh toán cho tất cả giao dịch.
-
-Đang có:
-
-- Header giống bảng theo dõi.
-- Nút `Thêm giao dịch lẻ` và `Thêm nhiều giao dịch`.
-- Bộ lọc thời gian: `Tất cả`, `Hôm nay`, `7 ngày`, `Tháng này`, date range.
-- Tìm kiếm chi tiết theo sản phẩm, mã SP, đối tác, khách hàng, giá trị, mã lô, trạng thái thanh toán.
-- KPI 6 card:
-  - Doanh thu ghi nhận
-  - Chi phí ghi nhận
-  - Lợi nhuận ghi nhận
-  - Tiền đã thu
-  - Tiền đã chi
-  - Dòng tiền thuần
-- Tooltip giải thích các KPI.
-- Tab loại giao dịch:
-  - Tất cả
-  - Doanh thu
-  - Nhập hàng
-  - Chi phí khác
-  - Có hỗ trợ Shift + click để chọn nhiều loại.
-- Bảng giao dịch:
-  - Loại, ngày, nội dung, đối tác, số lượng, giá trị, thanh toán, hành động.
-  - Sort/filter theo các cột.
-  - Giao dịch mới lưu gần nhất được xếp lên trên nếu không chọn sort thủ công.
-  - Nút sửa/xóa.
-  - Nút nhanh `Đã thanh toán hôm nay` cho khoản chưa thanh toán.
-
-### 7. Phân tích thêm
-
-Route: `/report/`
-
-Mục tiêu: phân tích sâu hơn về doanh thu, chi phí, lợi nhuận, dòng tiền và tồn kho.
-
-Đang có:
-
-- Bộ lọc thời gian dùng chung: hôm nay, 7 ngày, tháng này, date range, tất cả.
-- KPI 6 card giống dashboard:
-  - Doanh thu ghi nhận
-  - Chi phí ghi nhận
-  - Lợi nhuận ghi nhận
-  - Tiền vào
-  - Tiền ra
-  - Dòng tiền thuần
-- Biểu đồ phân tích doanh thu:
-  - Doanh thu và lợi nhuận theo kỳ.
-  - Trục Y co giãn theo dữ liệu, có hỗ trợ lợi nhuận âm.
-  - Hover hiển thị kỳ, chỉ số, giá trị.
-  - Bảng bên phải có phân cấp danh mục và nút +/-.
-- Phân tích dòng tiền:
-  - Tiền vào, tiền ra, dòng tiền thuần.
-  - Tách rõ khỏi phân tích lãi/lỗ ghi nhận.
-- Phân tích chi phí:
-  - Donut chart.
-  - Tooltip trắng theo từng lát: tên nhóm chi phí và tiền.
-  - Bảng chi phí theo nhóm.
-- Phân tích lợi nhuận:
-  - Chọn theo danh mục hoặc theo sản phẩm.
-  - Chọn tất cả danh mục hoặc một danh mục cụ thể.
-  - Chọn Top 10, Bottom 10 hoặc Tất cả.
-  - Bảng bên trái có doanh thu, lợi nhuận, biên lợi nhuận.
-  - Biểu đồ ngang bên phải:
-    - Bar = lợi nhuận.
-    - Dot = biên lợi nhuận.
-    - Legend cho lợi nhuận dương, lợi nhuận âm, biên lợi nhuận.
-    - Tooltip trắng có format nhiều dòng: doanh thu, lợi nhuận, biên lợi nhuận.
-- Tổng quan hàng tồn kho.
-- Ranking panel:
-  - Sản phẩm bán chạy nhất.
-  - Danh mục biên lợi nhuận cao.
-  - Sản phẩm tồn kho nhiều nhất.
-  - Dòng tiền thuần.
-  - Lãi/lỗ theo khấu hao.
-  - Nhà cung cấp lớn nhất.
-
-## Model dữ liệu chính
+Dữ liệu cũ có thể có `user = null`. Dữ liệu mới nên gắn với `request.user`. Các view dùng helper `for_user(model, user)` để lọc dữ liệu theo user hiện tại.
 
 ### Product
 
-Lưu sản phẩm và trạng thái tồn kho.
+Đại diện sản phẩm trong kho.
 
-Field quan trọng:
+Trường quan trọng:
 
-- `name`
-- `category`
-- `unit`
-- `alert_threshold`
-- `price_sell`
-- `price_buy_latest`
-- `supplier_name`
-- `stock_quantity`
-- `is_active`
+- `name`: tên sản phẩm
+- `category`: đường dẫn danh mục dạng `Cấp 1 / Cấp 2 / ...`
+- `unit`: đơn vị tính do user nhập, ví dụ `gói`, `cái`, `ly`
+- `alert_threshold`: ngưỡng cảnh báo tồn kho
+- `price_sell`: giá bán mặc định
+- `price_buy_latest`: giá vốn/giá nhập gần nhất
+- `supplier_name`: nhà cung cấp gần nhất
+- `stock_quantity`: số tồn kho hiện tại
+- `is_active`: trạng thái hoạt động
 
-Logic:
+Logic tồn kho:
 
-- `stock_status` trả về:
-  - `het_hang` nếu tồn kho <= 0
-  - `sap_het` nếu tồn kho <= ngưỡng cảnh báo
-  - `day_du` nếu còn đủ
+- `stock_status` phân loại: chưa khai báo tồn kho, hết hàng, sắp hết, đầy đủ.
+- `has_imported` kiểm tra sản phẩm đã có `Purchase` hoặc `OpeningStock`.
 
 ### Category
 
-Lưu danh mục dạng path, ví dụ:
+Lưu danh mục dạng path. Hỗ trợ nhiều cấp bằng chuỗi:
 
 ```text
-Đồ ăn
-Đồ ăn / Mì
-Đồ ăn / Mì / Mì tôm
+Đồ ăn / Đồ ăn khô / Mỳ
 ```
 
-Field:
-
-- `path`
-- `name`
-- `note`
+`unique_together = ('user', 'path')` để mỗi user có cây danh mục riêng.
 
 ### OpeningStock
 
-Lưu tồn kho khởi điểm khi bắt đầu dùng app.
+Hàng ban đầu là số hàng cửa hàng đã có trước khi bắt đầu dùng Pixiu Flow.
 
-Logic:
+Quan trọng:
 
-- Khi tạo/sửa, tự cộng/chỉnh `Product.stock_quantity`.
-- Khi xóa, tự trừ lại tồn kho.
-- Nếu có `estimated_unit_cost`, cập nhật `Product.price_buy_latest`.
+- Không tạo dòng tiền ra.
+- Không phải giao dịch mua hàng mới.
+- Vẫn có `estimated_unit_cost` để hệ thống có giá vốn khi tính COGS/lợi nhuận gộp lúc bán.
+- Khi lưu/xóa OpeningStock, hệ thống cập nhật lại `Product.stock_quantity`.
 
 ### Purchase
 
-Lưu giao dịch nhập hàng.
+Giao dịch nhập kho mới.
 
-Field quan trọng:
+Quan trọng:
 
-- `product`
-- `date`
-- `supplier_name`
-- `quantity`
-- `unit_price`
-- `total_amount`
-- `payment_method`
-- `payment_due_date`
-- `payment_date`
-- `note`
-
-Logic:
-
+- Tăng tồn kho.
+- Cập nhật `price_buy_latest`.
+- Có `payment_method`, `payment_due_date`, `payment_date` để theo dõi tiền đã chi hoặc công nợ.
 - `total_amount = quantity * unit_price`.
-- Khi tạo/sửa, tự cộng tồn kho.
-- Khi đổi sản phẩm trong giao dịch nhập, hoàn lại tồn kho sản phẩm cũ và cộng sang sản phẩm mới.
-- Khi xóa, tự trừ tồn kho.
-- Cập nhật `price_buy_latest` và `supplier_name` cho sản phẩm.
-- Nếu thanh toán ngay, set `payment_date = date`.
-- Nếu nợ/chưa thanh toán, giữ `payment_due_date`, `payment_date = None`.
-- Không cho ngày cần thanh toán sớm hơn hôm nay.
+- Trong accrual accounting, Purchase là nhập kho/tài sản, không được tính ngay là chi phí lãi/lỗ.
+- Trong cash flow, Purchase đã thanh toán là tiền thực chi.
 
 ### Sale
 
-Lưu giao dịch bán hàng/doanh thu.
+Giao dịch bán hàng.
 
-Field quan trọng:
+Quan trọng:
 
-- `product`
-- `date`
-- `customer_name`
-- `quantity`
-- `unit_price`
-- `total_amount`
-- `payment_method`
-- `payment_due_date`
-- `payment_date`
-- `note`
-
-Logic:
-
+- Giảm tồn kho.
 - `total_amount = quantity * unit_price`.
-- Khi tạo/sửa, tự trừ tồn kho.
-- Khi đổi sản phẩm trong giao dịch bán, hoàn lại tồn kho sản phẩm cũ và trừ sang sản phẩm mới.
-- Khi xóa, tự cộng lại tồn kho.
-- Form kiểm tra không cho bán quá tồn kho hiện có.
-- Nếu thanh toán ngay, set `payment_date = date`.
-- Nếu khách nợ, giữ `payment_due_date`, `payment_date = None`.
+- Có `cogs_amount`: giá vốn tại thời điểm bán.
+- Khi tạo Sale mới, nếu `cogs_amount` chưa có, hệ thống lấy `product.price_buy_latest * quantity`.
+- COGS chỉ ghi nhận khi bán hàng, không ghi nhận khi nhập kho.
+- Có thanh toán ngay hoặc nợ/chưa thanh toán.
 
 ### Expense
 
-Lưu chi phí khác.
+Chi phí vận hành và chi phí thiết bị.
 
-Field quan trọng:
-
-- `date`
-- `expense_type`
-- `amount`
-- `estimated_lifetime_months`
-- `payment_method`
-- `payment_due_date`
-- `payment_date`
-- `note`
-
-Nhóm chi phí hiện có:
+Nhóm chính:
 
 - Tiền điện
 - Tiền nước
@@ -349,277 +188,600 @@ Nhóm chi phí hiện có:
 - Mua thiết bị
 - Khác
 
-Logic:
+Nếu là `Mua thiết bị`, cần `estimated_lifetime_months` để phân bổ/khấu hao trong báo cáo lãi/lỗ. Expense đã thanh toán cũng đi vào cash flow là tiền thực chi.
 
-- `amount` phải > 0.
-- Nếu `expense_type = equipment`, bắt buộc có `estimated_lifetime_months`.
-- Nếu không phải mua thiết bị, xóa `estimated_lifetime_months`.
-- Nếu thanh toán ngay, set `payment_date = date`.
-- Nếu nợ/chưa thanh toán, giữ `payment_due_date`, `payment_date = None`.
+## Nguyên Tắc Tài Chính Trong App
 
-## Logic backend quan trọng
+Pixiu Flow tách 2 góc nhìn:
 
-### 1. Ghi nhận lãi/lỗ và dòng tiền là hai khái niệm khác nhau
+### 1. Lãi/Lỗ Ghi Nhận
 
-App cố ý tách hai cách nhìn:
+Dựa trên accrual accounting:
 
-#### Ghi nhận
-
-Dùng để xem kỳ này hoạt động kinh doanh lời/lỗ ra sao.
-
-- Doanh thu ghi nhận: tính khi ghi nhận giao dịch bán hàng, kể cả khách chưa trả tiền.
-- Chi phí ghi nhận: tính khi chi phí phát sinh, kể cả chưa thanh toán.
-- Lợi nhuận ghi nhận: doanh thu ghi nhận - chi phí ghi nhận.
-
-#### Dòng tiền
-
-Dùng để xem tiền thật vào/ra.
-
-- Tiền vào: chỉ tính giao dịch đã thu tiền.
-- Tiền ra: chỉ tính giao dịch đã chi tiền.
-- Dòng tiền thuần: tiền vào - tiền ra.
-
-Ví dụ:
-
-- Bán hàng 1.000.000đ nhưng khách chưa trả:
-  - Doanh thu ghi nhận tăng 1.000.000đ.
-  - Tiền vào chưa tăng.
-- Nhập hàng 500.000đ nhưng chưa trả NCC:
-  - Chi phí/giá vốn ghi nhận có thể tăng.
-  - Tiền ra chưa tăng.
-
-### 2. Khấu hao/phân bổ chi phí thiết bị
-
-Nhóm chi phí `Mua thiết bị` không bị trừ hết một lần vào chi phí ghi nhận.
-
-Backend dùng `recognized_expense_summary(start_date, end_date)` để tính chi phí ghi nhận:
-
-- Chi phí thường: tính toàn bộ vào ngày phát sinh.
-- Mua thiết bị:
-  - Nếu có vòng đời ước tính, chia đều theo số tháng.
-  - Chỉ tính phần khấu hao/phân bổ rơi vào kỳ đang xem.
-  - Giúp lợi nhuận không bị méo chỉ vì mua một thiết bị lớn trong một tháng.
-
-Ví dụ:
-
-- Mua máy 12.000.000đ, vòng đời 12 tháng.
-- Mỗi tháng chi phí ghi nhận khoảng 1.000.000đ.
-- Dòng tiền vẫn ghi nhận tiền ra thật theo thời điểm đã thanh toán.
-
-### 3. Cash flow
-
-Backend dùng `cash_flow_summary(start_date, end_date)`.
-
-Logic:
-
-- Với Sale:
-  - Chỉ tính vào tiền vào nếu đã thanh toán.
-  - Ngày dòng tiền là `payment_date` nếu có, nếu không thì `date`.
-- Với Purchase:
-  - Chỉ tính vào tiền ra nếu đã thanh toán.
-  - Ngày dòng tiền là `payment_date` nếu có, nếu không thì `date`.
-- Với Expense:
-  - Chỉ tính vào tiền ra nếu đã thanh toán.
-  - Ngày dòng tiền là `payment_date` nếu có, nếu không thì `date`.
-
-### 4. Công nợ và cảnh báo thanh toán
-
-Các giao dịch có `payment_method = debt` được coi là chưa thanh toán.
-
-Backend có các helper tạo alert:
-
-- Khách chưa thanh toán: từ Sale nợ.
-- Cần thanh toán cho NCC: từ Purchase nợ.
-- Cần thanh toán chi phí: từ Expense nợ.
-
-Logic cảnh báo:
-
-- Mặc định cảnh báo trước hạn 7 ngày.
-- Có thể chỉnh ngưỡng bằng form trong dashboard, lưu vào session.
-- Khoản quá hạn hoặc sắp đến hạn sẽ hiện ở dashboard/inventory.
-- Mỗi alert có nút nhanh `Đã thanh toán hôm nay`.
-
-Khi user bấm `Đã thanh toán hôm nay`:
-
-- Route: `/transactions/<kind>/<pk>/mark-paid/`
-- Backend đổi `payment_method` thành thanh toán ngay/chuyển khoản tùy logic hiện tại.
-- Set `payment_date = today`.
-- Xóa `payment_due_date`.
-- Redirect về trang trước.
-
-### 5. Tồn kho
-
-Tồn kho được cập nhật tự động qua model `save()`/`delete()`:
-
-- OpeningStock tạo: cộng tồn kho.
-- OpeningStock xóa: trừ tồn kho.
-- Purchase tạo: cộng tồn kho.
-- Purchase xóa: trừ tồn kho.
-- Sale tạo: trừ tồn kho.
-- Sale xóa: cộng tồn kho.
-- Sửa giao dịch sẽ tính chênh lệch so với số lượng cũ.
-
-Điều này giúp bảng tồn kho luôn phản ánh dữ liệu giao dịch.
-
-## Frontend và giao diện
-
-### CSS
-
-File CSS chính được import qua `core/static/core/css/styles.css`:
-
-```css
-@import url('./base.css');
-@import url('./sidebar.css');
-@import url('./dashboard.css');
-@import url('./transactions.css');
-@import url('./history.css');
-@import url('./products.css');
-@import url('./analytics.css');
-@import url('./responsive.css');
-@import url('./onboarding.css');
+```text
+Doanh thu ghi nhận = tổng Sale trong kỳ, kể cả khách chưa trả tiền
+Giá vốn hàng bán = tổng Sale.cogs_amount trong kỳ
+Lợi nhuận gộp = Doanh thu ghi nhận - Giá vốn hàng bán
+Chi phí vận hành = Expense được ghi nhận trong kỳ, có xử lý khấu hao thiết bị
+Lợi nhuận thuần = Lợi nhuận gộp - Chi phí vận hành
 ```
 
-Ý nghĩa:
+Purchase không được cộng thẳng vào chi phí lãi/lỗ, vì nhập hàng là chuyển tiền thành tồn kho. Hàng chỉ thành giá vốn khi bán.
 
-- `base.css`: biến màu, reset, layout nền.
-- `sidebar.css`: sidebar, navigation.
-- `dashboard.css`: bảng theo dõi.
-- `transactions.css`: form giao dịch lẻ/bulk.
-- `history.css`: lịch sử giao dịch.
-- `inventory.css`: sản phẩm và tồn kho.
-- `analytics.css`: phân tích thêm/report.
-- `responsive.css`: responsive chung.
+### 2. Dòng Tiền
 
-### JavaScript
+Dựa trên cash basis:
 
+```text
+Tiền thực thu = Sale đã thanh toán
+Tiền thực chi = Purchase/Expense đã thanh toán
+Dòng tiền thuần = Tiền thực thu - Tiền thực chi
+```
+
+Khách nợ hoặc khoản chưa thanh toán không đi vào dòng tiền cho đến khi được đánh dấu đã thanh toán.
+
+## Helper Tính Toán Quan Trọng
+
+Trong `core/views.py`:
+
+- `recognized_expense_summary(start_date, end_date, user)`: tính chi phí vận hành ghi nhận, gồm phân bổ thiết bị theo tháng.
+- `cogs_summary(start_date, end_date, user)`: tính giá vốn hàng bán từ `Sale.cogs_amount`.
+- `cash_flow_summary(start_date, end_date, user)`: tính tiền thực thu/thực chi theo ngày thanh toán.
+- `build_payment_alerts(warning_days, limit, user)`: gom cảnh báo khách chưa thanh toán và khoản cần trả.
+- `transaction_payment_status(...)`: trả trạng thái paid/unpaid/overdue/due today.
+
+## Routes Chính
+
+```text
+/                              Landing page
+/login/                        Login page custom
+/signup/                       Signup page custom
+/accounts/login/               Django auth login dùng template core/login.html
+/accounts/logout/              Logout
+/accounts/register/            Redirect về signup
+
+/onboarding/                   Màn onboarding sau đăng ký
+/onboarding/opening-stock/     Wizard cũ cho tồn kho ban đầu
+/setup/products/               Màn khai báo/xem/sửa hàng ban đầu
+
+/dashboard/                    Bảng theo dõi
+/inventory/                    Sản phẩm & tồn kho
+/products/create/              Thêm sản phẩm
+/products/delete/<pk>/         Xóa sản phẩm
+
+/sales/create/                 Ghi nhận bán hàng
+/sales/create/ajax-new-product/ Thêm sản phẩm mới trong flow bán hàng
+
+/expenses/create/              Ghi nhận nhập kho hoặc chi phí khác
+/expenses/create/ajax-new-product/ Thêm sản phẩm mới trong flow nhập kho
+
+/transactions/create/          Entry tạo giao dịch lẻ
+/transactions/bulk-create/     Ghi nhận nhiều giao dịch
+/transactions/history/         Lịch sử giao dịch
+/transactions/<kind>/<pk>/mark-paid/   Đánh dấu đã thanh toán
+/transactions/<kind>/<pk>/extend-due/  Đổi hạn thanh toán
+
+/report/                       Phân tích thêm
+```
+
+## Các Page Và Nội Dung Hiện Có
+
+### Landing
+
+File:
+
+- `core/templates/core/landing.html`
+- `core/static/core/css/landing.css`
+
+Vai trò:
+
+- Giới thiệu Pixiu Flow.
+- Dẫn user sang đăng ký/đăng nhập.
+- Dùng hình Pixiu/logo và màu thương hiệu đỏ đậm/vàng.
+
+### Login / Signup
+
+Files:
+
+- `core/templates/core/login.html`
+- `core/templates/core/signup.html`
+- `core/static/core/css/login.css`
+- `core/static/core/css/signup.css`
+
+Vai trò:
+
+- Đăng nhập/đăng ký với giao diện custom đã có CSS.
+- Signup lưu profile cơ bản vào session, tạo user, login luôn và đi vào onboarding/setup.
+
+### Onboarding Và Thiết Lập Hàng Ban Đầu
+
+Files:
+
+- `core/templates/core/setup_products.html`
+- `core/static/core/css/onboarding.css`
+
+Vai trò:
+
+- Dành cho số hàng đã có trước khi dùng Pixiu Flow.
+- Không tạo Purchase, không tạo dòng tiền ra.
+- Có thể khai báo sản phẩm, danh mục, đơn vị, giá bán, giá vốn ước tính, tồn kho ban đầu và ngưỡng cảnh báo.
+- Nếu user đã khai báo trước đó, màn hình có thể load lại OpeningStock để xem/sửa.
+- Nếu đã có giao dịch sau thiết lập, các thao tác sửa/xóa/thêm hàng ban đầu cần cảnh báo mạnh vì có thể làm lệch tồn kho và báo cáo.
+
+UX hiện có:
+
+- Bảng nhập nhiều dòng.
+- Số thứ tự dòng.
+- Placeholder cho các ô mẫu, không dùng text thật nếu user chưa nhập.
+- Có nút thêm dòng/xóa dòng.
+- Danh mục hỗ trợ thêm/xóa cấp dưới bằng nút `+`/`-`.
+- Tooltip dạng icon `?` màu vàng/nâu, hiển thị popup gần icon.
+- Hỗ trợ di chuyển giữa ô bằng bàn phím: mũi tên, Enter, Shift+Enter, Tab.
+
+### Dashboard - Bảng Theo Dõi
+
+Files:
+
+- `core/templates/core/dashboard.html`
+- `core/static/core/css/dashboard.css`
+
+Vai trò:
+
+- Màn hình tổng quan hằng ngày cho chủ cửa hàng.
+
+Nội dung chính:
+
+- Header có tên trang, profile chủ doanh nghiệp, chuông cảnh báo.
+- Card nhắc thiết lập tồn kho nếu có sản phẩm chưa khai báo tồn kho.
+- Card cảnh báo chưa thanh toán cho khách/NCC.
+- Filter thời gian: tất cả, hôm nay, 7 ngày, tháng này, năm nay, date range.
+- KPI được chia storytelling:
+  - Row lãi/lỗ: doanh thu, lợi nhuận gộp, lợi nhuận thuần.
+  - Row cash flow: tiền đã thu, tiền đã chi, dòng tiền thuần.
+- Biểu đồ/tóm tắt theo kỳ.
+- Các block nhắc việc và giao dịch gần đây.
+
+Design:
+
+- Card nền kem, border vàng/cam.
+- CTA đỏ đậm.
+- KPI dùng số lớn, nhưng đã giảm size để fit layout.
+- Sidebar có option collapse/hide để tăng không gian màn hình chính.
+
+### Inventory - Sản Phẩm & Tồn Kho
+
+Files:
+
+- `core/templates/core/inventory.html`
+- `core/static/core/css/inventory.css`
 - `core/static/core/js/inventory.js`
-  - Filter/sort bảng sản phẩm.
-  - Search topbar.
-  - Popover filter cột.
-  - Inline update tồn kho/ngưỡng.
-  - Quản lý tab sản phẩm/danh mục/NCC.
-- `core/static/core/js/chart.js`
-  - Chart.js cho doanh thu, chi phí, dòng tiền.
-  - Tooltip chart.
-  - Render một số chart canvas.
 
-### UI pattern đang dùng
+Vai trò:
 
-- Card KPI có tooltip dấu `?`.
-- Các bảng có filter/sort theo cột.
-- Các cảnh báo có CTA rõ: xem giao dịch, nhập thêm hàng, đã thanh toán.
-- Chart có legend, tooltip, data label khi cần.
-- Cố gắng tách rõ:
-  - Ghi nhận/lãi lỗ
-  - Dòng tiền thật
-  - Công nợ chưa thanh toán
-  - Khấu hao/phân bổ thiết bị
+- Quản lý sản phẩm, tồn kho, danh mục, nhà cung cấp, lô hàng và thiết lập ban đầu.
 
-## Các route chính
+Nội dung chính:
+
+- Search bar theo sản phẩm/danh mục/nhà cung cấp.
+- Header CTA:
+  - Nhập kho
+  - Thêm sản phẩm
+- Không đặt “Khai báo hàng ban đầu” ở header; chức năng này nằm trong panel thiết lập ban đầu.
+- KPI tồn kho: chưa có tồn kho, hết hàng, sắp hết, số sản phẩm, giá trị tồn kho.
+- Bảng sản phẩm:
+  - Tên, mã, danh mục, tồn kho, ngưỡng, giá vốn, giá bán, margin, trạng thái, thanh toán, hành động.
+  - Sort/filter.
+  - Edit sản phẩm bằng popup ngay trong trang, không redirect về trang thêm sản phẩm.
+- Popup edit sản phẩm:
+  - Sửa tên, danh mục, đơn vị, nhà cung cấp, giá bán, ngưỡng cảnh báo.
+  - Giá vốn chỉ cho sửa nếu sản phẩm chưa phát sinh Purchase. Nếu đã có nhập kho, phải sửa ở lịch sử giao dịch nhập kho.
+  - Danh mục hiển thị dạng cây để dễ hiểu.
+- Tab danh mục:
+  - Cây danh mục nhiều cấp.
+  - Thêm/sửa/xóa danh mục.
+  - Bulk move sản phẩm.
+- Panel bên phải:
+  - Tóm tắt kho.
+  - Cần xử lý.
+  - Thiết lập ban đầu với trạng thái:
+    - Chưa có OpeningStock: “Thiết lập hàng ban đầu”.
+    - Đã có OpeningStock, chưa có giao dịch: “Xem / sửa hàng ban đầu”.
+    - Đã có giao dịch: cảnh báo chỉ dùng OpeningStock cho hàng đã có trước khi dùng app.
+
+### Product Form - Thêm Sản Phẩm
+
+Files:
+
+- `core/templates/core/product_form.html`
+- `core/static/core/css/products.css`
+
+Vai trò:
+
+- Tạo hoặc sửa hồ sơ sản phẩm.
+- Thêm sản phẩm mới không còn dùng “hàng có sẵn” như một giao dịch tùy tiện sau này.
+- Nếu nhập kho khi tạo sản phẩm, tạo Purchase đúng nghĩa để ghi nhận tồn kho, công nợ/thanh toán và dòng tiền.
+- Nếu chỉ tạo thông tin sản phẩm, chưa có tồn kho thì dashboard/inventory có thể nhắc cập nhật tồn kho.
+
+### Sale Form - Ghi Nhận Doanh Thu
+
+Files:
+
+- `core/templates/core/sale_form.html`
+- `core/static/core/css/transactions.css`
+
+Vai trò:
+
+- Ghi nhận bán hàng.
+- Có thể bán nhiều dòng sản phẩm.
+- Kiểm tra tồn kho trước khi lưu.
+- Có thể thêm sản phẩm mới trong popup ngay trong flow bán hàng.
+- Nếu thêm sản phẩm mới trong flow bán hàng thì phải khai báo tồn kho/giá vốn đủ để bán được.
+- Thanh toán:
+  - Tiền mặt
+  - Chuyển khoản
+  - Nợ/chưa thanh toán, có ngày nhắc nợ
+
+### Expense/Purchase Form - Nhập Kho Và Chi Phí Khác
+
+Files:
+
+- `core/templates/core/expense_form.html`
+- `core/static/core/css/transactions.css`
+
+Vai trò:
+
+- Cùng một màn xử lý 2 mode:
+  - `mode=purchase`: nhập kho mới.
+  - `mode=other`: chi phí khác.
+
+Nhập kho:
+
+- Chọn sản phẩm hoặc thêm sản phẩm mới bằng popup.
+- Popup thêm sản phẩm mới có format giống popup thêm sản phẩm trong flow doanh thu, nhưng không có hộp nhập kho phụ bên dưới vì bản thân màn hiện tại đã là nhập kho.
+- Danh mục trong popup hỗ trợ cấp 1-4, thêm/xóa cấp bằng UI.
+- Lưu Purchase để tăng tồn kho, ghi giá vốn mới, công nợ/thanh toán và dòng tiền khi đã trả.
+
+Chi phí khác:
+
+- Chọn nhóm chi phí.
+- Nếu là thiết bị, nhập vòng đời ước tính theo tháng.
+- Có thể ghi nhận nợ/chưa thanh toán và ngày cần thanh toán.
+
+### Bulk Transaction - Ghi Nhận Nhiều Giao Dịch
+
+Files:
+
+- `core/templates/core/bulk_transaction_form.html`
+- `core/static/core/css/transactions.css`
+
+Vai trò:
+
+- Nhập nhiều giao dịch trong một bảng.
+- Một dòng có thể đại diện cho một đơn hàng/phiếu nhập và có nhiều sản phẩm phụ cùng khách hàng/NCC.
+
+Nội dung:
+
+- Loại giao dịch: doanh thu, nhập hàng, chi phí.
+- Ngày, sản phẩm/nhóm chi phí, khách hàng/NCC, giá trị, số lượng, thành tiền, thanh toán, ghi chú.
+- Có nút thêm sản phẩm trong cùng dòng.
+- Tổng giá trị cập nhật từ các dòng và sản phẩm phụ.
+- Bảng có scroll, column co giãn, wrap nội dung để không che text.
+
+### Transaction History - Lịch Sử Giao Dịch
+
+Files:
+
+- `core/templates/core/transaction_history.html`
+- `core/static/core/css/history.css`
+
+Vai trò:
+
+- Nơi xem lại, lọc, sửa, xóa, đánh dấu thanh toán cho toàn bộ Sale/Purchase/Expense.
+
+Nội dung:
+
+- Filter thời gian.
+- Search theo sản phẩm, mã SP, mã lô, đối tác, trạng thái thanh toán, số tiền.
+- Filter theo loại, nội dung, đối tác, thanh toán, số lượng, giá trị.
+- Sort theo cột.
+- KPI tổng hợp lãi/lỗ và cash flow theo filter hiện tại.
+- Action:
+  - Sửa giao dịch.
+  - Xóa giao dịch.
+  - Đánh dấu đã thu/đã trả.
+  - Đổi hạn thanh toán.
+- Link từ các biểu đồ dòng tiền/report có thể đưa về trang này với filter thời gian đúng.
+
+### Report - Phân Tích Thêm
+
+Files:
+
+- `core/templates/core/report.html`
+- `core/static/core/css/analytics.css`
+
+Vai trò:
+
+- Phân tích sâu hơn dashboard.
+
+Các section chính:
+
+#### 1. Doanh Thu & Lợi Nhuận Gộp
+
+KPI:
+
+- Doanh thu
+- Giá vốn
+- Lợi nhuận gộp
+
+Tab “Xu hướng theo thời gian”:
+
+- Chart doanh thu và lợi nhuận gộp theo kỳ.
+- Table: kỳ, doanh thu, giá vốn, lợi nhuận gộp, tăng trưởng doanh thu, tăng trưởng lợi nhuận gộp.
+
+Tab “Đóng góp theo sản phẩm/danh mục”:
+
+- Control bar:
+  - Phân tích theo sản phẩm/danh mục.
+  - Chỉ số doanh thu/lợi nhuận gộp.
+  - Top 10/tất cả.
+- Nếu chọn danh mục, có breadcrumb điều hướng cấp.
+- Horizontal bar chart:
+  - Ở cấp gốc hiển thị danh mục cấp 1.
+  - Nếu click danh mục có con, hiển thị danh mục con trực tiếp.
+  - Nếu không còn danh mục con, hiển thị sản phẩm trong danh mục đó.
+- Bảng chi tiết: tên, số lượng bán, doanh thu, giá vốn, lợi nhuận gộp, tỷ trọng doanh thu, tỷ trọng lợi nhuận gộp.
+- Filter nội bộ ưu tiên update section bằng JavaScript/fetch thay vì reload toàn trang.
+
+#### 2. Phân Tích Dòng Tiền
+
+- Group theo ngày/tuần/tháng/năm.
+- Chart SVG tương tác:
+  - Tiền thực thu ở nửa trên trục X.
+  - Tiền thực chi ở nửa dưới trục X.
+  - Dòng tiền thuần là line/marker theo kỳ, có vùng âm nếu dòng tiền âm.
+- Tooltip dòng tiền chỉ hiển thị:
+  - Tiền thực thu
+  - Tiền thực chi
+  - Dòng tiền thuần
+- Click cột tiền vào/tiền ra sẽ mở detail panel.
+- Detail panel không liệt kê từng giao dịch dài; có button “Xem chi tiết giao dịch” dẫn về lịch sử giao dịch với filter đúng kỳ.
+
+#### 3. Phân Tích Chi Phí
+
+- Column chart theo thời gian.
+- User chọn gom theo ngày/tháng/năm.
+- Data label nằm ngoài phía trên cột.
+- Hover từng cột hiện box tooltip vuông, đi theo trỏ chuột, không có mũi tên.
+- Tooltip có donut chart breakdown phần trăm chi phí trong kỳ đó.
+
+#### 4. Phân Tích Biên Lợi Nhuận
+
+Mục tiêu: đánh giá biên lợi nhuận gộp, không chỉ tổng lãi.
+
+KPI:
+
+- Biên lợi nhuận trung bình.
+- Lãi trên mỗi đơn vị trung bình.
+- Biên cao nhất.
+- Biên thấp nhất.
+
+Chart:
+
+- Margin ranking dạng horizontal bar.
+- Bar = biên lợi nhuận gộp %.
+- Label phụ = lãi gộp trên đơn vị.
+- Ghi chú phụ = số lượng bán.
+- Tooltip khi hover bar: tên sản phẩm/danh mục, doanh thu, COGS, biên lợi nhuận.
+
+Bảng chi tiết dạng cây:
+
+- Vẫn giữ cấu trúc danh mục/sản phẩm với nút mở/thu gọn.
+- Nếu filter theo sản phẩm, tự mở tất cả để thấy sản phẩm dưới danh mục.
+- Cột: sản phẩm/danh mục, số lượng bán, giá bán TB, giá vốn TB, lãi gộp/đơn vị, biên lợi nhuận gộp, tổng lãi gộp, gợi ý.
+
+Insight cards:
+
+- Chỉ hiện khi đủ dữ liệu.
+- Gợi ý theo logic:
+  - Margin cao + quantity cao: sản phẩm chủ lực.
+  - Margin cao + quantity thấp: có tiềm năng đẩy bán.
+  - Margin thấp + quantity cao: bán tốt nhưng lãi mỏng.
+  - Margin thấp + quantity thấp: cần xem lại.
+  - Gross profit âm: đang lỗ.
+- Text dùng đúng đơn vị user nhập, ví dụ `7 gói`, không dùng “đơn vị” chung chung.
+
+#### 5. Tồn Kho Và Ranking
+
+- Theo dõi giá trị tồn kho, sản phẩm chậm, tồn kho ngày cover.
+- Ranking top product, supplier, dòng tiền, category/profit tùy dữ liệu.
+
+## Design System Hiện Tại
+
+### Nhận Diện
+
+- Brand: Pixiu Flow.
+- Visual mascot: hình Pixiu trong `core/static/core/images/`.
+- Tone: thân thiện, thực dụng, dành cho chủ cửa hàng nhỏ.
+
+### Màu Sắc
+
+- Đỏ rượu/đỏ đậm: CTA chính, sidebar, heading quan trọng.
+- Vàng/kem: nền app, card, filter bar.
+- Xanh lá: giá trị tốt, lợi nhuận, cash in.
+- Đỏ/cam: chi phí, cash out, cảnh báo.
+- Xanh dương: doanh thu/dòng tiền thuần hoặc marker chart.
+
+### Layout
+
+- App shell dùng `base.html` với sidebar trái và topbar.
+- Sidebar có collapse/hide để tăng không gian cho bảng lớn.
+- Các page nghiệp vụ thường dùng:
+  - Header page.
+  - Filter/action bar.
+  - Card KPI.
+  - Table hoặc chart.
+  - Right panel khi cần tóm tắt/cảnh báo.
+
+### UI Pattern
+
+- Button chính: nền đỏ đậm, text trắng/vàng.
+- Button phụ: viền đỏ/vàng, nền kem.
+- Card: border vàng/cam, radius vừa phải, nền kem nhạt.
+- Tooltip:
+  - Icon dấu hỏi trong vòng tròn.
+  - Popup ngắn, gần icon hoặc con trỏ.
+  - Dùng cho giải thích công thức/chú thích cột.
+- Table:
+  - Header nền vàng nhạt.
+  - Có sort/filter icon.
+  - Dữ liệu nhiều dùng scroll ngang/dọc.
+  - Nội dung được wrap/co giãn để không bị che.
+
+## Quy Ước Code
+
+- View logic hiện tập trung trong `core/views.py`. File này lớn và chứa nhiều helper nội bộ.
+- Khi tạo object mới, cần gắn `user=request.user`.
+- Khi query dữ liệu nghiệp vụ, ưu tiên dùng `for_user(Model, request.user)`.
+- Không tính Purchase như chi phí lãi/lỗ.
+- Không phân bổ chi phí vận hành xuống từng danh mục/sản phẩm nếu không có logic quản trị rõ ràng; phần danh mục ưu tiên gross profit.
+- OpeningStock chỉ dùng cho hàng đã có trước khi dùng app.
+- Hàng mua thêm sau này phải dùng Purchase/“Nhập kho”.
+
+## Các Luồng Nghiệp Vụ Quan Trọng
+
+### Luồng User Mới
+
+1. User đăng ký.
+2. Đi qua onboarding/setup.
+3. Có thể:
+   - Khai báo hàng ban đầu nếu cửa hàng đã có hàng.
+   - Bỏ qua để vào dashboard.
+4. Sau đó quản lý qua dashboard, inventory, sale/purchase/expense.
+
+### Luồng Hàng Ban Đầu
+
+1. User vào `/setup/products/`.
+2. Nếu chưa có OpeningStock, hiển thị bảng nhập mẫu.
+3. Nếu đã có OpeningStock, load lại dữ liệu đã nhập để xem/sửa.
+4. Nếu chưa có giao dịch, cho sửa/xóa/thêm bình thường.
+5. Nếu đã có giao dịch, cảnh báo trước khi sửa vì có thể ảnh hưởng tồn kho và báo cáo.
+
+### Luồng Nhập Kho Mới
+
+1. User vào `/expenses/create/?mode=purchase`.
+2. Chọn sản phẩm hoặc thêm sản phẩm mới.
+3. Nhập số lượng, giá vốn, NCC, thanh toán.
+4. Lưu Purchase.
+5. Hệ thống tăng tồn kho, cập nhật giá vốn gần nhất và ghi nhận cash out nếu đã thanh toán.
+
+### Luồng Bán Hàng
+
+1. User vào `/sales/create/`.
+2. Chọn sản phẩm, số lượng, giá bán, khách hàng.
+3. Hệ thống kiểm tra tồn kho.
+4. Lưu Sale.
+5. Hệ thống giảm tồn kho và lưu COGS tại thời điểm bán.
+6. Nếu thanh toán ngay, cash in được ghi nhận; nếu nợ, tạo cảnh báo công nợ.
+
+### Luồng Công Nợ
+
+1. Sale/Purchase/Expense có payment method `debt`.
+2. User chọn ngày nhắc nợ/ngày cần thanh toán.
+3. Dashboard/inventory/history hiển thị cảnh báo quá hạn/sắp hạn.
+4. User có thể mark paid hoặc extend due date.
+
+## Static Và CSS
+
+CSS được chia theo page để dễ tìm:
+
+- `base.css`: nền tảng layout chung.
+- `sidebar.css`: sidebar và navigation.
+- `dashboard.css`: dashboard.
+- `inventory.css`: sản phẩm/tồn kho, modal edit sản phẩm.
+- `transactions.css`: form bán hàng, nhập hàng, bulk transaction.
+- `analytics.css`: trang report và chart tương tác.
+- `onboarding.css`: setup hàng ban đầu.
+- `landing.css`, `login.css`, `signup.css`: public/auth pages.
+- `responsive.css`: responsive overrides.
+
+Nếu sửa UI một page cụ thể, nên bắt đầu từ CSS cùng tên page.
+
+## Static Assets
+
+Ảnh nằm ở:
 
 ```text
-/                                      Landing
-/login/                                Đăng nhập
-/signup/                               Đăng ký
-/setup/products/                       Thiết lập sản phẩm và hàng ban đầu
-
-/dashboard/                            Bảng theo dõi
-/inventory/                            Sản phẩm và tồn kho
-/report/                               Phân tích thêm
-
-/transactions/create/                  Ghi nhận giao dịch lẻ
-/transactions/bulk-create/             Ghi nhận nhiều giao dịch
-/transactions/history/                 Lịch sử giao dịch
-/transactions/<kind>/<pk>/mark-paid/   Xác nhận đã thanh toán
-
-/sales/create/                         Tạo giao dịch bán hàng
-/expenses/create/?mode=purchase        Tạo giao dịch nhập hàng
-/expenses/create/                      Tạo chi phí khác
-
-/products/create/                      Tạo sản phẩm
-/products/delete/<pk>/                 Xóa sản phẩm
-
-/inventory/products/<pk>/inline-update/
-/inventory/categories/create/
-/inventory/categories/rename/
-/inventory/categories/delete/
-/inventory/categories/bulk-move/
+core/static/core/images/
 ```
 
-## Cách chạy local
+Gồm logo Pixiu, mascot Pixiu và một số SVG minh họa cho landing/feature.
 
-Yêu cầu:
+## Deployment Notes
 
-- Python 3.10+
-- Django 5.2.x
+Project có:
 
-Cài đặt tối thiểu:
+- `Procfile`
+- `gunicorn`
+- `dj-database-url`
+- `psycopg2-binary`
+- `whitenoise`
 
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install django
-```
-
-Chạy migration:
-
-```bash
-python manage.py migrate
-```
-
-Chạy server:
-
-```bash
-python manage.py runserver
-```
-
-Mở:
+Production nên set env:
 
 ```text
-http://127.0.0.1:8000/
+SECRET_KEY=...
+DEBUG=False
+ALLOWED_HOSTS=your-domain.com
+CSRF_TRUSTED_ORIGINS=https://your-domain.com
+DATABASE_URL=...
 ```
 
-Kiểm tra cấu hình Django:
+Collect static:
 
 ```bash
+python manage.py collectstatic
+```
+
+## Những Điểm Cần Cẩn Thận Khi Phát Triển Tiếp
+
+- `core/views.py` rất lớn; khi sửa nên tìm đúng helper/view trước bằng `rg`.
+- Đừng thay đổi `cash_flow_summary()` nếu chỉ sửa lãi/lỗ, vì cash basis đang tách riêng.
+- Đừng đưa Purchase vào chi phí accrual.
+- Khi sửa giá vốn sản phẩm:
+  - Nếu đã có Purchase, không sửa trực tiếp `price_buy_latest` trong popup sản phẩm.
+  - Hướng user sửa giao dịch nhập kho ở lịch sử giao dịch.
+- Khi sửa OpeningStock sau khi đã có giao dịch, phải cảnh báo user.
+- Khi thêm page/template mới, đảm bảo dùng base/sidebar/topbar hiện có để không bị trang chỉ có HTML không CSS.
+- Với chart trong report, nhiều chart được render bằng JS inline trong `report.html`; kiểm tra console nếu chart trắng.
+
+## Lệnh Hữu Ích
+
+```bash
+# kiểm tra Django
 python manage.py check
+
+# chạy server
+python manage.py runserver
+
+# tạo migration
+python manage.py makemigrations
+
+# chạy migration
+python manage.py migrate
+
+# collect static production
+python manage.py collectstatic
 ```
 
-## Ghi chú dữ liệu và hạn chế hiện tại
+## Tóm Tắt Cho Người Mới Vào Codebase
 
-- Database local đang dùng SQLite.
-- Chưa có hệ thống phân quyền người dùng thực sự theo doanh nghiệp/cửa hàng; nhiều text user hiện đang hard-code trong giao diện.
-- Một số text trong model/form cũ từng bị mojibake; UI chính đã được sửa nhiều phần, nhưng nên tiếp tục chuẩn hóa toàn bộ source về UTF-8.
-- Chưa có trang riêng cho `Cần thu / cần trả`; hiện công nợ nằm trong dashboard, inventory và lịch sử giao dịch.
-- Chưa có trang riêng cho `Thiết bị & khấu hao`; hiện logic khấu hao đã có trong backend và report, nhưng nên bổ sung màn hình theo dõi thiết bị sau.
+Nếu cần hiểu nhanh:
 
-## Gợi ý phát triển tiếp
+1. Đọc `core/models.py` để hiểu data model.
+2. Đọc phần helper đầu `core/views.py` để hiểu accounting/cash flow.
+3. Đọc route trong `core/urls.py` để biết màn hình nào gọi view nào.
+4. Mở template tương ứng trong `core/templates/core/`.
+5. Sửa CSS trong file theo module ở `core/static/core/css/`.
+6. Sau mỗi thay đổi, chạy `python manage.py check` và mở page trong browser.
 
-1. Tạo trang riêng `Thanh toán & công nợ`
-   - Danh sách khách cần thu.
-   - Danh sách NCC/chi phí cần trả.
-   - Quá hạn/sắp đến hạn/chưa có hạn.
-   - Nút xác nhận thanh toán, sửa hạn, xem giao dịch.
-
-2. Tạo tab hoặc trang `Thiết bị & khấu hao`
-   - Tên thiết bị/nhóm chi phí.
-   - Ngày mua.
-   - Giá trị mua.
-   - Vòng đời ước tính.
-   - Đã phân bổ bao nhiêu.
-   - Còn lại bao nhiêu.
-   - Chi phí phân bổ mỗi kỳ.
-
-3. Chuẩn hóa encoding
-   - Sửa toàn bộ mojibake còn lại trong model/form/sidebar.
-   - Đảm bảo file lưu UTF-8.
-
-4. Tách service layer
-   - Hiện nhiều logic nghiệp vụ nằm trong `views.py`.
-   - Nên tách các phần như cash flow, recognized expense, payment alerts, profit analytics sang module riêng để dễ test.
-
-5. Thêm test tự động
-   - Test cập nhật tồn kho khi tạo/sửa/xóa Sale/Purchase/OpeningStock.
-   - Test cash flow chỉ tính giao dịch đã thanh toán.
-   - Test chi phí mua thiết bị được phân bổ theo vòng đời.
-   - Test alert thanh toán theo ngưỡng ngày.
+Pixiu Flow hiện là app Django template-first, không phải SPA. Phần tương tác nâng cao nằm trong JavaScript ngay trong template hoặc file JS nhỏ, còn source of truth nghiệp vụ vẫn nằm ở Django models/views.

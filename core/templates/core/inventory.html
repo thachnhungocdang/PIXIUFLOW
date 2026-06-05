@@ -321,7 +321,7 @@
                                     <td class="muted inventory-col-cost">{{ p.price_buy_latest|vnd }}</td>
                                     <td class="money inventory-col-price">
                                         {% if row.sale_price_state == "missing" %}
-                                        <a href="/products/create/?product_id={{ p.id }}" class="price-missing-badge">Chưa có giá</a>
+                                        <button type="button" class="price-missing-badge" data-open-product-edit="{{ p.id }}">Chưa có giá</button>
                                         {% elif row.sale_price_state == "free" %}
                                         <span class="price-free-label">Miễn phí</span>
                                         {% else %}
@@ -352,9 +352,9 @@
                                             <i data-lucide="package-plus"></i>
                                         </a>
                                         {% endif %}
-                                        <a href="/products/create/?product_id={{ p.id }}" aria-label="Sửa sản phẩm">
+                                        <button type="button" data-open-product-edit="{{ p.id }}" aria-label="Sửa sản phẩm">
                                             <i data-lucide="pencil"></i>
-                                        </a>
+                                        </button>
                                         <form method="post" action="/products/delete/{{ p.id }}/">
                                             {% csrf_token %}
                                             <button type="submit" aria-label="Xóa sản phẩm"><i data-lucide="trash-2"></i></button>
@@ -866,9 +866,69 @@
     </div>
     <div class="inventory-detail-panel__footer">
         <a href="#" id="detailPurchaseLink" class="inventory-topbar-link"><i data-lucide="package-plus"></i> Nhập thêm</a>
-        <a href="#" id="detailEditLink" class="inventory-topbar-link"><i data-lucide="pencil"></i> Sửa</a>
+        <button type="button" id="detailEditLink" class="inventory-topbar-link"><i data-lucide="pencil"></i> Sửa</button>
     </div>
 </aside>
+
+{# ── Product edit modal ── #}
+<div class="inventory-modal-backdrop" id="productEditModal" hidden>
+    <div class="inventory-modal-card inventory-product-edit-modal" role="dialog" aria-modal="true" aria-labelledby="productEditTitle">
+        <div class="inventory-modal-head">
+            <div>
+                <span class="inventory-modal-kicker" id="productEditSku">SP-000</span>
+                <h3 id="productEditTitle">Sửa thông tin sản phẩm</h3>
+            </div>
+            <button type="button" data-close-product-edit aria-label="Đóng popup sửa sản phẩm"><i data-lucide="x"></i></button>
+        </div>
+        <p class="inventory-modal-copy">Cập nhật hồ sơ sản phẩm. Tồn kho hiện tại vẫn thay đổi qua Nhập kho, bán hàng hoặc hàng ban đầu.</p>
+        <div class="inventory-product-edit-grid">
+            <label class="inventory-modal-field inventory-product-edit-field--wide">
+                <span>Tên sản phẩm *</span>
+                <input type="text" id="productEditName" autocomplete="off">
+            </label>
+            <label class="inventory-modal-field inventory-product-edit-field--wide">
+                <span>Danh mục *</span>
+                <input type="text" id="productEditCategory" placeholder="Ví dụ: Đồ ăn / Đồ ăn khô / Mỳ" autocomplete="off">
+                <select id="productEditCategorySelect" aria-label="Chọn danh mục có sẵn">
+                    <option value="">Chọn từ cây danh mục có sẵn</option>
+                    {% for option in category_options %}
+                    {% if not option.is_uncategorized %}
+                    <option value="{{ option.path }}">
+                        {% if option.level == 2 %}-- {% elif option.level == 3 %}---- {% elif option.level == 4 %}------ {% endif %}{{ option.path }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </label>
+            <label class="inventory-modal-field">
+                <span>Đơn vị *</span>
+                <input type="text" id="productEditUnit" placeholder="gói" autocomplete="off">
+            </label>
+            <label class="inventory-modal-field">
+                <span>Nhà cung cấp</span>
+                <input type="text" id="productEditSupplier" placeholder="Tên NCC gần nhất" autocomplete="off">
+            </label>
+            <label class="inventory-modal-field">
+                <span>Giá bán *</span>
+                <input type="text" id="productEditPriceSell" inputmode="numeric" placeholder="15.000" autocomplete="off">
+            </label>
+            <label class="inventory-modal-field">
+                <span>Giá vốn *</span>
+                <input type="text" id="productEditPriceBuy" inputmode="numeric" placeholder="5.000" autocomplete="off">
+                <small class="inventory-product-edit-note" id="productEditCostNote" hidden></small>
+            </label>
+            <label class="inventory-modal-field">
+                <span>Ngưỡng cảnh báo *</span>
+                <input type="number" id="productEditAlert" min="0" step="1" placeholder="10" autocomplete="off">
+            </label>
+        </div>
+        <div class="inventory-product-edit-error" id="productEditError" hidden></div>
+        <div class="inventory-modal-actions">
+            <button type="button" class="secondary-action" data-close-product-edit>Hủy</button>
+            <button type="button" id="saveProductEdit">Lưu thay đổi</button>
+        </div>
+    </div>
+</div>
 
 {# ── Category modals ── #}
 <div class="inventory-modal-backdrop" id="categoryCreateModal" hidden>
@@ -1062,6 +1122,20 @@
     const equipmentBreakModal = document.getElementById('equipmentBreakModal');
     const equipmentBreakName = document.getElementById('equipmentBreakName');
     const equipmentBreakRemaining = document.getElementById('equipmentBreakRemaining');
+    const productEditModal = document.getElementById('productEditModal');
+    const productEditSku = document.getElementById('productEditSku');
+    const productEditName = document.getElementById('productEditName');
+    const productEditCategory = document.getElementById('productEditCategory');
+    const productEditCategorySelect = document.getElementById('productEditCategorySelect');
+    const productEditUnit = document.getElementById('productEditUnit');
+    const productEditSupplier = document.getElementById('productEditSupplier');
+    const productEditPriceSell = document.getElementById('productEditPriceSell');
+    const productEditPriceBuy = document.getElementById('productEditPriceBuy');
+    const productEditCostNote = document.getElementById('productEditCostNote');
+    const productEditAlert = document.getElementById('productEditAlert');
+    const productEditError = document.getElementById('productEditError');
+    const saveProductEdit = document.getElementById('saveProductEdit');
+    let editingProductId = null;
 
     let currentFilter = 'all';
     let currentCategory = 'all';
@@ -1115,6 +1189,15 @@
 
     function formatVnd(value) {
         return `${Number(value || 0).toLocaleString('vi-VN')}đ`;
+    }
+
+    function parseMoney(value) {
+        return Number(String(value || '').replace(/[^\d]/g, '') || 0);
+    }
+
+    function formatMoneyInput(input) {
+        const value = parseMoney(input.value);
+        input.value = value ? value.toLocaleString('vi-VN') : '';
     }
 
     function csrfToken() {
@@ -1428,6 +1511,119 @@
         });
     });
 
+    // ── Product profile modal ─────────────────────────────────────
+    function closeProductEditModal() {
+        if (!productEditModal) return;
+        productEditModal.hidden = true;
+        editingProductId = null;
+        if (productEditError) productEditError.hidden = true;
+    }
+
+    function openProductEditModal(id) {
+        const detail = detailById.get(String(id));
+        if (!detail || !productEditModal) return;
+        editingProductId = String(id);
+        if (productEditSku) productEditSku.textContent = detail.sku || `SP-${id}`;
+        productEditName.value = detail.name || '';
+        productEditCategory.value = detail.category || (detail.category_parts || []).join(' / ');
+        if (productEditCategorySelect) {
+            productEditCategorySelect.value = productEditCategory.value;
+        }
+        productEditUnit.value = detail.unit || '';
+        productEditSupplier.value = detail.supplier_name || '';
+        productEditPriceSell.value = Number(detail.price_sell || 0).toLocaleString('vi-VN');
+        productEditPriceBuy.value = Number(detail.price_buy_latest || 0).toLocaleString('vi-VN');
+        productEditPriceBuy.disabled = !detail.can_edit_price_buy_latest;
+        if (productEditCostNote) {
+            productEditCostNote.hidden = false;
+            if (detail.can_edit_price_buy_latest) {
+                productEditCostNote.textContent = 'Có thể sửa vì sản phẩm chưa có giao dịch nhập kho. Nếu đây là hàng mới mua thêm, hãy dùng Nhập kho.';
+            } else {
+                productEditCostNote.innerHTML = `Đã phát sinh nhập kho nên không thể đổi giá vốn ở đây. <a href="${detail.purchase_history_url}">Xem phiếu nhập kho của sản phẩm này</a>.`;
+            }
+        }
+        productEditAlert.value = detail.alert_threshold || 0;
+        if (productEditError) productEditError.hidden = true;
+        productEditModal.hidden = false;
+        productEditName.focus();
+        productEditName.select();
+    }
+
+    async function saveProductProfile() {
+        if (!editingProductId || !saveProductEdit) return;
+        const payload = {
+            field: 'product_profile',
+            name: productEditName.value.trim(),
+            category: productEditCategory.value.trim(),
+            unit: productEditUnit.value.trim(),
+            supplier_name: productEditSupplier.value.trim(),
+            price_sell: parseMoney(productEditPriceSell.value),
+            price_buy_latest: parseMoney(productEditPriceBuy.value),
+            alert_threshold: productEditAlert.value
+        };
+        saveProductEdit.disabled = true;
+        if (productEditError) productEditError.hidden = true;
+        try {
+            const response = await fetch(`/inventory/products/${editingProductId}/inline-update/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!data.ok) {
+                if (productEditError) {
+                    productEditError.innerHTML = data.error || 'Không lưu được sản phẩm.';
+                    if (data.purchase_history_url) {
+                        productEditError.innerHTML += ` <a href="${data.purchase_history_url}">Mở lịch sử nhập kho</a>.`;
+                    }
+                    productEditError.hidden = false;
+                }
+                return;
+            }
+            closeProductEditModal();
+            showToast('Đã cập nhật thông tin sản phẩm.');
+            window.setTimeout(() => window.location.reload(), 450);
+        } catch (error) {
+            if (productEditError) {
+                productEditError.textContent = 'Không kết nối được máy chủ. Thử lại sau.';
+                productEditError.hidden = false;
+            }
+        } finally {
+            saveProductEdit.disabled = false;
+        }
+    }
+
+    [productEditPriceSell, productEditPriceBuy].forEach(input => {
+        input?.addEventListener('input', () => formatMoneyInput(input));
+    });
+    productEditCategorySelect?.addEventListener('change', () => {
+        if (productEditCategorySelect.value) {
+            productEditCategory.value = productEditCategorySelect.value;
+        }
+    });
+    productEditCategory?.addEventListener('input', () => {
+        if (productEditCategorySelect && productEditCategorySelect.value !== productEditCategory.value) {
+            productEditCategorySelect.value = '';
+        }
+    });
+    document.querySelectorAll('[data-open-product-edit]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.preventDefault();
+            openProductEditModal(button.dataset.openProductEdit);
+        });
+    });
+    document.querySelectorAll('[data-close-product-edit]').forEach(button => {
+        button.addEventListener('click', closeProductEditModal);
+    });
+    productEditModal?.addEventListener('click', event => {
+        if (event.target === productEditModal) closeProductEditModal();
+    });
+    saveProductEdit?.addEventListener('click', saveProductProfile);
+    productEditModal?.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeProductEditModal();
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') saveProductProfile();
+    });
+
     document.querySelectorAll('.equipment-break-btn').forEach(button => {
         button.addEventListener('click', () => {
             if (equipmentBreakName) equipmentBreakName.textContent = button.dataset.equipmentName || 'Thiết bị';
@@ -1458,7 +1654,7 @@
         document.getElementById('detailPrices').textContent = `${formatVnd(detail.price_buy_latest)} / ${priceLabel}`;
         document.getElementById('detailMargin').textContent = detail.margin === null ? '—' : `${detail.margin}%`;
         document.getElementById('detailPurchaseLink').href = detail.purchase_url;
-        document.getElementById('detailEditLink').href = detail.edit_url;
+        document.getElementById('detailEditLink').dataset.openProductEdit = detail.id;
         const category = document.getElementById('detailCategory');
         category.innerHTML = detail.category_parts.map((part, i) => `<span class="category-chip category-chip--level-${i + 1}">${part}</span>`).join('<b>›</b>');
         const lots = document.getElementById('detailLots');
@@ -1469,6 +1665,10 @@
     }
     document.querySelectorAll('[data-open-product]').forEach(btn => btn.addEventListener('click', () => openDetail(btn.dataset.openProduct)));
     document.getElementById('closeProductDetail')?.addEventListener('click', () => { detailPanel.hidden = true; });
+    document.getElementById('detailEditLink')?.addEventListener('click', event => {
+        event.preventDefault();
+        openProductEditModal(event.currentTarget.dataset.openProductEdit);
+    });
     if (createdProductId) {
         const row = document.querySelector(`tr[data-product-id="${createdProductId}"]`);
         if (row) {

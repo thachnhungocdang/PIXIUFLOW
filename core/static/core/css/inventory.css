@@ -505,6 +505,10 @@
     color: #f43f5e;
 }
 
+.inventory-actions button[data-open-product-edit] {
+    color: #2563eb;
+}
+
 .inventory-rank-row {
     display: flex;
     align-items: center;
@@ -581,6 +585,8 @@
     font-size: 19px;
     font-weight: 700;
     white-space: nowrap;
+    font-family: inherit;
+    cursor: pointer;
 }
 
 .inventory-topbar-link--primary {
@@ -1444,9 +1450,12 @@
 }
 
 .price-missing-badge {
+    border: 0;
     background: #fff1d6;
     color: #9a4a00;
     text-decoration: none;
+    font-family: inherit;
+    cursor: pointer;
 }
 
 .price-free-label {
@@ -1917,6 +1926,65 @@
     background: #fffaf0;
     box-shadow: 0 28px 70px rgba(0, 0, 0, 0.22);
     padding: 22px;
+}
+
+.inventory-product-edit-modal {
+    width: min(780px, calc(100vw - 36px));
+}
+
+.inventory-modal-kicker {
+    display: block;
+    margin-bottom: 4px;
+    color: #8c6f5d;
+    font-size: 13px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.inventory-product-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+}
+
+.inventory-product-edit-field--wide {
+    grid-column: 1 / -1;
+}
+
+.inventory-product-edit-error {
+    margin-top: 12px;
+    border: 1px solid #f5a19a;
+    border-radius: 8px;
+    background: #fff7f5;
+    color: #9f1d16;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.inventory-product-edit-note {
+    color: #6b5b4c;
+    font-size: 14px;
+    font-weight: 750;
+    line-height: 1.45;
+}
+
+.inventory-product-edit-note a,
+.inventory-product-edit-error a {
+    color: #8b1010;
+    font-weight: 900;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.inventory-product-edit-modal input:disabled {
+    background: #f2f4f7;
+    color: #667085;
+    cursor: not-allowed;
+}
+
+.inventory-product-edit-error[hidden] {
+    display: none;
 }
 
 .inventory-modal-head {

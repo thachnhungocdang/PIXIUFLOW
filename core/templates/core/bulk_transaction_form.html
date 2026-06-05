@@ -82,6 +82,8 @@
                                     </option>
                                     {% endfor %}
                                 </select>
+                                <div class="bulk-extra-items"></div>
+                                <button type="button" class="bulk-add-item"><i data-lucide="plus"></i> Thêm sản phẩm</button>
                                 <select name="expense_type[]" class="bulk-expense-type">
                                     <option value="">Chọn nhóm chi phí</option>
                                     {% for value, label in expense_type_choices %}
@@ -167,6 +169,8 @@
                 </option>
                 {% endfor %}
             </select>
+            <div class="bulk-extra-items"></div>
+            <button type="button" class="bulk-add-item"><i data-lucide="plus"></i> Thêm sản phẩm</button>
             <select name="expense_type[]" class="bulk-expense-type">
                 <option value="">Chọn nhóm chi phí</option>
                 {% for value, label in expense_type_choices %}
@@ -196,10 +200,29 @@
     </tr>
 </template>
 
+<template id="bulkExtraItemTemplate">
+    <div class="bulk-extra-item">
+        <select class="bulk-extra-product" aria-label="Sản phẩm thêm">
+            <option value="">Chọn sản phẩm</option>
+            {% for product in products %}
+            <option value="{{ product.id }}"
+                    data-price="{{ product.price_sell }}"
+                    data-buy-price="{{ product.price_buy_latest }}">
+                {{ product.name }}
+            </option>
+            {% endfor %}
+        </select>
+        <input type="text" class="bulk-extra-unit-price" inputmode="numeric" placeholder="Giá">
+        <input type="number" class="bulk-extra-quantity" min="1" step="1" value="1" placeholder="SL">
+        <button type="button" class="bulk-remove-item" aria-label="Xóa sản phẩm khỏi dòng"><i data-lucide="x"></i></button>
+    </div>
+</template>
+
 <script>
 (function () {
     const tbody      = document.getElementById('bulkRows');
     const template   = document.getElementById('bulkRowTemplate');
+    const extraItemTemplate = document.getElementById('bulkExtraItemTemplate');
     const grandTotal = document.getElementById('bulkGrandTotal');
     const today      = new Date().toISOString().slice(0, 10);
 
@@ -220,6 +243,10 @@
         tbody.querySelectorAll('tr').forEach((row, i) => {
             const badge = row.querySelector('.row-number span');
             if (badge) badge.textContent = i + 1;
+            row.dataset.rowIndex = i;
+            row.querySelectorAll('.bulk-extra-product').forEach(input => { input.name = `extra_product_${i}[]`; });
+            row.querySelectorAll('.bulk-extra-unit-price').forEach(input => { input.name = `extra_unit_price_${i}[]`; });
+            row.querySelectorAll('.bulk-extra-quantity').forEach(input => { input.name = `extra_quantity_${i}[]`; });
         });
     }
 
@@ -235,6 +262,8 @@
         const lifetimeField = row.querySelector('.bulk-equipment-lifetime');
         const paymentMethod = row.querySelector('.bulk-payment-method');
         const paymentDueDate = row.querySelector('.bulk-payment-due-date');
+        const addItemButton = row.querySelector('.bulk-add-item');
+        const extraItems = row.querySelector('.bulk-extra-items');
 
         // CSS class để tô màu nền dòng
         row.classList.toggle('is-expense',  type === 'expense');
@@ -243,17 +272,66 @@
 
         if (type === 'expense') {
             productSelect.style.display = 'none';
+            if (addItemButton) addItemButton.hidden = true;
+            if (extraItems) extraItems.hidden = true;
             expenseSelect.style.display = '';
             if (lifetimeField) lifetimeField.style.display = '';
             syncPaymentDueDate(row);
         } else {
             // income hoặc purchase đều dùng dropdown sản phẩm
             productSelect.style.display = '';
+            if (addItemButton) addItemButton.hidden = false;
+            if (extraItems) extraItems.hidden = false;
             expenseSelect.style.display = 'none';
             if (lifetimeField) lifetimeField.style.display = 'none';
             syncPaymentDueDate(row);
         }
         syncEquipmentLifetime(row);
+    }
+
+    function fillPriceFromProduct(row, productSelect, priceInput) {
+        const selected = productSelect.selectedOptions[0];
+        if (!selected || !selected.value) { updateTotals(); return; }
+        const price = row.querySelector('.bulk-type').value === 'purchase'
+            ? selected.dataset.buyPrice
+            : selected.dataset.price;
+        if (price && Number(price) > 0) {
+            priceInput.value = Number(price).toLocaleString('de-DE');
+        }
+        updateTotals();
+    }
+
+    function bindExtraItem(row, item) {
+        const productSelect = item.querySelector('.bulk-extra-product');
+        const priceInput = item.querySelector('.bulk-extra-unit-price');
+        const qtyInput = item.querySelector('.bulk-extra-quantity');
+        const removeButton = item.querySelector('.bulk-remove-item');
+
+        productSelect.addEventListener('change', () => fillPriceFromProduct(row, productSelect, priceInput));
+        priceInput.addEventListener('blur', () => {
+            const raw = parseRaw(priceInput.value);
+            priceInput.value = raw > 0 ? raw.toLocaleString('de-DE') : '';
+            updateTotals();
+        });
+        priceInput.addEventListener('focus', () => {
+            priceInput.value = priceInput.value.replace(/\./g, '');
+        });
+        qtyInput.addEventListener('input', updateTotals);
+        removeButton.addEventListener('click', () => {
+            item.remove();
+            renumberRows();
+            updateTotals();
+        });
+        item.querySelectorAll('input, select').forEach(el => el.addEventListener('keydown', handleGridKeydown));
+    }
+
+    function addExtraItem(row) {
+        const item = extraItemTemplate.content.firstElementChild.cloneNode(true);
+        row.querySelector('.bulk-extra-items').appendChild(item);
+        bindExtraItem(row, item);
+        renumberRows();
+        lucide.createIcons();
+        item.querySelector('.bulk-extra-product').focus();
     }
 
     function syncEquipmentLifetime(row) {
@@ -299,9 +377,14 @@
             const priceInput = row.querySelector('.bulk-unit-price');
             const unitPrice  = parseRaw(priceInput.value);
             const quantity   = Number(row.querySelector('.bulk-quantity').value || 0);
-            const rowTotal   = unitPrice * quantity;
+            let rowTotal = unitPrice * quantity;
+            row.querySelectorAll('.bulk-extra-item').forEach(item => {
+                const extraPrice = parseRaw(item.querySelector('.bulk-extra-unit-price').value);
+                const extraQty = Number(item.querySelector('.bulk-extra-quantity').value || 0);
+                rowTotal += extraPrice * extraQty;
+            });
             row.querySelector('.bulk-row-total').textContent = formatVnd(rowTotal);
-            if (unitPrice >= 0 && quantity > 0) total += rowTotal;
+            if (rowTotal > 0) total += rowTotal;
         });
         grandTotal.textContent = formatVnd(total);
     }
@@ -316,6 +399,7 @@
         const qtyInput      = row.querySelector('.bulk-quantity');
         const paymentMethod = row.querySelector('.bulk-payment-method');
         const expenseSelect = row.querySelector('.bulk-expense-type');
+        const addItemButton = row.querySelector('.bulk-add-item');
 
         // Ngày mặc định = hôm nay
         if (!dateInput.value) dateInput.value = today;
@@ -354,6 +438,7 @@
             // Reset để tránh giá sai khi chuyển income ↔ purchase
             productSelect.value = '';
             priceInput.value    = '';
+            row.querySelectorAll('.bulk-extra-item').forEach(item => item.remove());
             updateTotals();
         });
 
@@ -361,6 +446,8 @@
         qtyInput.addEventListener('input', updateTotals);
         paymentMethod.addEventListener('change', () => syncPaymentDueDate(row));
         expenseSelect.addEventListener('change', () => syncEquipmentLifetime(row));
+        addItemButton?.addEventListener('click', () => addExtraItem(row));
+        row.querySelectorAll('.bulk-extra-item').forEach(item => bindExtraItem(row, item));
 
         // Các input khác (partner, note, expense_type) cũng trigger updateTotals
         row.querySelectorAll(
@@ -448,7 +535,11 @@
     // ── Submit: strip format trước khi gửi form ──────────────────────────────
 
     document.getElementById('bulkTransactionForm').addEventListener('submit', () => {
+        renumberRows();
         tbody.querySelectorAll('.bulk-unit-price').forEach(input => {
+            input.value = input.value.trim() ? parseRaw(input.value) : '';
+        });
+        tbody.querySelectorAll('.bulk-extra-unit-price').forEach(input => {
             input.value = input.value.trim() ? parseRaw(input.value) : '';
         });
     });

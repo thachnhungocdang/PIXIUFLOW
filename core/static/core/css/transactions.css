@@ -1471,7 +1471,7 @@
 .bulk-table th:nth-child(2),  .bulk-table td:nth-child(2)  { width: 56px;  min-width: 56px; }
 .bulk-table th:nth-child(3),  .bulk-table td:nth-child(3)  { min-width: 140px; }
 .bulk-table th:nth-child(4),  .bulk-table td:nth-child(4)  { min-width: 142px; }
-.bulk-table th:nth-child(5),  .bulk-table td:nth-child(5)  { min-width: 220px; max-width: 300px; }
+.bulk-table th:nth-child(5),  .bulk-table td:nth-child(5)  { min-width: 360px; max-width: 520px; }
 .bulk-table th:nth-child(6),  .bulk-table td:nth-child(6)  { min-width: 180px; max-width: 240px; }
 .bulk-table th:nth-child(7),  .bulk-table td:nth-child(7)  { min-width: 120px; }
 .bulk-table th:nth-child(8),  .bulk-table td:nth-child(8)  { min-width: 90px; }
@@ -1672,6 +1672,70 @@
 .bulk-table tr.is-purchase .bulk-product     { display: block; }
 .bulk-table tr.is-purchase .bulk-expense-type { display: none; }
 .bulk-table tr.is-purchase .bulk-equipment-lifetime { display: none; }
+
+.bulk-extra-items {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.bulk-extra-items[hidden],
+.bulk-add-item[hidden] {
+    display: none !important;
+}
+
+.bulk-extra-item {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(88px, .55fr) 68px 34px;
+    align-items: center;
+    gap: 6px;
+    border: 1px dashed #e4c586;
+    border-radius: 8px;
+    background: rgba(255, 250, 240, .78);
+    padding: 6px;
+}
+
+.bulk-extra-item select,
+.bulk-extra-item input {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 14px;
+    font-weight: 650;
+}
+
+.bulk-remove-item,
+.bulk-add-item {
+    min-height: 34px;
+    border: 1px solid #e4c586;
+    border-radius: 8px;
+    background: #fffdf6;
+    color: #8b1010;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.bulk-add-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 0 10px;
+}
+
+.bulk-remove-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.bulk-add-item svg,
+.bulk-remove-item svg {
+    width: 16px;
+    height: 16px;
+}
 
 .bulk-equipment-lifetime {
     position: relative;

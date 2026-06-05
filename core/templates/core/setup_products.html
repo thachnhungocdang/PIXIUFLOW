@@ -378,6 +378,127 @@
         });
     }
 
+    function rowInputs(row) {
+        return Array.from(row.querySelectorAll('input:not([type="hidden"])')).filter(input => (
+            !input.disabled && input.offsetParent !== null
+        ));
+    }
+
+    function tableInputGrid() {
+        return Array.from(rows.querySelectorAll('tr')).map(rowInputs);
+    }
+
+    function focusGridCell(rowIndex, colIndex) {
+        const grid = tableInputGrid();
+        if (rowIndex < 0) rowIndex = 0;
+        if (rowIndex >= grid.length) rowIndex = grid.length - 1;
+        const row = grid[rowIndex] || [];
+        if (!row.length) return false;
+        const target = row[Math.min(Math.max(colIndex, 0), row.length - 1)];
+        if (!target) return false;
+        target.focus();
+        if (typeof target.select === 'function') target.select();
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        return true;
+    }
+
+    function focusAfterNewRow(colIndex) {
+        window.setTimeout(() => {
+            const grid = tableInputGrid();
+            focusGridCell(grid.length - 1, colIndex);
+        }, 0);
+    }
+
+    function inputCaretAtStart(input) {
+        if (input.type === 'number') return true;
+        return Number(input.selectionStart || 0) === 0 && Number(input.selectionEnd || 0) === 0;
+    }
+
+    function inputCaretAtEnd(input) {
+        if (input.type === 'number') return true;
+        const length = String(input.value || '').length;
+        return Number(input.selectionStart || 0) === length && Number(input.selectionEnd || 0) === length;
+    }
+
+    function moveSetupFocus(input, rowDelta, colDelta, options = {}) {
+        const grid = tableInputGrid();
+        const rowIndex = grid.findIndex(row => row.includes(input));
+        if (rowIndex < 0) return;
+        const colIndex = grid[rowIndex].indexOf(input);
+        const nextRowIndex = rowIndex + rowDelta;
+        const nextColIndex = colIndex + colDelta;
+        if (nextRowIndex >= grid.length && options.createRow) {
+            addRow();
+            focusAfterNewRow(nextColIndex);
+            return;
+        }
+        focusGridCell(nextRowIndex, nextColIndex);
+    }
+
+    function moveSetupFocusLinear(input, direction) {
+        const grid = tableInputGrid();
+        const cells = grid.flat();
+        const index = cells.indexOf(input);
+        if (index < 0) return;
+        const nextIndex = index + direction;
+
+        if (nextIndex >= cells.length && direction > 0) {
+            addRow();
+            focusAfterNewRow(0);
+            return;
+        }
+
+        if (nextIndex < 0) {
+            focusGridCell(0, 0);
+            return;
+        }
+
+        const target = cells[nextIndex];
+        target.focus();
+        if (typeof target.select === 'function') target.select();
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    rows.addEventListener('keydown', event => {
+        const input = event.target.closest('input:not([type="hidden"])');
+        if (!input || input.disabled) return;
+
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            moveSetupFocusLinear(input, event.shiftKey ? -1 : 1);
+            return;
+        }
+
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            moveSetupFocus(input, event.shiftKey ? -1 : 1, 0, { createRow: !event.shiftKey });
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            moveSetupFocus(input, -1, 0);
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            moveSetupFocus(input, 1, 0, { createRow: true });
+            return;
+        }
+
+        if (event.key === 'ArrowLeft' && inputCaretAtStart(input)) {
+            event.preventDefault();
+            moveSetupFocus(input, 0, -1);
+            return;
+        }
+
+        if (event.key === 'ArrowRight' && inputCaretAtEnd(input)) {
+            event.preventDefault();
+            moveSetupFocus(input, 0, 1);
+        }
+    });
+
     function addRow() {
         runAfterEditWarning(() => {
             const row = template.content.firstElementChild.cloneNode(true);

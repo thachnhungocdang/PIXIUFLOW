@@ -328,33 +328,85 @@
             </label>
             <label class="product-modal-field">
                 <span>Đơn vị tính</span>
-                <input type="text" id="purchaseModalProductUnit" placeholder="cái, hộp, kg...">
+                <input type="text" id="purchaseModalProductUnit" value="cái" placeholder="cái, hộp, kg...">
             </label>
             <label class="product-modal-field">
                 <span>Ngưỡng cảnh báo kho</span>
                 <input type="number" id="purchaseModalProductAlert" min="0" value="10">
             </label>
             <label class="product-modal-field">
-                <span>Giá bán mục tiêu (VND)</span>
-                <input type="text" id="purchaseModalProductSellPrice" inputmode="numeric" placeholder="Có thể bổ sung sau">
+                <span>Giá bán mặc định (VND) <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                <input type="text" id="purchaseModalProductSellPrice" inputmode="numeric" placeholder="Ví dụ: 20.000">
             </label>
-            <label class="product-modal-field">
-                <span>Danh mục cấp 1 <span class="required-mark" aria-label="bắt buộc">*</span></span>
-                <input type="text" id="purchaseModalCategory1" list="purchaseCategoryLevel1" placeholder="Ví dụ: Đồ uống">
-                <datalist id="purchaseCategoryLevel1"></datalist>
-            </label>
-            <label class="product-modal-field">
-                <span>Danh mục cấp 2</span>
-                <input type="text" id="purchaseModalCategory2" placeholder="Ví dụ: Trà">
-            </label>
-            <label class="product-modal-field">
-                <span>Danh mục cấp 3</span>
-                <input type="text" id="purchaseModalCategory3" placeholder="Ví dụ: Trà sữa">
-            </label>
-            <label class="product-modal-field">
-                <span>Danh mục cấp 4</span>
-                <input type="text" id="purchaseModalCategory4" placeholder="Ví dụ: Trà sữa trân châu">
-            </label>
+            <div class="product-modal-field product-modal-field--wide category-choice-field category-level-section" id="purchaseCategoryLevel1Section">
+                <span>Danh mục <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                <div class="category-level-control">
+                    <select id="purchaseModalCategory1Select"></select>
+                    <button type="button" class="category-remove-level" data-purchase-category-remove="1" aria-label="Xóa danh mục cấp 1">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <input type="text" id="purchaseModalCategory1New" placeholder="Nhập danh mục cấp 1 mới" hidden>
+            </div>
+
+            <div id="purchaseAddCategory2ButtonWrapper" class="category-add-wrapper" hidden>
+                <button type="button" id="purchaseAddCategory2Btn" class="category-add-link-block">
+                    + Thêm phân loại cấp 2 (tuỳ chọn)
+                </button>
+            </div>
+
+            <div id="purchaseCategoryLevel2Section" class="category-level-section" hidden>
+                <div class="category-level-wrapper">
+                    <div class="product-modal-field category-choice-field">
+                        <span>Phân loại cấp 2 <span class="modal-field-badge">tuỳ chọn</span></span>
+                        <div class="category-level-control">
+                            <select id="purchaseModalCategory2Select"></select>
+                            <button type="button" class="category-remove-level" data-purchase-category-remove="2" aria-label="Xóa phân loại cấp 2">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <input type="text" id="purchaseModalCategory2New" placeholder="Nhập danh mục cấp 2 mới" hidden>
+                    </div>
+
+                    <div id="purchaseAddCategory3ButtonWrapper" class="category-add-wrapper category-add-wrapper--nested" hidden>
+                        <button type="button" id="purchaseAddCategory3Btn" class="category-add-link">
+                            + Thêm phân loại cấp 3 (tuỳ chọn)
+                        </button>
+                    </div>
+
+                    <div id="purchaseCategoryLevel3Section" class="category-level-section category-level-section--nested" hidden>
+                        <div class="product-modal-field category-choice-field">
+                            <span>Phân loại cấp 3 <span class="modal-field-badge">tuỳ chọn</span></span>
+                            <div class="category-level-control">
+                                <select id="purchaseModalCategory3Select"></select>
+                                <button type="button" class="category-remove-level" data-purchase-category-remove="3" aria-label="Xóa phân loại cấp 3">
+                                    <i data-lucide="x"></i>
+                                </button>
+                            </div>
+                            <input type="text" id="purchaseModalCategory3New" placeholder="Nhập danh mục cấp 3 mới" hidden>
+                        </div>
+
+                        <div id="purchaseAddCategory4ButtonWrapper" class="category-add-wrapper category-add-wrapper--nested" hidden>
+                            <button type="button" id="purchaseAddCategory4Btn" class="category-add-link">
+                                + Thêm phân loại cấp 4 (tuỳ chọn)
+                            </button>
+                        </div>
+
+                        <div id="purchaseCategoryLevel4Section" class="category-level-section category-level-section--nested" hidden>
+                            <div class="product-modal-field category-choice-field">
+                                <span>Phân loại cấp 4 <span class="modal-field-badge">tuỳ chọn</span></span>
+                                <div class="category-level-control">
+                                    <select id="purchaseModalCategory4Select"></select>
+                                    <button type="button" class="category-remove-level" data-purchase-category-remove="4" aria-label="Xóa phân loại cấp 4">
+                                        <i data-lucide="x"></i>
+                                    </button>
+                                </div>
+                                <input type="text" id="purchaseModalCategory4New" placeholder="Nhập danh mục cấp 4 mới" hidden>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <p class="product-modal-error" id="purchaseProductModalError" hidden></p>
         <div class="product-modal-actions">
@@ -398,10 +450,10 @@
     const modalProductUnit       = document.getElementById('purchaseModalProductUnit');
     const modalProductAlert      = document.getElementById('purchaseModalProductAlert');
     const modalProductSellPrice  = document.getElementById('purchaseModalProductSellPrice');
-    const modalCategory1         = document.getElementById('purchaseModalCategory1');
-    const modalCategory2         = document.getElementById('purchaseModalCategory2');
-    const modalCategory3         = document.getElementById('purchaseModalCategory3');
-    const modalCategory4         = document.getElementById('purchaseModalCategory4');
+    const purchaseCategoryControls = [1, 2, 3, 4].map(level => ({
+        select: document.getElementById(`purchaseModalCategory${level}Select`),
+        input: document.getElementById(`purchaseModalCategory${level}New`)
+    }));
 
     const categoryTree = JSON.parse(document.getElementById('expenseCategoryTreeData').textContent || '{}');
     let activeProductRow = null;
@@ -613,14 +665,150 @@
 
     // ── Product modal ───────────────────────────────────────────────────────
 
-    function fillCategoryHints() {
-        const list = document.getElementById('purchaseCategoryLevel1');
-        list.innerHTML = '';
-        Object.keys(categoryTree).sort().forEach(category => {
-            const option = document.createElement('option');
-            option.value = category;
-            list.appendChild(option);
-        });
+    const purchaseVisibleCategoryLevels = { 2: false, 3: false, 4: false };
+
+    function purchaseSelectedCategory(level) {
+        const control = purchaseCategoryControls[level - 1];
+        return control.input.hidden ? control.select.value.trim() : control.input.value.trim();
+    }
+
+    function purchaseFillCategorySelect(select, options, placeholder) {
+        select.innerHTML = '';
+        const emptyOption = document.createElement('option');
+        emptyOption.value = '';
+        emptyOption.textContent = placeholder;
+        emptyOption.disabled = true;
+        emptyOption.hidden = true;
+        select.appendChild(emptyOption);
+
+        const newOption = document.createElement('option');
+        newOption.value = '__new__';
+        newOption.textContent = '+ Tạo danh mục mới...';
+        select.appendChild(newOption);
+
+        if (options.length) {
+            const divider = document.createElement('option');
+            divider.value = '';
+            divider.textContent = '── Danh mục có sẵn ──';
+            divider.disabled = true;
+            select.appendChild(divider);
+            options.forEach(option => {
+                const item = document.createElement('option');
+                item.value = option;
+                item.textContent = option;
+                select.appendChild(item);
+            });
+        }
+    }
+
+    function purchaseCategoryOptionsForLevel(level) {
+        if (level === 1) return Object.keys(categoryTree).sort();
+        const level1 = purchaseSelectedCategory(1);
+        if (!level1 || !categoryTree[level1]) return [];
+        if (level === 2) return Object.keys(categoryTree[level1]).sort();
+        const level2 = purchaseSelectedCategory(2);
+        if (!level2 || !categoryTree[level1][level2]) return [];
+        if (level === 3) return Object.keys(categoryTree[level1][level2]).sort();
+        const level3 = purchaseSelectedCategory(3);
+        if (!level3 || !categoryTree[level1][level2][level3]) return [];
+        return [...categoryTree[level1][level2][level3]].sort();
+    }
+
+    function purchaseAddCategoryValue(level, value) {
+        const name = String(value || '').trim();
+        if (!name) return '';
+        if (level === 1) {
+            categoryTree[name] = categoryTree[name] || {};
+            return name;
+        }
+        const level1 = purchaseSelectedCategory(1);
+        if (!level1) return '';
+        categoryTree[level1] = categoryTree[level1] || {};
+        if (level === 2) {
+            categoryTree[level1][name] = categoryTree[level1][name] || {};
+            return name;
+        }
+        const level2 = purchaseSelectedCategory(2);
+        if (!level2) return '';
+        categoryTree[level1][level2] = categoryTree[level1][level2] || {};
+        if (level === 3) {
+            categoryTree[level1][level2][name] = categoryTree[level1][level2][name] || [];
+            return name;
+        }
+        const level3 = purchaseSelectedCategory(3);
+        if (!level3) return '';
+        categoryTree[level1][level2][level3] = categoryTree[level1][level2][level3] || [];
+        if (!categoryTree[level1][level2][level3].includes(name)) {
+            categoryTree[level1][level2][level3].push(name);
+        }
+        return name;
+    }
+
+    function purchaseClearCategoryFrom(level) {
+        for (let current = level; current <= 4; current += 1) {
+            const control = purchaseCategoryControls[current - 1];
+            control.select.value = '';
+            control.input.value = '';
+            control.input.hidden = true;
+            if (current > 1) purchaseVisibleCategoryLevels[current] = false;
+        }
+    }
+
+    function purchaseRefreshCategorySelects(fromLevel = 1) {
+        for (let level = fromLevel; level <= 4; level += 1) {
+            const control = purchaseCategoryControls[level - 1];
+            const current = purchaseSelectedCategory(level);
+            const options = purchaseCategoryOptionsForLevel(level);
+            const placeholder = `Chọn danh mục cấp ${level}`;
+            purchaseFillCategorySelect(control.select, options, placeholder);
+            if (current && !options.includes(current)) {
+                purchaseAddCategoryValue(level, current);
+            }
+            const refreshedOptions = purchaseCategoryOptionsForLevel(level);
+            purchaseFillCategorySelect(control.select, refreshedOptions, placeholder);
+            control.select.value = refreshedOptions.includes(current) ? current : '';
+            control.input.hidden = true;
+            control.input.value = '';
+        }
+        purchaseUpdateCategoryVisibility();
+    }
+
+    function purchaseUpdateCategoryVisibility() {
+        const cat1Value = purchaseSelectedCategory(1);
+        const cat2Value = purchaseSelectedCategory(2);
+        const cat3Value = purchaseSelectedCategory(3);
+        document.getElementById('purchaseCategoryLevel2Section').hidden = !purchaseVisibleCategoryLevels[2];
+        document.getElementById('purchaseCategoryLevel3Section').hidden = !purchaseVisibleCategoryLevels[3];
+        document.getElementById('purchaseCategoryLevel4Section').hidden = !purchaseVisibleCategoryLevels[4];
+        document.getElementById('purchaseAddCategory2ButtonWrapper').hidden = !cat1Value || purchaseVisibleCategoryLevels[2];
+        document.getElementById('purchaseAddCategory3ButtonWrapper').hidden = !purchaseVisibleCategoryLevels[2] || !cat2Value || purchaseVisibleCategoryLevels[3];
+        document.getElementById('purchaseAddCategory4ButtonWrapper').hidden = !purchaseVisibleCategoryLevels[3] || !cat3Value || purchaseVisibleCategoryLevels[4];
+        const removeLevel1 = document.querySelector('[data-purchase-category-remove="1"]');
+        if (removeLevel1) removeLevel1.hidden = !cat1Value;
+    }
+
+    function purchaseSetCategoryLevel(level, value) {
+        const control = purchaseCategoryControls[level - 1];
+        const cleanValue = String(value || '').trim();
+        if (cleanValue) purchaseAddCategoryValue(level, cleanValue);
+        purchaseRefreshCategorySelects(level);
+        control.select.value = cleanValue;
+        control.input.hidden = true;
+        control.input.value = '';
+    }
+
+    function purchaseAddVisibleCategoryLevel(level) {
+        purchaseVisibleCategoryLevels[level] = true;
+        purchaseRefreshCategorySelects(level);
+        purchaseUpdateCategoryVisibility();
+        purchaseCategoryControls[level - 1].select.focus();
+    }
+
+    function purchaseRemoveCategoryLevel(level) {
+        purchaseClearCategoryFrom(level);
+        purchaseRefreshCategorySelects(level);
+        purchaseUpdateCategoryVisibility();
+        purchaseCategoryControls[Math.max(1, level - 1) - 1].select.focus();
     }
 
     function appendProductOption(productId, productName) {
@@ -638,13 +826,19 @@
     function openProductModal(row) {
         activeProductRow = row;
         modalProductName.value = row.querySelector('.purchase-new-product-name').value || '';
-        modalProductUnit.value = '';
+        modalProductUnit.value = 'cái';
         modalProductAlert.value = '10';
         modalProductSellPrice.value = '';
-        modalCategory1.value = '';
-        modalCategory2.value = '';
-        modalCategory3.value = '';
-        modalCategory4.value = '';
+        purchaseCategoryControls.forEach(control => {
+            control.select.value = '';
+            control.input.value = '';
+            control.input.hidden = true;
+        });
+        purchaseVisibleCategoryLevels[2] = false;
+        purchaseVisibleCategoryLevels[3] = false;
+        purchaseVisibleCategoryLevels[4] = false;
+        purchaseRefreshCategorySelects(1);
+        purchaseUpdateCategoryVisibility();
         productModalError.hidden = true;
         productModal.hidden = false;
         modalProductName.focus();
@@ -658,9 +852,15 @@
     async function saveProductModal() {
         if (!activeProductRow) return;
         const productName = modalProductName.value.trim();
-        const category1   = modalCategory1.value.trim();
+        const category1   = purchaseSelectedCategory(1);
+        const productSellPrice = parseMoney(modalProductSellPrice.value);
         if (!productName || !category1) {
             productModalError.textContent = 'Nhập tên sản phẩm và danh mục cấp 1 trước khi tiếp tục.';
+            productModalError.hidden = false;
+            return;
+        }
+        if (productSellPrice <= 0) {
+            productModalError.textContent = 'Nhập giá bán mặc định lớn hơn 0 cho sản phẩm mới.';
             productModalError.hidden = false;
             return;
         }
@@ -668,11 +868,11 @@
         formData.append('name', productName);
         formData.append('unit', modalProductUnit.value.trim() || 'cái');
         formData.append('alert_threshold', modalProductAlert.value || '10');
-        formData.append('price_sell', parseMoney(modalProductSellPrice.value));
+        formData.append('price_sell', productSellPrice);
         formData.append('category_level_1', category1);
-        formData.append('category_level_2', modalCategory2.value.trim());
-        formData.append('category_level_3', modalCategory3.value.trim());
-        formData.append('category_level_4', modalCategory4.value.trim());
+        formData.append('category_level_2', purchaseSelectedCategory(2));
+        formData.append('category_level_3', purchaseSelectedCategory(3));
+        formData.append('category_level_4', purchaseSelectedCategory(4));
 
         const response = await fetch('/expenses/create/ajax-new-product/', {
             method: 'POST',
@@ -702,7 +902,44 @@
     purchasePaymentMethod?.addEventListener('change', syncDebtFields);
     otherPaymentMethod?.addEventListener('change', syncDebtFields);
 
-    fillCategoryHints();
+    purchaseRefreshCategorySelects(1);
+    purchaseCategoryControls.forEach((control, index) => {
+        const level = index + 1;
+        control.select.addEventListener('change', () => {
+            if (control.select.value === '__new__') {
+                control.input.hidden = false;
+                control.input.value = '';
+                control.input.focus();
+                return;
+            }
+            purchaseClearCategoryFrom(level + 1);
+            purchaseRefreshCategorySelects(level + 1);
+        });
+        control.input.addEventListener('blur', () => {
+            const value = control.input.value.trim();
+            if (!value) return;
+            purchaseSetCategoryLevel(level, value);
+        });
+        control.input.addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const value = control.input.value.trim();
+                if (value) purchaseSetCategoryLevel(level, value);
+            }
+            if (event.key === 'Escape') {
+                control.input.value = '';
+                control.input.hidden = true;
+                control.select.value = '';
+                control.select.focus();
+            }
+        });
+    });
+    document.getElementById('purchaseAddCategory2Btn').addEventListener('click', () => purchaseAddVisibleCategoryLevel(2));
+    document.getElementById('purchaseAddCategory3Btn').addEventListener('click', () => purchaseAddVisibleCategoryLevel(3));
+    document.getElementById('purchaseAddCategory4Btn').addEventListener('click', () => purchaseAddVisibleCategoryLevel(4));
+    document.querySelectorAll('[data-purchase-category-remove]').forEach(button => {
+        button.addEventListener('click', () => purchaseRemoveCategoryLevel(Number(button.dataset.purchaseCategoryRemove)));
+    });
     document.getElementById('closePurchaseProductModal').addEventListener('click', closeProductModal);
     document.getElementById('cancelPurchaseProductModal').addEventListener('click', closeProductModal);
     document.getElementById('savePurchaseProductModal').addEventListener('click', saveProductModal);

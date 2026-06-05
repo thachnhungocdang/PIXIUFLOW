@@ -906,16 +906,27 @@ def inventory_view(request):
         reverse=True,
     )[:3]
     top_supplier = supplier_rows[0] if supplier_rows else None
+    purchase_product_ids = set(
+        for_user(Purchase, request.user)
+        .filter(product_id__in=[row['product'].id for row in product_rows])
+        .values_list('product_id', flat=True)
+    )
     product_details = [
         {
             'id': str(row['product'].id),
             'name': row['product'].name,
             'sku': f"SP-{row['product'].id:03d}",
+            'category': row['category_path'] if row['category_path'] != UNCATEGORIZED_CATEGORY_LABEL else '',
             'category_parts': row['category_parts'],
+            'unit': row['product'].unit,
+            'supplier_name': row['product'].supplier_name,
             'stock_quantity': row['product'].stock_quantity,
             'alert_threshold': row['product'].alert_threshold,
             'price_buy_latest': int(row['product'].price_buy_latest or 0),
             'price_sell': int(row['product'].price_sell or 0),
+            'has_purchase_transactions': row['product'].id in purchase_product_ids,
+            'can_edit_price_buy_latest': row['product'].id not in purchase_product_ids,
+            'purchase_history_url': f"/transactions/history/?type=purchase&q={quote(row['product'].name)}",
             'sale_price_state': row['sale_price_state'],
             'margin': row['margin'],
             'status': row['product'].stock_status_label,
@@ -1008,12 +1019,84 @@ def inventory_inline_update_view(request, pk):
         product.category = str(payload.get('value') or '').strip()
     elif field == 'supplier_name':
         product.supplier_name = str(payload.get('value') or '').strip()
+    elif field == 'product_profile':
+        name = str(payload.get('name') or '').strip()
+        category = str(payload.get('category') or '').strip()
+        unit = str(payload.get('unit') or '').strip()
+        supplier_name = str(payload.get('supplier_name') or '').strip()
+
+        def parse_decimal(raw, label, required=False):
+            raw = str(raw or '').replace('.', '').replace(',', '').strip()
+            if not raw:
+                if required:
+                    raise ValueError(f'{label} là bắt buộc.')
+                return Decimal('0')
+            try:
+                return Decimal(raw)
+            except Exception:
+                raise ValueError(f'{label} không hợp lệ.')
+
+        if not name:
+            return JsonResponse({'ok': False, 'error': 'Nhập tên sản phẩm.'}, status=400)
+        if not category:
+            return JsonResponse({'ok': False, 'error': 'Nhập danh mục sản phẩm.'}, status=400)
+        if not unit:
+            return JsonResponse({'ok': False, 'error': 'Nhập đơn vị tính.'}, status=400)
+        try:
+            alert_threshold = int(payload.get('alert_threshold') or 0)
+            price_sell = parse_decimal(payload.get('price_sell'), 'Giá bán', required=True)
+            price_buy_latest = parse_decimal(payload.get('price_buy_latest'), 'Giá vốn', required=True)
+        except ValueError as exc:
+            return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+        if alert_threshold < 0:
+            return JsonResponse({'ok': False, 'error': 'Ngưỡng cảnh báo không được âm.'}, status=400)
+        if price_sell <= 0:
+            return JsonResponse({'ok': False, 'error': 'Giá bán phải lớn hơn 0.'}, status=400)
+        if price_buy_latest < 0:
+            return JsonResponse({'ok': False, 'error': 'Giá vốn không được âm.'}, status=400)
+        has_purchase_transactions = for_user(Purchase, request.user).filter(product=product).exists()
+        if has_purchase_transactions and price_buy_latest != (product.price_buy_latest or Decimal('0')):
+            return JsonResponse({
+                'ok': False,
+                'error': 'Sản phẩm đã có giao dịch nhập kho nên không thể đổi giá vốn tại đây. Hãy sửa phiếu nhập kho trong Lịch sử giao dịch.',
+                'purchase_history_url': f"/transactions/history/?type=purchase&q={quote(product.name)}",
+            }, status=400)
+
+        duplicate = for_user(Product, request.user).filter(
+            name__iexact=name,
+            unit__iexact=unit,
+            is_active=True,
+        ).exclude(pk=product.pk).exists()
+        if duplicate:
+            return JsonResponse({'ok': False, 'error': 'Đã có sản phẩm cùng tên và đơn vị tính.'}, status=400)
+
+        product.name = name
+        product.category = category
+        product.unit = unit
+        product.supplier_name = supplier_name
+        product.alert_threshold = alert_threshold
+        product.price_sell = price_sell
+        product.price_buy_latest = price_buy_latest
+        if category:
+            create_category_path(category, user=request.user)
+        field = None
     else:
         return JsonResponse({'ok': False, 'error': 'Trường cập nhật không hợp lệ.'}, status=400)
 
-    product.save(update_fields=[field, 'updated_at'])
+    update_fields = [
+        'name', 'category', 'unit', 'supplier_name',
+        'alert_threshold', 'price_sell', 'price_buy_latest', 'updated_at'
+    ] if field is None else [field, 'updated_at']
+    product.save(update_fields=update_fields)
     return JsonResponse({
         'ok': True,
+        'id': product.id,
+        'name': product.name,
+        'category': product.category,
+        'unit': product.unit,
+        'supplier_name': product.supplier_name,
+        'price_sell': product.price_sell,
+        'price_buy_latest': product.price_buy_latest,
         'stock_quantity': product.stock_quantity,
         'alert_threshold': product.alert_threshold,
         'stock_status': product.stock_status,
@@ -1359,6 +1442,8 @@ def expense_new_product_ajax_view(request):
         price_sell_value = Decimal(str(price_sell or '0').replace('.', '').replace(',', ''))
     except Exception:
         return JsonResponse({'ok': False, 'error': 'Giá bán mặc định không hợp lệ.'}, status=400)
+    if price_sell_value <= 0:
+        return JsonResponse({'ok': False, 'error': 'Giá bán mặc định phải lớn hơn 0.'}, status=400)
 
     with transaction.atomic():
         product = for_user(Product, request.user).filter(name__iexact=name).first()
@@ -2342,6 +2427,9 @@ def bulk_transaction_create_view(request):
 
             normalized_price = str(row['unit_price'] or '').replace('.', '').replace(',', '').strip()
             normalized_quantity = str(row['quantity'] or '').strip()
+            extra_products_for_blank = request.POST.getlist(f'extra_product_{index}[]')
+            extra_prices_for_blank = request.POST.getlist(f'extra_unit_price_{index}[]')
+            extra_quantities_for_blank = request.POST.getlist(f'extra_quantity_{index}[]')
             is_blank = not any([
                 row['product'],
                 row['expense_type'],
@@ -2350,6 +2438,9 @@ def bulk_transaction_create_view(request):
                 row['note'].strip(),
                 normalized_price not in ('', '0'),
                 normalized_quantity not in ('', '1'),
+                any(extra_products_for_blank),
+                any(value for value in extra_prices_for_blank if str(value).strip()),
+                any(value for value in extra_quantities_for_blank if str(value).strip() and str(value).strip() != '1'),
             ])
             if is_blank:
                 continue
@@ -2396,9 +2487,13 @@ def bulk_transaction_create_view(request):
                 continue
 
             if row['transaction_type'] == 'income':
-                if not row['product']:
+                extra_products = request.POST.getlist(f'extra_product_{index}[]')
+                extra_prices = request.POST.getlist(f'extra_unit_price_{index}[]')
+                extra_quantities = request.POST.getlist(f'extra_quantity_{index}[]')
+                has_extra_product = any(value for value in extra_products)
+                if not row['product'] and not has_extra_product:
                     errors.append("Chọn sản phẩm cho doanh thu.")
-                else:
+                if row['product']:
                     try:
                         product = products.get(pk=row['product'])
                         record = Sale(
@@ -2416,10 +2511,52 @@ def bulk_transaction_create_view(request):
                         records.append(record)
                     except (Product.DoesNotExist, ValidationError) as exc:
                         errors.append(str(exc))
+                for item_index, extra_product_id in enumerate(extra_products):
+                    extra_product_id = str(extra_product_id or '').strip()
+                    extra_price_raw = extra_prices[item_index] if item_index < len(extra_prices) else ''
+                    extra_quantity_raw = extra_quantities[item_index] if item_index < len(extra_quantities) else ''
+                    if not extra_product_id and not extra_price_raw and not extra_quantity_raw:
+                        continue
+                    try:
+                        extra_unit_price = Decimal(str(extra_price_raw or '0').replace('.', '').replace(',', ''))
+                        extra_quantity = int(extra_quantity_raw or '1')
+                    except Exception:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: giá hoặc số lượng không hợp lệ.")
+                        continue
+                    if not extra_product_id:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: chọn sản phẩm.")
+                        continue
+                    if extra_unit_price <= 0:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: giá bán phải lớn hơn 0.")
+                        continue
+                    if extra_quantity <= 0:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: số lượng phải lớn hơn 0.")
+                        continue
+                    try:
+                        product = products.get(pk=extra_product_id)
+                        record = Sale(
+                            user=request.user,
+                            product=product,
+                            date=row_date,
+                            customer_name=row['partner'],
+                            quantity=extra_quantity,
+                            unit_price=extra_unit_price,
+                            payment_method=row['payment_method'],
+                            payment_due_date=payment_due_date,
+                            note=row['note'],
+                        )
+                        record.full_clean()
+                        records.append(record)
+                    except (Product.DoesNotExist, ValidationError) as exc:
+                        errors.append(str(exc))
             elif row['transaction_type'] == 'purchase':
-                if not row['product']:
+                extra_products = request.POST.getlist(f'extra_product_{index}[]')
+                extra_prices = request.POST.getlist(f'extra_unit_price_{index}[]')
+                extra_quantities = request.POST.getlist(f'extra_quantity_{index}[]')
+                has_extra_product = any(value for value in extra_products)
+                if not row['product'] and not has_extra_product:
                     errors.append("Chọn sản phẩm cho nhập hàng.")
-                else:
+                if row['product']:
                     try:
                         product = products.get(pk=row['product'])
                         record = Purchase(
@@ -2429,6 +2566,44 @@ def bulk_transaction_create_view(request):
                             supplier_name=row['partner'],
                             quantity=quantity,
                             unit_price=unit_price,
+                            payment_method=row['payment_method'],
+                            payment_due_date=payment_due_date,
+                            note=row['note'],
+                        )
+                        record.full_clean()
+                        records.append(record)
+                    except (Product.DoesNotExist, ValidationError) as exc:
+                        errors.append(str(exc))
+                for item_index, extra_product_id in enumerate(extra_products):
+                    extra_product_id = str(extra_product_id or '').strip()
+                    extra_price_raw = extra_prices[item_index] if item_index < len(extra_prices) else ''
+                    extra_quantity_raw = extra_quantities[item_index] if item_index < len(extra_quantities) else ''
+                    if not extra_product_id and not extra_price_raw and not extra_quantity_raw:
+                        continue
+                    try:
+                        extra_unit_price = Decimal(str(extra_price_raw or '0').replace('.', '').replace(',', ''))
+                        extra_quantity = int(extra_quantity_raw or '1')
+                    except Exception:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: giá hoặc số lượng không hợp lệ.")
+                        continue
+                    if not extra_product_id:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: chọn sản phẩm.")
+                        continue
+                    if extra_unit_price <= 0:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: giá nhập phải lớn hơn 0.")
+                        continue
+                    if extra_quantity <= 0:
+                        errors.append(f"Sản phẩm thêm {item_index + 1}: số lượng phải lớn hơn 0.")
+                        continue
+                    try:
+                        product = products.get(pk=extra_product_id)
+                        record = Purchase(
+                            user=request.user,
+                            product=product,
+                            date=row_date,
+                            supplier_name=row['partner'],
+                            quantity=extra_quantity,
+                            unit_price=extra_unit_price,
                             payment_method=row['payment_method'],
                             payment_due_date=payment_due_date,
                             note=row['note'],
@@ -3460,9 +3635,15 @@ def report_view(request):
     profit_view_mode = request.GET.get('profit_view', 'category')
     profit_category_filter = request.GET.get('profit_category', '').strip()
     profit_rank = request.GET.get('profit_rank', 'top10')
+    profit_granularity = request.GET.get('profit_granularity', 'month')
+    if profit_granularity not in ('day', 'week', 'month', 'year'):
+        profit_granularity = 'month'
     revenue_view_mode = request.GET.get('revenue_view', 'category')
     revenue_category_filter = request.GET.get('revenue_category', '').strip()
     revenue_rank = request.GET.get('revenue_rank', 'top10')
+    revenue_granularity = request.GET.get('revenue_granularity', 'month')
+    if revenue_granularity not in ('day', 'week', 'month', 'year'):
+        revenue_granularity = 'month'
     cash_granularity = request.GET.get('cash_granularity', 'month')
     if cash_granularity not in ('day', 'week', 'month', 'year'):
         cash_granularity = 'month'
@@ -3601,6 +3782,35 @@ def report_view(request):
     gross_margin_pct = round(float(gross_profit / recognized_revenue * 100), 1) if recognized_revenue else 0
     profit = gross_profit - operating_expense
     net_profit = profit
+    expense_labels = dict(Expense.EXPENSE_TYPE_CHOICES)
+    gross_margin_rate = (gross_profit / recognized_revenue) if recognized_revenue and gross_profit > 0 else Decimal('0')
+    break_even_revenue = (operating_expense / gross_margin_rate) if gross_margin_rate else None
+    break_even_gap = max((break_even_revenue or Decimal('0')) - recognized_revenue, Decimal('0')) if break_even_revenue else Decimal('0')
+    revenue_order_count = sales.count()
+    revenue_orders_per_day = round(revenue_order_count / report_days, 1) if report_days else 0
+    revenue_avg_order_value = (recognized_revenue / Decimal(revenue_order_count)) if revenue_order_count else Decimal('0')
+    revenue_collected = cash_income
+    unpaid_sales = sales.filter(payment_method=Sale.PAYMENT_METHOD_DEBT)
+    revenue_uncollected = unpaid_sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    revenue_uncollected_order_count = unpaid_sales.count()
+    revenue_collection_rate = round((revenue_collected / recognized_revenue) * 100, 1) if recognized_revenue else 0
+    top_revenue_product = (
+        sales.values('product__name', 'product__unit')
+        .annotate(units=Sum('quantity'), revenue=Sum('total_amount'))
+        .order_by('-revenue')
+        .first()
+    )
+    top_revenue_category = (
+        sales.exclude(product__category='')
+        .values('product__category')
+        .annotate(revenue=Sum('total_amount'))
+        .order_by('-revenue')
+        .first()
+    )
+    top_revenue_category_share = (
+        round(((top_revenue_category['revenue'] or Decimal('0')) / recognized_revenue) * 100, 1)
+        if top_revenue_category and recognized_revenue else 0
+    )
 
     opening_stock_declared = user_opening_stocks.aggregate(total=Sum('quantity'))['total'] or 0
     purchase_stock_declared = user_purchases.aggregate(total=Sum('quantity'))['total'] or 0
@@ -3701,6 +3911,124 @@ def report_view(request):
         for label in chart_labels
     ])
 
+    def revenue_period_key(value):
+        if revenue_granularity == 'day':
+            return value.strftime('%Y-%m-%d')
+        if revenue_granularity == 'week':
+            iso_year, iso_week, _ = value.isocalendar()
+            return f'{iso_year}-W{iso_week:02d}'
+        if revenue_granularity == 'year':
+            return value.strftime('%Y')
+        return value.strftime('%Y-%m')
+
+    def revenue_period_label(key):
+        if revenue_granularity == 'day':
+            try:
+                return datetime.strptime(key, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except ValueError:
+                return key
+        if revenue_granularity == 'week':
+            return key.replace('-W', ' Tuần ')
+        if revenue_granularity == 'year':
+            return f'Năm {key}'
+        try:
+            return datetime.strptime(key, '%Y-%m').strftime('T%m/%Y')
+        except ValueError:
+            return key
+
+    revenue_period_map = {}
+    for sale in sales.select_related('product'):
+        key = revenue_period_key(sale.date)
+        bucket = revenue_period_map.setdefault(key, {
+            'revenue': Decimal('0'),
+            'orders': 0,
+        })
+        bucket['revenue'] += sale.total_amount or Decimal('0')
+        bucket['orders'] += 1
+    revenue_chart_points = [
+        {
+            'key': key,
+            'label': revenue_period_label(key),
+            'revenue': float(revenue_period_map[key]['revenue']),
+            'orders': revenue_period_map[key]['orders'],
+            'avg_order': float(
+                revenue_period_map[key]['revenue'] / Decimal(revenue_period_map[key]['orders'])
+            ) if revenue_period_map[key]['orders'] else 0,
+        }
+        for key in sorted(revenue_period_map.keys())
+    ]
+    revenue_chart_points_json = json.dumps(revenue_chart_points)
+    revenue_time_rows = [
+        {
+            'label': item['label'],
+            'revenue': Decimal(str(item['revenue'])),
+            'orders': item['orders'],
+            'avg_order': Decimal(str(item['avg_order'])),
+        }
+        for item in revenue_chart_points
+    ]
+
+    def profit_period_key(value):
+        if profit_granularity == 'day':
+            return value.strftime('%Y-%m-%d')
+        if profit_granularity == 'week':
+            iso_year, iso_week, _ = value.isocalendar()
+            return f'{iso_year}-W{iso_week:02d}'
+        if profit_granularity == 'year':
+            return value.strftime('%Y')
+        return value.strftime('%Y-%m')
+
+    def profit_period_label(key):
+        if profit_granularity == 'day':
+            try:
+                return datetime.strptime(key, '%Y-%m-%d').strftime('%d/%m/%Y')
+            except ValueError:
+                return key
+        if profit_granularity == 'week':
+            return key.replace('-W', ' Tuần ')
+        if profit_granularity == 'year':
+            return f'Năm {key}'
+        try:
+            return datetime.strptime(key, '%Y-%m').strftime('T%m/%Y')
+        except ValueError:
+            return key
+
+    profit_period_map = {}
+    for sale in sales.select_related('product'):
+        key = profit_period_key(sale.date)
+        bucket = profit_period_map.setdefault(key, {
+            'revenue': Decimal('0'),
+            'cogs': Decimal('0'),
+            'operating_expense': Decimal('0'),
+        })
+        bucket['revenue'] += sale.total_amount or Decimal('0')
+        bucket['cogs'] += sale.cogs_amount or Decimal('0')
+    for key, amount in expense_recognized_by_month.items():
+        try:
+            expense_date = datetime.strptime(key, '%Y-%m').date()
+        except ValueError:
+            expense_date = report_start_date
+        bucket = profit_period_map.setdefault(profit_period_key(expense_date), {
+            'revenue': Decimal('0'),
+            'cogs': Decimal('0'),
+            'operating_expense': Decimal('0'),
+        })
+        bucket['operating_expense'] += amount or Decimal('0')
+    profit_time_chart_points = []
+    for key in sorted(profit_period_map.keys()):
+        bucket = profit_period_map[key]
+        period_gross_profit = bucket['revenue'] - bucket['cogs']
+        profit_time_chart_points.append({
+            'key': key,
+            'label': profit_period_label(key),
+            'revenue': float(bucket['revenue']),
+            'cogs': float(bucket['cogs']),
+            'gross_profit': float(period_gross_profit),
+            'operating_expense': float(bucket['operating_expense']),
+            'net_profit': float(period_gross_profit - bucket['operating_expense']),
+        })
+    profit_time_chart_points_json = json.dumps(profit_time_chart_points)
+
     cash_month_map = {}
     def cash_period_key(value):
         if cash_granularity == 'day':
@@ -3762,11 +4090,18 @@ def report_view(request):
             'purchase_out': 0.0,
             'opex_out': 0.0,
             'equipment_out': 0.0,
+            'out_parts': {},
             'income_count': 0,
             'purchase_count': 0,
             'opex_count': 0,
             'equipment_count': 0,
         })
+
+    def add_cash_out_part(bucket, label, amount):
+        amount = float(amount or 0)
+        if not amount:
+            return
+        bucket['out_parts'][label] = bucket['out_parts'].get(label, 0.0) + amount
 
     for cash_date, amount in cash_summary['income_by_date'].items():
         key = cash_period_key(cash_date)
@@ -3796,6 +4131,7 @@ def report_view(request):
         key = cash_period_key(cash_date)
         bucket = cash_bucket(key)
         bucket['purchase_count'] += 1
+        add_cash_out_part(bucket, 'Nhập hàng', purchase.total_amount or Decimal('0'))
 
     for expense in user_expenses.exclude(payment_method=Expense.PAYMENT_METHOD_DEBT):
         cash_date = expense.payment_date or expense.date
@@ -3810,6 +4146,12 @@ def report_view(request):
         else:
             bucket['opex_out'] += amount
             bucket['opex_count'] += 1
+        label = expense_labels.get(expense.expense_type, expense.expense_type)
+        if expense.expense_type == 'other':
+            note_label = (expense.note or '').strip().splitlines()[0]
+            if note_label:
+                label = note_label[:60]
+        add_cash_out_part(bucket, label, expense.amount or Decimal('0'))
 
     for bucket in cash_month_map.values():
         expense_out = bucket['opex_out'] + bucket['equipment_out']
@@ -3822,6 +4164,15 @@ def report_view(request):
     cash_chart_points = []
     for label in cash_chart_labels:
         period_start, period_end = cash_period_range(label)
+        cash_out_total = cash_month_map[label]['out']
+        cash_out_parts = [
+            {
+                'label': name,
+                'amount': value,
+                'share': round((value / cash_out_total * 100), 1) if cash_out_total else 0,
+            }
+            for name, value in sorted(cash_month_map[label]['out_parts'].items(), key=lambda item: item[1], reverse=True)
+        ]
         cash_chart_points.append({
             'key': label,
             'label': cash_period_label(label),
@@ -3837,6 +4188,7 @@ def report_view(request):
                 'opex': cash_month_map[label]['opex_out'],
                 'equipment': cash_month_map[label]['equipment_out'],
             },
+            'out_parts': cash_out_parts,
             'counts': {
                 'income': cash_month_map[label]['income_count'],
                 'purchase': cash_month_map[label]['purchase_count'],
@@ -3862,6 +4214,76 @@ def report_view(request):
             'running_balance': running_cash_balance,
             'collection_rate': collection_rate,
         })
+
+    cash_burn_per_day = (max(cash_outflow - cash_income, Decimal('0')) / Decimal(report_days)) if report_days else Decimal('0')
+    cash_runway_days = round((cash_income / cash_burn_per_day), 1) if cash_burn_per_day > 0 else None
+    cash_income_per_day = cash_income / Decimal(report_days) if report_days else Decimal('0')
+    cash_conversion_rate = round((cash_income / recognized_revenue) * 100, 1) if recognized_revenue else 0
+    operating_cash_ratio = round((cash_income / cash_outflow), 2) if cash_outflow else None
+    cash_flow_margin = round((net_cash_flow / recognized_revenue) * 100, 1) if recognized_revenue else 0
+    cash_purchase_share = round((cash_purchase / cash_outflow) * 100, 1) if cash_outflow else 0
+    cash_opex_share = round((cash_expense / cash_outflow) * 100, 1) if cash_outflow else 0
+    cash_out_revenue_ratio = round((cash_outflow / recognized_revenue), 2) if recognized_revenue else 0
+
+    fixed_expense_types = {Expense.EXPENSE_TYPE_EQUIPMENT, 'rent', 'salary'}
+    cash_fixed_expense = Decimal('0')
+    for expense in user_expenses.exclude(payment_method=Expense.PAYMENT_METHOD_DEBT):
+        cash_date = expense.payment_date or expense.date
+        if cash_date < report_start_date or cash_date > report_end_date:
+            continue
+        if expense.expense_type in fixed_expense_types:
+            cash_fixed_expense += expense.amount or Decimal('0')
+    cash_variable_expense = max(cash_expense - cash_fixed_expense, Decimal('0'))
+    cash_fixed_expense_share = round((cash_fixed_expense / cash_expense) * 100, 1) if cash_expense else 0
+
+    payable_purchase_debt = user_purchases.filter(payment_method=Purchase.PAYMENT_METHOD_DEBT).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    payable_expense_debt = user_expenses.filter(payment_method=Expense.PAYMENT_METHOD_DEBT).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    payable_debt = payable_purchase_debt + payable_expense_debt
+    upcoming_payable_deadline = today + timedelta(days=7)
+    upcoming_purchase_payable = user_purchases.filter(
+        payment_method=Purchase.PAYMENT_METHOD_DEBT,
+        payment_due_date__isnull=False,
+        payment_due_date__lte=upcoming_payable_deadline,
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    upcoming_expense_payable = user_expenses.filter(
+        payment_method=Expense.PAYMENT_METHOD_DEBT,
+        payment_due_date__isnull=False,
+        payment_due_date__lte=upcoming_payable_deadline,
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+    upcoming_payable = upcoming_purchase_payable + upcoming_expense_payable
+    next_payable_item = None
+    next_purchase_due = user_purchases.filter(
+        payment_method=Purchase.PAYMENT_METHOD_DEBT,
+        payment_due_date__isnull=False,
+    ).order_by('payment_due_date', '-created_at').first()
+    next_expense_due = user_expenses.filter(
+        payment_method=Expense.PAYMENT_METHOD_DEBT,
+        payment_due_date__isnull=False,
+    ).order_by('payment_due_date', '-created_at').first()
+    due_candidates = []
+    if next_purchase_due:
+        due_candidates.append((next_purchase_due.payment_due_date, next_purchase_due.total_amount or Decimal('0'), next_purchase_due.supplier_name or 'Nhà cung cấp'))
+    if next_expense_due:
+        due_candidates.append((next_expense_due.payment_due_date, next_expense_due.amount or Decimal('0'), expense_labels.get(next_expense_due.expense_type, 'Chi phí')))
+    if due_candidates:
+        due_date, due_amount, due_label = sorted(due_candidates, key=lambda item: item[0])[0]
+        next_payable_item = {'date': due_date, 'amount': due_amount, 'label': due_label}
+
+    recent_cashflow_days = []
+    for offset in range(4, -1, -1):
+        day = report_end_date - timedelta(days=offset)
+        cash_in_day = cash_summary['income_by_date'].get(day, Decimal('0'))
+        cash_out_day = cash_summary['purchase_by_date'].get(day, Decimal('0')) + cash_summary['expense_by_date'].get(day, Decimal('0'))
+        net_day = cash_in_day - cash_out_day
+        recent_cashflow_days.append({'label': day.strftime('%d/%m'), 'net': net_day, 'height': min(100, max(18, int(abs(net_day) / max(abs(net_cash_flow), Decimal('1')) * 100)))})
+    recent_negative_streak = 0
+    for day in reversed(recent_cashflow_days):
+        if day['net'] < 0:
+            recent_negative_streak += 1
+        else:
+            break
+    cash_forecast_7d = net_cash_flow - (cash_burn_per_day * Decimal('7')) - upcoming_payable
+    cash_forecast_need = max(-cash_forecast_7d, Decimal('0'))
 
     def category_parts(path):
         return [part.strip() for part in (path or '').split('/') if part.strip()]
@@ -3978,10 +4400,14 @@ def report_view(request):
     for item in revenue_contribution_rows:
         revenue_width = int(round(abs(item['total']) / max_contribution_value * 100)) if max_contribution_value else 0
         profit_width = int(round(abs(item['profit']) / max_contribution_value * 100)) if max_contribution_value else 0
+        revenue_w = max(3, revenue_width) if item['total'] else 0
+        profit_w = max(3, profit_width) if item['profit'] else 0
         revenue_contribution_chart_rows.append({
             **item,
-            'revenue_width': max(3, revenue_width) if item['total'] else 0,
-            'profit_width': max(3, profit_width) if item['profit'] else 0,
+            'revenue_width': revenue_w,
+            'profit_width': profit_w,
+            'revenue_opacity': round(0.36 + (revenue_w * 0.0064), 2),
+            'profit_opacity': round(0.36 + (profit_w * 0.0064), 2),
         })
 
     revenue_insight_cards = []
@@ -3994,7 +4420,7 @@ def report_view(request):
         })
     if top_profit_contributor:
         revenue_insight_cards.append({
-            'title': 'Đóng góp lãi gộp cao nhất',
+            'title': 'Đóng góp lợi nhuận gộp cao nhất',
             'body': f"{top_profit_contributor['name']} tạo {top_profit_contributor['profit']:,.0f}đ lợi nhuận gộp.".replace(',', '.'),
         })
     if len(revenue_trend_rows) >= 2:
@@ -4388,39 +4814,50 @@ def report_view(request):
 
     def margin_suggestion(row):
         if row['profit'] < 0:
-            return 'Đang lỗ', 'loss'
+            return 'Đang bán lỗ', 'loss'
         high_margin = row['margin'] >= average_margin
         high_quantity = Decimal(row['quantity'] or 0) >= average_quantity
         if high_margin and high_quantity:
-            return 'Sản phẩm chủ lực' if row['kind'] == 'product' else 'Nhóm chủ lực', 'core'
+            return 'Sản phẩm chủ lực về biên', 'core'
         if high_margin and not high_quantity:
-            return 'Có tiềm năng đẩy bán', 'potential'
+            return 'Cơ hội đẩy bán', 'potential'
         if not high_margin and high_quantity:
-            return 'Bán tốt nhưng lãi mỏng', 'thin'
-        return 'Cần xem lại', 'review'
+            return 'Bán nhiều nhưng lời mỏng', 'thin'
+        return 'Cần xem lại giá vốn/giá bán', 'review'
 
-    for row in [*profit_node_map.values(), *product_margin_rows_all]:
+    seen_row_ids = set()
+    for row in [*profit_node_map.values(), *product_margin_rows_all, *margin_rows_all]:
+        if id(row) in seen_row_ids:
+            continue
+        seen_row_ids.add(id(row))
         suggestion, suggestion_key = margin_suggestion(row)
         row['suggestion'] = suggestion
         row['suggestion_key'] = suggestion_key
+        row['revenue_share'] = round((row['revenue'] / margin_total_revenue * 100), 1) if margin_total_revenue else 0
+        row['profit_share'] = round((row['profit'] / margin_total_profit * 100), 1) if margin_total_profit else 0
 
     margin_sort_reverse = profit_rank != 'bottom10'
-    profit_by_category = sorted(margin_rows_all, key=lambda item: (item['margin'], item['profit_per_unit']), reverse=margin_sort_reverse)
+    
+    # 1. BIÊN LỢI NHUẬN (Margin)
+    profit_margin_rows = sorted([item for item in margin_rows_all if item['revenue'] > 0], key=lambda item: (item['margin'], item['profit_per_unit']), reverse=margin_sort_reverse)
     if profit_rank != 'all':
-        profit_by_category = profit_by_category[:10]
+        profit_margin_rows = profit_margin_rows[:10]
 
-    max_margin_abs = max([abs(float(item['margin'])) for item in profit_by_category] or [0])
+    max_margin_abs = max([abs(float(item['margin'])) for item in profit_margin_rows] or [0])
     profit_chart_rows = []
-    for item in profit_by_category:
+    for item in profit_margin_rows:
         width = int(round(abs(float(item['margin'])) / max_margin_abs * 100)) if max_margin_abs else 0
+        bar_width = max(3, width) if item['margin'] else 0
         profit_chart_rows.append({
             **item,
-            'bar_width': max(3, width) if item['margin'] else 0,
+            'bar_width': bar_width,
+            'bar_opacity': round(0.36 + (bar_width * 0.0064), 2),
             'is_negative': item['margin'] < 0 or item['profit'] < 0,
         })
 
-    best_margin_row = max(margin_rows_all, key=lambda item: item['margin'], default=None)
-    worst_margin_row = min(margin_rows_all, key=lambda item: item['margin'], default=None)
+    rankable_margin = [item for item in margin_rows_all if item['revenue'] > 0]
+    best_margin_row = max(rankable_margin, key=lambda item: item['margin'], default=None)
+    worst_margin_row = min(rankable_margin, key=lambda item: item['margin'], default=None)
     margin_kpis = {
         'average_margin': average_margin,
         'average_profit_per_unit': average_profit_per_unit,
@@ -4429,29 +4866,69 @@ def report_view(request):
     }
 
     margin_insight_cards = []
-    insight_candidates = {
-        'core': next((item for item in margin_rows_all if item.get('suggestion_key') == 'core'), None),
-        'thin': next((item for item in margin_rows_all if item.get('suggestion_key') == 'thin'), None),
-        'potential': next((item for item in margin_rows_all if item.get('suggestion_key') == 'potential'), None),
+    if best_margin_row and best_margin_row['quantity'] > 0:
+        margin_insight_cards.append({
+            'title': f"{best_margin_row['name']} - Cơ hội đẩy bán",
+            'body': f"Biên lợi nhuận cao nhất ({best_margin_row['margin']}%) nhưng số lượng bán chỉ {best_margin_row['quantity']}.",
+        })
+    thin_item = next((item for item in margin_rows_all if item.get('suggestion_key') == 'thin'), None)
+    if thin_item:
+        margin_insight_cards.append({
+            'title': f"{thin_item['name']} - Bán nhiều nhưng lời mỏng",
+            'body': f"SL bán cao ({thin_item['quantity']}) nhưng Biên lợi nhuận chỉ {thin_item['margin']}%.",
+        })
+    loss_item = next((item for item in margin_rows_all if item['profit'] < 0), None)
+    if loss_item:
+        margin_insight_cards.append({
+            'title': f"{loss_item['name']} - Đang bán lỗ",
+            'body': f"Lợi nhuận gộp âm {abs(loss_item['profit'])}. Cần xem lại giá vốn/giá bán.",
+        })
+
+    # 2. ĐÓNG GÓP LỢI NHUẬN (Contribution)
+    profit_contribution_rows = sorted(margin_rows_all, key=lambda item: item['profit'], reverse=margin_sort_reverse)
+    if profit_rank != 'all':
+        profit_contribution_rows = profit_contribution_rows[:10]
+
+    max_contribution_abs = max([abs(float(item['profit'])) for item in profit_contribution_rows] or [0])
+    contribution_chart_rows = []
+    for item in profit_contribution_rows:
+        width = int(round(abs(float(item['profit'])) / max_contribution_abs * 100)) if max_contribution_abs else 0
+        bar_width = max(3, width) if item['profit'] else 0
+        contribution_chart_rows.append({
+            **item,
+            'bar_width': bar_width,
+            'bar_opacity': round(0.36 + (bar_width * 0.0064), 2),
+            'is_negative': item['profit'] < 0,
+        })
+
+    top_contrib_product = next((item for item in sorted(product_margin_rows_all, key=lambda x: x['profit'], reverse=True) if item['profit'] > 0), None)
+    top_contrib_category = next((item for item in sorted(profit_node_map.values(), key=lambda x: x['profit'], reverse=True) if item['profit'] > 0), None)
+    loss_items = [item for item in margin_rows_all if item['profit'] < 0]
+    worst_loss_item = min(loss_items, key=lambda item: item['profit'], default=None) if loss_items else None
+    
+    contribution_kpis = {
+        'top_product': top_contrib_product,
+        'top_category': top_contrib_category,
+        'loss_count': len(loss_items),
+        'worst_loss': worst_loss_item,
     }
-    if insight_candidates['core']:
-        item = insight_candidates['core']
-        margin_insight_cards.append({
-            'title': f"{item['name']} - {'Sản phẩm chủ lực' if item['kind'] == 'product' else 'Nhóm chủ lực'}",
-            'body': f"{item['name']} đang có biên lợi nhuận {item['margin']}% và bán {item['quantity']} {item.get('quantity_label', 'đơn vị')}.",
+
+    contribution_insight_cards = []
+    if top_contrib_product:
+        contribution_insight_cards.append({
+            'title': f"{top_contrib_product['name']} - Sản phẩm chủ lực",
+            'body': f"Chiếm {top_contrib_product['profit_share']}% tổng lợi nhuận gộp toàn kỳ.",
         })
-    if insight_candidates['thin']:
-        item = insight_candidates['thin']
-        margin_insight_cards.append({
-            'title': f"{item['name']} - Bán nhiều nhưng lãi mỏng",
-            'body': f"{item['name']} bán {item['quantity']} {item.get('quantity_label', 'đơn vị')} nhưng biên lợi nhuận chỉ {item['margin']}%.",
+    if top_contrib_category and profit_view_mode == 'category':
+        contribution_insight_cards.append({
+            'title': f"{top_contrib_category['name']} - Danh mục đóng góp chính",
+            'body': f"Chiếm {top_contrib_category['profit_share']}% tổng lợi nhuận gộp toàn kỳ.",
         })
-    if insight_candidates['potential']:
-        item = insight_candidates['potential']
-        unit_label = item.get('quantity_label', 'đơn vị')
-        margin_insight_cards.append({
-            'title': f"{item['name']} - Có thể đẩy bán thêm",
-            'body': f"{item['name']} có lãi mỗi {unit_label} cao nhưng số lượng bán còn thấp.",
+    high_rev_low_profit = next((item for item in margin_rows_all if item['revenue_share'] > 10 and item['profit_share'] < 5), None)
+    if high_rev_low_profit:
+        contribution_insight_cards.append({
+            'title': f"{high_rev_low_profit['name']} - Doanh thu cao nhưng lợi nhuận thấp",
+            'body': f"Chiếm {high_rev_low_profit['revenue_share']}% doanh thu nhưng chỉ đóng góp {high_rev_low_profit['profit_share']}% lợi nhuận.",
         })
 
     profit_tree_roots = profit_roots
@@ -4587,6 +5064,8 @@ def report_view(request):
         'revenue_view': revenue_view_mode,
         'revenue_category': revenue_category_filter,
         'revenue_rank': revenue_rank,
+        'revenue_granularity': revenue_granularity,
+        'profit_granularity': profit_granularity,
         'cash_granularity': cash_granularity,
         'expense_granularity': expense_granularity,
         'profit_view': profit_view_mode,
@@ -4608,6 +5087,20 @@ def report_view(request):
         'total_income': total_income,
         'recognized_revenue': recognized_revenue,
         'revenue_total_growth': revenue_total_growth,
+        'revenue_granularity': revenue_granularity,
+        'profit_granularity': profit_granularity,
+        'revenue_order_count': revenue_order_count,
+        'revenue_orders_per_day': revenue_orders_per_day,
+        'revenue_avg_order_value': revenue_avg_order_value,
+        'revenue_collected': revenue_collected,
+        'revenue_uncollected': revenue_uncollected,
+        'revenue_uncollected_order_count': revenue_uncollected_order_count,
+        'revenue_collection_rate': revenue_collection_rate,
+        'top_revenue_product': top_revenue_product,
+        'top_revenue_category': top_revenue_category,
+        'top_revenue_category_share': top_revenue_category_share,
+        'revenue_chart_points_json': revenue_chart_points_json,
+        'revenue_time_rows': revenue_time_rows,
         'total_expense': total_expense,
         'operating_expense': operating_expense,
         'cogs': cogs,
@@ -4619,10 +5112,31 @@ def report_view(request):
         'cash_outflow': cash_outflow,
         'cash_out': cash_outflow,
         'net_cash_flow': net_cash_flow,
+        'cash_burn_per_day': cash_burn_per_day,
+        'cash_runway_days': cash_runway_days,
+        'cash_income_per_day': cash_income_per_day,
+        'cash_conversion_rate': cash_conversion_rate,
+        'operating_cash_ratio': operating_cash_ratio,
+        'cash_flow_margin': cash_flow_margin,
+        'cash_purchase_share': cash_purchase_share,
+        'cash_opex_share': cash_opex_share,
+        'cash_out_revenue_ratio': cash_out_revenue_ratio,
+        'cash_fixed_expense': cash_fixed_expense,
+        'cash_variable_expense': cash_variable_expense,
+        'cash_fixed_expense_share': cash_fixed_expense_share,
+        'payable_debt': payable_debt,
+        'upcoming_payable': upcoming_payable,
+        'next_payable_item': next_payable_item,
+        'recent_cashflow_days': recent_cashflow_days,
+        'recent_negative_streak': recent_negative_streak,
+        'cash_forecast_7d': cash_forecast_7d,
+        'cash_forecast_need': cash_forecast_need,
         'accounting_outflow': accounting_outflow,
         'estimated_cogs': estimated_cogs,
         'gross_profit': gross_profit,
         'gross_margin_pct': gross_margin_pct,
+        'break_even_revenue': break_even_revenue,
+        'break_even_gap': break_even_gap,
         'profit': profit,
         'net_profit': net_profit,
         'purchases': purchases,
@@ -4635,6 +5149,7 @@ def report_view(request):
         'chart_gross_profit': chart_gross_profit,
         'chart_profit': chart_profit,
         'chart_points_json': chart_points_json,
+        'profit_time_chart_points_json': profit_time_chart_points_json,
         'cash_chart_labels': cash_chart_labels,
         'cash_chart_in': cash_chart_in,
         'cash_chart_out': cash_chart_out,
@@ -4655,10 +5170,14 @@ def report_view(request):
         'revenue_roots': revenue_roots,
         'expense_breakdown': expense_breakdown,
         'expense_chart_points': expense_chart_points,
-        'profit_by_category': profit_by_category,
+        'profit_margin_rows': profit_margin_rows,
         'profit_chart_rows': profit_chart_rows,
         'margin_kpis': margin_kpis,
         'margin_insight_cards': margin_insight_cards,
+        'profit_contribution_rows': profit_contribution_rows,
+        'contribution_chart_rows': contribution_chart_rows,
+        'contribution_kpis': contribution_kpis,
+        'contribution_insight_cards': contribution_insight_cards,
         'profit_view_mode': profit_view_mode,
         'profit_tree_auto_expand': profit_view_mode == 'product',
         'profit_category_filter': profit_category_filter,
@@ -4667,6 +5186,7 @@ def report_view(request):
         'revenue_category_filter': revenue_category_filter,
         'revenue_rank': revenue_rank,
         'cash_granularity': cash_granularity,
+        'expense_granularity': expense_granularity,
         'category_filter_options': category_filter_options,
         'category_option_tree': category_option_tree,
         'profit_roots': profit_roots,

@@ -5,7 +5,7 @@
 {% block title %}Phân tích chuyên sâu - Pixiu Flow{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'core/css/analytics.css' %}?v=20260605-revenue-drilldown">
+<link rel="stylesheet" href="{% static 'core/css/analytics.css' %}?v=20260606-cashflow-chart-table">
 {% endblock %}
 
 {% block content %}
@@ -29,8 +29,10 @@
             <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
             <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
             <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+            <input type="hidden" name="revenue_granularity" value="{{ revenue_granularity }}">
             <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
             <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
+            <input type="hidden" name="profit_granularity" value="{{ profit_granularity }}">
             <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
             <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
             <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
@@ -52,93 +54,103 @@
             <button type="submit">Áp dụng</button>
         </form>
         <main class="analytics-main">
-            <section class="analytics-card analytics-cash-accounting-card">
-                <div class="analytics-card-head">
-                    <h2><i data-lucide="scale"></i> Dòng tiền và lãi/lỗ</h2>
-                    <span>Hai góc nhìn khác nhau cho cùng kỳ báo cáo</span>
-                </div>
-                <div class="analytics-dual-metrics">
-                    <article>
-                        <span>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Số tiền đã bán/đã ghi đơn trong kỳ. Khách chưa trả tiền vẫn tính ở đây vì việc bán hàng đã xảy ra. Dùng để hiểu kỳ này cửa hàng tạo ra bao nhiêu doanh thu, không phải tiền thật đã thu.">?</span></span>
-                        <strong>{{ recognized_revenue|vnd }}</strong>
-                        <small>Đã bán/đã ghi đơn, kể cả khách còn nợ.</small>
-                    </article>
-                    <article>
-                        <span>Giá vốn hàng bán <span class="metric-info" data-tooltip="Giá nhập tại thời điểm bán nhân với số lượng đã bán trong kỳ. Hàng nhập kho nhưng chưa bán không tính là chi phí lãi/lỗ.">?</span></span>
-                        <strong>{{ cogs|vnd }}</strong>
-                        <small>Chỉ tính hàng đã bán trong kỳ.</small>
-                    </article>
-                    <article>
-                        <span>Chi phí vận hành <span class="metric-info" data-tooltip="Mặt bằng, điện, lương, chi phí khác và khấu hao thiết bị. Không bao gồm nhập hàng tồn kho.">?</span></span>
-                        <strong>{{ operating_expense|vnd }}</strong>
-                        <small>Chi phí chung của cửa hàng.</small>
-                    </article>
-                    <article>
-                        <span>Lợi nhuận thuần <span class="metric-info" data-tooltip="Công thức: Doanh thu ghi nhận trừ giá vốn hàng bán và chi phí vận hành. Đây là lãi/lỗ theo ghi nhận, không phải dòng tiền.">?</span></span>
-                        <strong>{{ net_profit|vnd }}</strong>
-                        <small>Lợi nhuận gộp trừ chi phí vận hành.</small>
-                    </article>
-                    <article>
-                        <span>Tiền vào <span class="metric-info" data-tooltip="Số tiền thật sự đã thu trong kỳ. Nếu khách còn nợ, khoản đó chưa được tính vào đây. Dùng để xem tiền đang chảy vào cửa hàng.">?</span></span>
-                        <strong>{{ cash_income|vnd }}</strong>
-                        <small>Chỉ gồm khoản khách đã trả tiền.</small>
-                    </article>
-                    <article>
-                        <span>Tiền ra <span class="metric-info" data-tooltip="Số tiền thật sự đã chi trong kỳ. Nếu bạn còn nợ NCC hoặc chưa trả một khoản chi phí, khoản đó chưa tính vào đây cho đến khi xác nhận đã thanh toán.">?</span></span>
-                        <strong>{{ cash_outflow|vnd }}</strong>
-                        <small>Chỉ gồm khoản đã trả tiền thật.</small>
-                    </article>
-                    <article>
-                        <span>Dòng tiền thuần <span class="metric-info" data-tooltip="Công thức: Tiền vào trừ Tiền ra. Số này cho biết trong kỳ tiền thật tăng hay giảm. Nó khác lợi nhuận: bạn có thể bán có lời nhưng dòng tiền vẫn âm nếu khách chưa trả tiền hoặc bạn vừa chi nhiều tiền.">?</span></span>
-                        <strong>{{ net_cash_flow|vnd }}</strong>
-                        <small>Tiền vào trừ tiền ra.</small>
-                    </article>
-                </div>
-            </section>
+            <div class="analytics-main-tabs" role="tablist" aria-label="Phân tích chuyên sâu">
+                <button type="button" class="analytics-main-tab is-active" data-main-tab="revenue">
+                    <span><i data-lucide="trending-up"></i></span> Doanh thu
+                </button>
+                <button type="button" class="analytics-main-tab" data-main-tab="profit">
+                    <span><i data-lucide="line-chart"></i></span> Lợi nhuận
+                </button>
+                <button type="button" class="analytics-main-tab" data-main-tab="expense">
+                    <span><i data-lucide="bar-chart-3"></i></span> Chi phí
+                </button>
+                <button type="button" class="analytics-main-tab" data-main-tab="cashflow">
+                    <span><i data-lucide="banknote"></i></span> Dòng tiền
+                </button>
+                <button type="button" class="analytics-main-tab" data-main-tab="inventory">
+                    <span><i data-lucide="package"></i></span> Tồn kho
+                </button>
+            </div>
 
-            <section class="analytics-card analytics-revenue-card">
+            <div class="analytics-main-pane is-active" data-main-pane="revenue">
+                <section class="analytics-card analytics-revenue-card">
                 <div class="analytics-card-head">
-                    <h2><i data-lucide="trending-up"></i> Doanh thu & lợi nhuận gộp</h2>
-                    <span style="font-size: 0.875rem; color: var(--text-light); font-weight: 500;">Lãi gộp: {{ gross_profit|vnd }}</span>
+                    <h2><i data-lucide="trending-up"></i> Doanh thu</h2>
+                    <span>Bán được bao nhiêu và từ đâu?</span>
                 </div>
 
-                <div class="revenue-kpi-row">
-                    <article>
-                        <span>Doanh thu</span>
+                <div class="revenue-overview-kpis">
+                    <article class="revenue-kpi-card revenue-kpi-card--primary">
+                        <span>Tổng doanh thu</span>
                         <strong>{{ recognized_revenue|vnd }}</strong>
-                        <small>Doanh thu ghi nhận trong kỳ.</small>
+                        <small>{% if revenue_total_growth %}{% if revenue_total_growth > 0 %}+{% endif %}{{ revenue_total_growth }}% so kỳ trước{% else %}Kể cả khách chưa trả{% endif %}</small>
                     </article>
-                    <article>
-                        <span>Giá vốn</span>
-                        <strong>{{ cogs|vnd }}</strong>
-                        <small>Giá vốn hàng đã bán.</small>
+                    <article class="revenue-kpi-card revenue-kpi-card--cash">
+                        <span>Đã thu thực tế</span>
+                        <strong>{{ revenue_collected|vnd }}</strong>
+                        <small>{{ revenue_collection_rate }}% đã thanh toán</small>
                     </article>
-                    <article>
-                        <span>Lãi gộp</span>
-                        <strong>{{ gross_profit|vnd }}</strong>
-                        <small>Doanh thu trừ giá vốn.</small>
+                    <article class="revenue-kpi-card revenue-kpi-card--debt">
+                        <span>Công nợ chưa thu</span>
+                        <strong>{{ revenue_uncollected|vnd }}</strong>
+                        <small>{{ revenue_uncollected_order_count }} đơn chờ thanh toán</small>
+                    </article>
+                    <article class="revenue-kpi-card">
+                        <span>Số đơn bán</span>
+                        <strong>{{ revenue_order_count }} đơn</strong>
+                        <small>TB/ngày {{ revenue_orders_per_day }} đơn</small>
+                    </article>
+                    <article class="revenue-kpi-card">
+                        <span>Doanh thu/đơn TB</span>
+                        <strong>{{ revenue_avg_order_value|vnd }}</strong>
+                        <small>Theo số dòng bán hàng</small>
+                    </article>
+                    <article class="revenue-kpi-card">
+                        <span>Sản phẩm bán chạy</span>
+                        <strong>{% if top_revenue_product %}{{ top_revenue_product.product__name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
+                        <small>{% if top_revenue_product %}{{ top_revenue_product.units }} {{ top_revenue_product.product__unit|default:'đơn vị' }} · {{ top_revenue_product.revenue|vnd }} DT{% endif %}</small>
                     </article>
                 </div>
 
                 <div class="analytics-tabs" data-revenue-tabs>
-                    <div class="analytics-tab-list" role="tablist" aria-label="Doanh thu và lợi nhuận gộp">
+                    <div class="analytics-tab-list" role="tablist" aria-label="Doanh thu">
                         <button type="button" class="is-active" data-revenue-tab-button="trend">Xu hướng theo thời gian</button>
-                        <button type="button" data-revenue-tab-button="contribution">Đóng góp theo sản phẩm/danh mục</button>
+                        <button type="button" data-revenue-tab-button="contribution">Theo sản phẩm/danh mục</button>
                     </div>
 
                     <div class="analytics-tab-panel is-active" data-revenue-tab-panel="trend">
                         <div class="analytics-revenue-grid">
                     <div
-                        class="analytics-layered-chart"
-                        data-chart-points='{{ chart_points_json|safe }}'
-                        data-view-mode="{{ revenue_view_mode }}"
-                        data-category-filter="{{ revenue_category_filter }}"
+                        class="analytics-revenue-combo-chart"
+                        data-revenue-combo-chart
                     >
-                        <div class="layered-chart-head" data-layered-chart-head></div>
-                        <div class="layered-chart-legend" data-layered-chart-legend></div>
-                        <div class="layered-chart-canvas" data-layered-chart-canvas></div>
-                        <p class="layered-chart-hint" data-layered-chart-hint>Nhấn vào tháng để xem chi tiết</p>
-                        <div class="layered-chart-tooltip" data-layered-chart-tooltip hidden></div>
+                        <script type="application/json" id="revenue-combo-chart-points">{{ revenue_chart_points_json|safe }}</script>
+                        <form method="get" class="analytics-switch analytics-switch--form">
+                            <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                            <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                            <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+                            <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                            <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                            <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
+                            <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
+                            <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
+                            <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
+                            <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                            <input type="hidden" name="profit_granularity" value="{{ profit_granularity }}">
+                            <span>Gom theo</span>
+                            <select name="revenue_granularity" data-auto-submit>
+                                <option value="day" {% if revenue_granularity == 'day' %}selected{% endif %}>Ngày</option>
+                                <option value="week" {% if revenue_granularity == 'week' %}selected{% endif %}>Tuần</option>
+                                <option value="month" {% if revenue_granularity == 'month' %}selected{% endif %}>Tháng</option>
+                                <option value="year" {% if revenue_granularity == 'year' %}selected{% endif %}>Năm</option>
+                            </select>
+                        </form>
+                        <div class="revenue-combo-legend">
+                            <span><i class="revenue-combo-revenue"></i>Doanh thu</span>
+                            <span><i class="revenue-combo-orders"></i>Đơn hàng</span>
+                        </div>
+                        <div class="revenue-combo-canvas" data-revenue-combo-canvas></div>
+                        <div class="revenue-combo-tooltip" data-revenue-combo-tooltip hidden></div>
                     </div>
 
                     <div class="analytics-revenue-table-panel">
@@ -147,24 +159,20 @@
                                 <tr>
                                     <th>Kỳ</th>
                                     <th>Doanh thu</th>
-                                    <th>Giá vốn</th>
-                                    <th>Lãi gộp</th>
-                                    <th>Tăng trưởng doanh thu</th>
-                                    <th>Tăng trưởng lãi gộp</th>
+                                    <th>Số đơn</th>
+                                    <th>Doanh thu/đơn TB</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for row in revenue_trend_rows %}
+                                {% for row in revenue_time_rows %}
                                 <tr>
                                     <td>{{ row.label }}</td>
                                     <td><b>{{ row.revenue|vnd }}</b></td>
-                                    <td>{{ row.cogs|vnd }}</td>
-                                    <td class="{% if row.gross_profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ row.gross_profit|vnd }}</b></td>
-                                    <td class="{% if row.revenue_growth < 0 %}negative{% else %}positive{% endif %}">{% if row.revenue_growth == None %}--{% else %}{{ row.revenue_growth }}%{% endif %}</td>
-                                    <td class="{% if row.gross_profit_growth < 0 %}negative{% else %}positive{% endif %}">{% if row.gross_profit_growth == None %}--{% else %}{{ row.gross_profit_growth }}%{% endif %}</td>
+                                    <td>{{ row.orders }}</td>
+                                    <td>{{ row.avg_order|vnd }}</td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="6">Chưa có dữ liệu.</td></tr>
+                                <tr><td colspan="4">Chưa có dữ liệu.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -174,8 +182,8 @@
 
                     <div class="analytics-tab-panel" data-revenue-tab-panel="contribution" hidden>
                         <div class="revenue-contribution-local" data-revenue-contribution>
-                            <script type="application/json" id="revenue-contribution-data">{{ revenue_contribution_data_json|safe }}</script>
-                            <div class="revenue-contribution-control-bar">
+                            <script type="application/json" data-contribution-data>{{ revenue_contribution_data_json|safe }}</script>
+                            <div class="revenue-contribution-control-bar analytics-profit-controls">
                                 <label>
                                     <span>Phân tích theo</span>
                                     <select data-contribution-view>
@@ -184,43 +192,86 @@
                                     </select>
                                 </label>
                                 <label>
-                                    <span>Chỉ số</span>
-                                    <select data-contribution-metric>
-                                        <option value="revenue">Doanh thu</option>
-                                        <option value="gross_profit">Lãi gộp</option>
-                                    </select>
+                                    <span>Danh mục</span>
+                                    <div class="analytics-category-picker" data-contribution-category-picker>
+                                        <button type="button" class="analytics-category-picker__trigger" data-contribution-category-trigger>Tất cả danh mục</button>
+                                        <div class="analytics-category-picker__menu" data-contribution-category-menu hidden>
+                                            <button type="button" class="analytics-category-option" data-category-value="">Tất cả danh mục</button>
+                                            {% for node in category_option_tree %}
+                                            <div class="analytics-category-node analytics-category-node--level-1">
+                                                <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                                <button type="button" class="analytics-category-option" data-category-value="{{ node.path }}">{{ node.name }}</button>
+                                            </div>
+                                            <div class="analytics-category-children" hidden>
+                                                {% for child in node.children_list %}
+                                                <div class="analytics-category-node analytics-category-node--level-2">
+                                                    <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                                    <button type="button" class="analytics-category-option" data-category-value="{{ child.path }}">{{ child.name }}</button>
+                                                </div>
+                                                <div class="analytics-category-children" hidden>
+                                                    {% for grandchild in child.children_list %}
+                                                    <div class="analytics-category-node analytics-category-node--level-3">
+                                                        <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                                        <button type="button" class="analytics-category-option" data-category-value="{{ grandchild.path }}">{{ grandchild.name }}</button>
+                                                    </div>
+                                                    <div class="analytics-category-children" hidden>
+                                                        {% for leaf in grandchild.children_list %}
+                                                        <div class="analytics-category-node analytics-category-node--level-4">
+                                                            <span></span>
+                                                            <button type="button" class="analytics-category-option" data-category-value="{{ leaf.path }}">{{ leaf.name }}</button>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
                                 </label>
                                 <label>
                                     <span>Hiển thị</span>
                                     <select data-contribution-limit>
                                         <option value="top10">Top 10</option>
+                                        <option value="bottom10">Bottom 10</option>
                                         <option value="all">Tất cả</option>
                                     </select>
                                 </label>
+                                <input type="hidden" data-contribution-metric value="revenue">
                             </div>
-                            <div class="revenue-contribution-breadcrumb" data-contribution-breadcrumb></div>
-                            <div class="revenue-contribution-nav">
-                                <button type="button" data-contribution-back>← Quay lại cấp trên</button>
-                                <button type="button" data-contribution-open-all>Mở tất cả</button>
-                                <button type="button" data-contribution-collapse>Thu gọn</button>
-                            </div>
-                            <div class="revenue-ranking-chart" data-contribution-chart></div>
-                            <p class="revenue-contribution-hint">Nhấn vào một danh mục để xem nhóm con hoặc sản phẩm bên trong.</p>
-                            <div class="analytics-revenue-table-panel">
-                                <table class="analytics-mini-table revenue-contribution-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Tên</th>
-                                            <th>SL bán</th>
-                                            <th>Doanh thu</th>
-                                            <th>Giá vốn</th>
-                                            <th>Lãi gộp</th>
-                                            <th>Tỷ trọng doanh thu</th>
-                                            <th>Tỷ trọng lãi gộp</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody data-contribution-table-body></tbody>
-                                </table>
+                            
+                            <div class="margin-analysis-layout">
+                                <div class="margin-analysis-main">
+                                    <div class="margin-ranking-chart" data-contribution-chart></div>
+                                    
+                                    <div class="margin-detail-table-wrap">
+                                        <div class="tree-level-legend" aria-label="Chú thích cấp danh mục">
+                                            <span><i class="tree-legend-main"></i>Danh mục chính</span>
+                                            <span><i class="tree-legend-sub"></i>Danh mục phụ</span>
+                                            <span><i class="tree-legend-group"></i>Nhóm sản phẩm</span>
+                                            <span><i class="tree-legend-product"></i>Sản phẩm</span>
+                                        </div>
+                                        <div class="margin-table-actions">
+                                            <button type="button" data-contribution-open-all>Mở tất cả</button>
+                                            <button type="button" data-contribution-collapse>Thu gọn</button>
+                                        </div>
+                                        <table class="analytics-mini-table margin-detail-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Sản phẩm / Danh mục</th>
+                                                    <th>Số lượng bán</th>
+                                                    <th>Doanh thu</th>
+                                                    <th>Giá vốn</th>
+                                                    <th>Lợi nhuận gộp</th>
+                                                    <th>Biên lợi nhuận gộp</th>
+                                                    <th>Tỷ trọng doanh thu</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="analytics-profit-tree margin-profit-tree" data-contribution-table-body></tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <form method="get" class="analytics-profit-controls analytics-local-controls">
@@ -229,9 +280,11 @@
                             <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
                             <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
                             <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                            <input type="hidden" name="profit_granularity" value="{{ profit_granularity }}">
                             <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
                             <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
                             <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                            <input type="hidden" name="revenue_granularity" value="{{ revenue_granularity }}">
                             <span>Phân tách theo</span>
                             <select name="revenue_view" data-auto-submit>
                                 <option value="category" {% if revenue_view_mode == 'category' %}selected{% endif %}>Danh mục</option>
@@ -285,7 +338,7 @@
                                 <div class="revenue-ranking-chart">
                                     <div class="revenue-ranking-legend">
                                         <span><i class="revenue-legend-revenue"></i>Doanh thu</span>
-                                        <span><i class="revenue-legend-profit"></i>Lãi gộp</span>
+                                        <span><i class="revenue-legend-profit"></i>Lợi nhuận gộp</span>
                                     </div>
                                     {% for item in revenue_contribution_chart_rows %}
                                     <div class="revenue-ranking-row">
@@ -308,10 +361,12 @@
                             <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
                             <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
                             <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                            <input type="hidden" name="profit_granularity" value="{{ profit_granularity }}">
                             <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
                             <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
                             <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
                             <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                            <input type="hidden" name="revenue_granularity" value="{{ revenue_granularity }}">
                             <span>Hiển thị trong bảng</span>
                             <select name="revenue_rank" data-auto-submit>
                                 <option value="all" {% if revenue_rank == 'all' %}selected{% endif %}>Tất cả</option>
@@ -328,16 +383,21 @@
                             <button type="button" id="collapseRevenueTree">Thu gọn</button>
                         </div>
                         {% endif %}
-                        <table class="analytics-mini-table">
+                        <div class="tree-level-legend" aria-label="Chú thích cấp danh mục">
+                            <span><i class="tree-legend-main"></i>Danh mục chính</span>
+                            <span><i class="tree-legend-sub"></i>Danh mục phụ</span>
+                            <span><i class="tree-legend-group"></i>Nhóm sản phẩm</span>
+                            <span><i class="tree-legend-product"></i>Sản phẩm</span>
+                        </div>
+                        <table class="analytics-mini-table tree-detail-table">
                             <thead>
                                 <tr>
                                     <th>{% if revenue_view_mode == 'product' %}Sản phẩm{% else %}Danh mục{% endif %}</th>
                                     <th>SL bán</th>
                                     <th>Doanh thu</th>
                                     <th>Giá vốn</th>
-                                    <th>Lãi gộp</th>
+                                    <th>Lợi nhuận gộp</th>
                                     <th>Tỷ trọng doanh thu</th>
-                                    <th>Tỷ trọng lãi gộp</th>
                                 </tr>
                             </thead>
                             <tbody class="analytics-revenue-tree">
@@ -349,8 +409,7 @@
                                 <td><b>{{ node.total|vnd }}</b></td>
                                 <td>{{ node.cogs|vnd }}</td>
                                 <td class="{% if node.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ node.profit|vnd }}</b></td>
-                                <td>{{ node.revenue_share }}%</td>
-                                <td>{{ node.profit_share }}%</td>
+                                <td><span class="tree-share-meter"><span>{{ node.revenue_share }}%</span><i><b style="width: {{ node.revenue_share }}%;"></b></i></span></td>
                             </tr>
                                 {% for child in node.children_list %}
                                 <tr data-revenue-row="{{ child.path }}" data-revenue-parent="{{ node.path }}" data-revenue-level="2" hidden>
@@ -359,8 +418,7 @@
                                     <td><b>{{ child.total|vnd }}</b></td>
                                     <td>{{ child.cogs|vnd }}</td>
                                     <td class="{% if child.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ child.profit|vnd }}</b></td>
-                                    <td>{{ child.revenue_share }}%</td>
-                                    <td>{{ child.profit_share }}%</td>
+                                    <td><span class="tree-share-meter"><span>{{ child.revenue_share }}%</span><i><b style="width: {{ child.revenue_share }}%;"></b></i></span></td>
                                 </tr>
                                     {% for grandchild in child.children_list %}
                                     <tr data-revenue-row="{{ grandchild.path }}" data-revenue-parent="{{ child.path }}" data-revenue-level="3" hidden>
@@ -369,8 +427,7 @@
                                         <td><b>{{ grandchild.total|vnd }}</b></td>
                                         <td>{{ grandchild.cogs|vnd }}</td>
                                         <td class="{% if grandchild.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ grandchild.profit|vnd }}</b></td>
-                                        <td>{{ grandchild.revenue_share }}%</td>
-                                        <td>{{ grandchild.profit_share }}%</td>
+                                        <td><span class="tree-share-meter"><span>{{ grandchild.revenue_share }}%</span><i><b style="width: {{ grandchild.revenue_share }}%;"></b></i></span></td>
                                     </tr>
                                         {% for leaf in grandchild.children_list %}
                                         <tr data-revenue-row="{{ leaf.path }}" data-revenue-parent="{{ grandchild.path }}" data-revenue-level="4" hidden>
@@ -379,14 +436,13 @@
                                             <td><b>{{ leaf.total|vnd }}</b></td>
                                             <td>{{ leaf.cogs|vnd }}</td>
                                             <td class="{% if leaf.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ leaf.profit|vnd }}</b></td>
-                                            <td>{{ leaf.revenue_share }}%</td>
-                                            <td>{{ leaf.profit_share }}%</td>
+                                            <td><span class="tree-share-meter"><span>{{ leaf.revenue_share }}%</span><i><b style="width: {{ leaf.revenue_share }}%;"></b></i></span></td>
                                         </tr>
                                         {% endfor %}
                                     {% endfor %}
                                 {% endfor %}
                             {% empty %}
-                            <tr><td colspan="7">Chưa có dữ liệu.</td></tr>
+                            <tr><td colspan="6">Chưa có dữ liệu.</td></tr>
                             {% endfor %}
                             {% else %}
                             {% for item in revenue_by_category %}
@@ -396,11 +452,10 @@
                                 <td><b>{{ item.total|vnd }}</b></td>
                                 <td>{{ item.cogs|vnd }}</td>
                                 <td class="{% if item.profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ item.profit|vnd }}</b></td>
-                                <td>{{ item.share }}%</td>
-                                <td>{{ item.profit_share }}%</td>
+                                <td><span class="tree-share-meter"><span>{{ item.share }}%</span><i><b style="width: {{ item.share }}%;"></b></i></span></td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="7">Chưa có dữ liệu.</td></tr>
+                            <tr><td colspan="6">Chưa có dữ liệu.</td></tr>
                             {% endfor %}
                             {% endif %}
                             <tr class="analytics-total-row">
@@ -409,8 +464,7 @@
                                 <td><b>{{ recognized_revenue|vnd }}</b></td>
                                 <td>{{ cogs|vnd }}</td>
                                 <td class="{% if gross_profit < 0 %}negative{% else %}positive{% endif %}"><b>{{ gross_profit|vnd }}</b></td>
-                                <td>100%</td>
-                                <td>100%</td>
+                                <td><span class="tree-share-meter"><span>100%</span><i><b style="width: 100%;"></b></i></span></td>
                             </tr>
                             </tbody>
                         </table>
@@ -432,79 +486,549 @@
                     </div>
                 </div>
             </section>
+            </div>
 
-            <section class="analytics-card analytics-cashflow-card">
+            <div class="analytics-main-pane" data-main-pane="profit" hidden>
+                <section class="analytics-card analytics-profit-summary-card">
                 <div class="analytics-card-head">
-                    <h2><i data-lucide="banknote"></i> Phân tích dòng tiền</h2>
-                    <span>Chỉ tính tiền thật đã thu và đã chi</span>
+                    <h2><i data-lucide="line-chart"></i> Phân tích lợi nhuận</h2>
+                    <span>Chỉ tập trung vào lợi nhuận gộp và lợi nhuận thuần</span>
                 </div>
-                <form method="get" class="analytics-profit-controls analytics-local-controls">
-                    <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
-                    <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
-                    <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
-                    <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
-                    <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
-                    <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
-                    <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
-                    <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
-                    <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
-                    <span>Gom theo</span>
-                    <select name="cash_granularity" data-auto-submit>
-                        <option value="month" {% if cash_granularity == 'month' %}selected{% endif %}>Tháng</option>
-                        <option value="week" {% if cash_granularity == 'week' %}selected{% endif %}>Tuần</option>
-                        <option value="day" {% if cash_granularity == 'day' %}selected{% endif %}>Ngày</option>
-                        <option value="year" {% if cash_granularity == 'year' %}selected{% endif %}>Năm</option>
-                    </select>
-                    <button type="submit">Áp dụng</button>
-                </form>
-                <div class="analytics-revenue-grid">
-                    <div class="analytics-combo-chart">
-                        <div class="analytics-cash-chart" data-cash-chart>
-                            <div class="cash-chart-legend">
-                                <span><i class="cash-in"></i>Tiền thực thu</span>
-                                <span><i class="cash-out"></i>Tiền thực chi</span>
-                                <span><i class="cash-net"></i>Dòng tiền thuần</span>
-                            </div>
-                            <div class="cash-chart-canvas" data-cash-chart-canvas></div>
-                            <p class="cash-chart-hint">Nhấn vào cột để xem chi tiết tiền vào / tiền ra</p>
-                            <div class="cash-chart-tooltip" data-cash-chart-tooltip hidden></div>
-                            <div class="cash-chart-detail" data-cash-chart-detail hidden></div>
-                        </div>
-                        {{ cash_chart_points|json_script:"cash-chart-points" }}
-                    </div>
-                    <div class="analytics-revenue-table-panel">
-                        <table class="analytics-mini-table">
-                            <thead>
-                                <tr><th>Kỳ</th><th>Tiền vào</th><th>Tiền ra</th><th>Thuần</th><th>Số dư tích lũy</th><th>Tỉ lệ thu hồi</th></tr>
-                            </thead>
-                            <tbody>
-                                {% for row in cash_chart_rows %}
-                                <tr>
-                                    <td>{{ row.label }}</td>
-                                    <td><b>{{ row.cash_in|vnd }}</b></td>
-                                    <td>{{ row.cash_out|vnd }}</td>
-                                    <td class="{% if row.net < 0 %}negative{% else %}positive{% endif %}"><b>{{ row.net|vnd }}</b></td>
-                                    <td class="{% if row.running_balance < 0 %}negative{% else %}positive{% endif %}"><b>{{ row.running_balance|vnd }}</b></td>
-                                    <td>{% if row.collection_rate == None %}--{% else %}{{ row.collection_rate }}%{% endif %}</td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="6">Chưa có dòng tiền trong kỳ.</td></tr>
-                                {% endfor %}
-                                <tr class="analytics-total-row">
-                                    <td>Tổng cộng</td>
-                                    <td><b>{{ cash_income|vnd }}</b></td>
-                                    <td>{{ cash_outflow|vnd }}</td>
-                                    <td class="{% if net_cash_flow < 0 %}negative{% else %}positive{% endif %}"><b>{{ net_cash_flow|vnd }}</b></td>
-                                    <td class="{% if net_cash_flow < 0 %}negative{% else %}positive{% endif %}"><b>{{ net_cash_flow|vnd }}</b></td>
-                                    <td>{% if total_income %}{{ cash_income|percentage_of:total_income }}{% else %}--{% endif %}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                <div class="margin-kpi-row profit-summary-kpis">
+                    <article>
+                        <span>Lợi nhuận gộp</span>
+                        <strong>{{ gross_profit|vnd }}</strong>
+                        <small>Tổng lợi nhuận từ doanh thu trừ giá vốn.</small>
+                    </article>
+                    <article>
+                        <span>Lợi nhuận thuần</span>
+                        <strong>{{ net_profit|vnd }}</strong>
+                        <small>Lợi nhuận gộp trừ chi phí vận hành.</small>
+                    </article>
+                    <article>
+                        <span>Biên lợi nhuận gộp TB</span>
+                        <strong>{{ margin_kpis.average_margin }}%</strong>
+                        <small>Tính trên doanh thu và lợi nhuận gộp trong kỳ.</small>
+                    </article>
+                    <article>
+                        <span>Điểm hòa vốn</span>
+                        <strong>{% if break_even_revenue %}{{ break_even_revenue|vnd }}{% else %}Chưa xác định{% endif %}</strong>
+                        <small>{% if break_even_gap > 0 %}Cần thêm {{ break_even_gap|vnd }} DT{% elif break_even_revenue %}Đã vượt điểm hòa vốn{% else %}Biên gộp chưa dương{% endif %}</small>
+                    </article>
+                    <article>
+                        <span>Lợi nhuận gộp/đơn vị TB</span>
+                        <strong>{{ margin_kpis.average_profit_per_unit|vnd }}</strong>
+                        <small>Lợi nhuận gộp chia tổng số lượng bán.</small>
+                    </article>
                 </div>
-            </section>
 
-            <section class="analytics-card analytics-expense-card">
+                <div class="analytics-tabs analytics-profit-tabs" data-profit-tabs>
+                    <div class="analytics-tab-list analytics-profit-view-tabs" role="tablist" aria-label="Phân tích lợi nhuận">
+                        <button type="button" class="is-active" data-profit-tab-button="trend">Theo thời gian</button>
+                        <button type="button" data-profit-tab-button="category">Theo sản phẩm/danh mục</button>
+                    </div>
+
+                    <div class="analytics-tab-panel is-active" data-profit-tab-panel="trend">
+                        <form method="get" class="analytics-profit-controls analytics-profit-controls--time">
+                            <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                            <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                            <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
+                            <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
+                            <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+                            <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                            <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                            <input type="hidden" name="revenue_granularity" value="{{ revenue_granularity }}">
+                            <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
+                            <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
+                            <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                            <label>
+                                <span>Gom thời gian</span>
+                                <select name="profit_granularity" data-auto-submit>
+                                    <option value="day" {% if profit_granularity == 'day' %}selected{% endif %}>Ngày</option>
+                                    <option value="week" {% if profit_granularity == 'week' %}selected{% endif %}>Tuần</option>
+                                    <option value="month" {% if profit_granularity == 'month' %}selected{% endif %}>Tháng</option>
+                                    <option value="year" {% if profit_granularity == 'year' %}selected{% endif %}>Năm</option>
+                                </select>
+                            </label>
+                            <button type="submit">Áp dụng</button>
+                        </form>
+                        <div
+                            class="analytics-layered-chart"
+                            data-chart-points='{{ profit_time_chart_points_json|safe }}'
+                            data-view-mode="category"
+                            data-category-filter=""
+                            data-profit-only="1"
+                        >
+                            <div class="layered-chart-head" data-layered-chart-head></div>
+                            <div class="layered-chart-legend" data-layered-chart-legend></div>
+                            <div class="layered-chart-canvas" data-layered-chart-canvas></div>
+                            <p class="layered-chart-hint" data-layered-chart-hint>Nhấn vào tháng để xem chi tiết lợi nhuận</p>
+                            <div class="layered-chart-tooltip" data-layered-chart-tooltip hidden></div>
+                        </div>
+                    </div>
+
+                    <div class="analytics-tab-panel" data-profit-tab-panel="category" hidden>
+                        <div class="analytics-tabs analytics-profit-detail-tabs" data-profit-sub-tabs>
+                            <div class="analytics-tab-list analytics-profit-metric-tabs" role="tablist">
+                                <button type="button" class="is-active" data-profit-sub-tab-button="contribution">Đóng góp lợi nhuận</button>
+                                <button type="button" data-profit-sub-tab-button="margin">Biên lợi nhuận</button>
+                            </div>
+                            
+                            <form method="get" class="analytics-profit-controls analytics-profit-controls--category">
+                                <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                                <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                                <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
+                                <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
+                                <input type="hidden" name="profit_granularity" value="{{ profit_granularity }}">
+                                <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+                                <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                                <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                                <input type="hidden" name="revenue_granularity" value="{{ revenue_granularity }}">
+                                <label>
+                                    <span>Nhóm dữ liệu</span>
+                                    <select name="profit_view" data-auto-submit>
+                                        <option value="category" {% if profit_view_mode == 'category' %}selected{% endif %}>Theo danh mục</option>
+                                        <option value="product" {% if profit_view_mode == 'product' %}selected{% endif %}>Theo sản phẩm</option>
+                                    </select>
+                                </label>
+                                <input type="hidden" name="profit_category" id="profitCategoryInput" value="{{ profit_category_filter }}">
+                                <div class="analytics-category-picker analytics-profit-filter-field" id="profitCategoryPicker">
+                                    <span>Phạm vi danh mục</span>
+                                    <button type="button" class="analytics-category-picker__trigger" id="profitCategoryTrigger">
+                                        {% if profit_category_filter %}{{ profit_category_filter }}{% else %}Tất cả danh mục{% endif %}
+                                    </button>
+                                    <div class="analytics-category-picker__menu" id="profitCategoryMenu" hidden>
+                                        <button type="button" class="analytics-category-option" data-category-value="">Tất cả danh mục</button>
+                                        {% for node in category_option_tree %}
+                                        <div class="analytics-category-node analytics-category-node--level-1">
+                                            <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                            <button type="button" class="analytics-category-option" data-category-value="{{ node.path }}">{{ node.name }}</button>
+                                        </div>
+                                        <div class="analytics-category-children" hidden>
+                                            {% for child in node.children_list %}
+                                            <div class="analytics-category-node analytics-category-node--level-2">
+                                                <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                                <button type="button" class="analytics-category-option" data-category-value="{{ child.path }}">{{ child.name }}</button>
+                                            </div>
+                                            <div class="analytics-category-children" hidden>
+                                                {% for grandchild in child.children_list %}
+                                                <div class="analytics-category-node analytics-category-node--level-3">
+                                                    <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
+                                                    <button type="button" class="analytics-category-option" data-category-value="{{ grandchild.path }}">{{ grandchild.name }}</button>
+                                                </div>
+                                                <div class="analytics-category-children" hidden>
+                                                    {% for leaf in grandchild.children_list %}
+                                                    <div class="analytics-category-node analytics-category-node--level-4">
+                                                        <span></span>
+                                                        <button type="button" class="analytics-category-option" data-category-value="{{ leaf.path }}">{{ leaf.name }}</button>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <label>
+                                    <span>Xếp hạng</span>
+                                    <select name="profit_rank" data-auto-submit>
+                                        <option value="top10" {% if profit_rank == 'top10' %}selected{% endif %}>Top 10</option>
+                                        <option value="bottom10" {% if profit_rank == 'bottom10' %}selected{% endif %}>Bottom 10</option>
+                                        <option value="all" {% if profit_rank == 'all' %}selected{% endif %}>Tất cả</option>
+                                    </select>
+                                </label>
+                            </form>
+
+                            <div class="analytics-tab-panel is-active" data-profit-sub-tab-panel="contribution">
+                                <div class="margin-kpi-row">
+                                    <article>
+                                        <span>Top sản phẩm</span>
+                                        <strong>{% if contribution_kpis.top_product %}{{ contribution_kpis.top_product.profit|vnd }}{% else %}0đ{% endif %}</strong>
+                                        <small>{% if contribution_kpis.top_product %}{{ contribution_kpis.top_product.name }} ({{ contribution_kpis.top_product.profit_share }}%){% else %}Chưa có dữ liệu{% endif %}</small>
+                                    </article>
+                                    <article>
+                                        <span>Top danh mục</span>
+                                        <strong>{% if contribution_kpis.top_category %}{{ contribution_kpis.top_category.profit|vnd }}{% else %}0đ{% endif %}</strong>
+                                        <small>{% if contribution_kpis.top_category %}{{ contribution_kpis.top_category.name }} ({{ contribution_kpis.top_category.profit_share }}%){% else %}Chưa có dữ liệu{% endif %}</small>
+                                    </article>
+                                    {% if contribution_kpis.loss_count > 0 %}
+                                    <article>
+                                        <span>Lỗ nhiều nhất</span>
+                                        <strong class="negative">{% if contribution_kpis.worst_loss %}{{ contribution_kpis.worst_loss.profit|vnd }}{% endif %}</strong>
+                                        <small>{{ contribution_kpis.loss_count }} item đang bán lỗ</small>
+                                    </article>
+                                    {% endif %}
+                                </div>
+
+                                <div class="margin-analysis-layout {% if contribution_insight_cards %}has-insights{% endif %}">
+                                    <div class="margin-analysis-main">
+                                        <div class="margin-ranking-chart">
+                                            <div class="margin-ranking-head">
+                                                <div class="margin-ranking-legend">
+                                                    <span><b class="margin-legend-positive"></b>Lợi nhuận gộp</span>
+                                                    <span><b class="margin-legend-negative"></b>Giá trị âm</span>
+                                                </div>
+                                                <span>Tổng lợi nhuận gộp đóng góp vào toàn kỳ.</span>
+                                            </div>
+                                            {% for item in contribution_chart_rows %}
+                                            <div class="margin-ranking-row {% if item.is_negative %}is-negative{% endif %}">
+                                                <div class="margin-ranking-name">
+                                                    <strong>{{ item.name|truncatechars:34 }}</strong>
+                                                    <small>{{ item.suggestion }}</small>
+                                                </div>
+                                                <div class="margin-ranking-track" style="--bar-width: {{ item.bar_width }}%;">
+                                                    <span class="margin-ranking-fill"></span>
+                                                    <span class="margin-ranking-tooltip" role="tooltip">
+                                                        <strong>{{ item.name }}</strong>
+                                                        <span><i class="margin-tooltip-revenue"></i>Doanh thu: {{ item.revenue|vnd }}</span>
+                                                        <span><i class="margin-tooltip-cogs"></i>Giá vốn: {{ item.cogs|vnd }}</span>
+                                                        <span><i class="margin-tooltip-margin"></i>Lợi nhuận gộp: {{ item.profit|vnd }}</span>
+                                                    </span>
+                                                </div>
+                                                <div class="margin-ranking-values">
+                                                    <strong>{{ item.profit|vnd }}</strong>
+                                                    <small>SL bán: {{ item.quantity }} {{ item.quantity_label|default:'đơn vị' }}</small>
+                                                </div>
+                                            </div>
+                                            {% empty %}
+                                            <p class="analytics-empty">Chưa có dữ liệu đóng góp.</p>
+                                            {% endfor %}
+                                        </div>
+
+                                        <div class="margin-detail-table-wrap">
+                                            <div class="tree-level-legend" aria-label="Chú thích cấp danh mục">
+                                                <span><i class="tree-legend-main"></i>Danh mục chính</span>
+                                                <span><i class="tree-legend-sub"></i>Danh mục phụ</span>
+                                                <span><i class="tree-legend-group"></i>Nhóm sản phẩm</span>
+                                                <span><i class="tree-legend-product"></i>Sản phẩm</span>
+                                            </div>
+                                            <div class="margin-table-actions">
+                                                <button type="button" data-tree-expand="contribution-tree">Mở tất cả</button>
+                                                <button type="button" data-tree-collapse="contribution-tree">Thu gọn</button>
+                                            </div>
+                                            <table class="analytics-mini-table margin-detail-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Sản phẩm / Danh mục</th>
+                                                        <th>Số lượng bán</th>
+                                                        <th>Doanh thu</th>
+                                                        <th>Giá vốn</th>
+                                                        <th>Lợi nhuận gộp</th>
+                                                        <th>Biên lợi nhuận gộp</th>
+                                                        <th>Tỷ trọng LNG</th>
+                                                        <th>Gợi ý</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="analytics-profit-tree margin-profit-tree" id="contribution-tree" data-profit-auto-expand="{% if profit_tree_auto_expand %}1{% else %}0{% endif %}">
+                                                    {% for node in profit_tree_roots %}
+                                                    <tr data-profit-row="{{ node.path }}" data-profit-level="1">
+                                                        <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ node.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ node.name }}</b></td>
+                                                        <td>{{ node.quantity }}</td>
+                                                        <td>{{ node.revenue|vnd }}</td>
+                                                        <td>{{ node.cogs|vnd }}</td>
+                                                        <td class="{% if node.profit < 0 %}negative{% endif %}"><b>{{ node.profit|vnd }}</b></td>
+                                                        <td><span class="tree-margin-badge {% if node.margin >= 30 %}is-good{% elif node.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ node.margin }}%</span></td>
+                                                        <td>{{ node.profit_share }}%</td>
+                                                        <td><span class="margin-suggestion margin-suggestion--{{ node.suggestion_key }}">{{ node.suggestion }}</span></td>
+                                                    </tr>
+                                                        {% for product in node.products %}
+                                                        <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ node.path }}" data-profit-level="2" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                            <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                            <td>{{ product.quantity }}</td>
+                                                            <td>{{ product.revenue|vnd }}</td>
+                                                            <td>{{ product.cogs|vnd }}</td>
+                                                            <td class="{% if product.profit < 0 %}negative{% endif %}"><b>{{ product.profit|vnd }}</b></td>
+                                                            <td><span class="tree-margin-badge {% if product.margin >= 30 %}is-good{% elif product.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ product.margin }}%</span></td>
+                                                            <td>{{ product.profit_share }}%</td>
+                                                            <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                        {% for child in node.children_list %}
+                                                        <tr data-profit-row="{{ child.path }}" data-profit-parent="{{ node.path }}" data-profit-level="2" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                            <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ child.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ child.name }}</b></td>
+                                                            <td>{{ child.quantity }}</td>
+                                                            <td>{{ child.revenue|vnd }}</td>
+                                                            <td>{{ child.cogs|vnd }}</td>
+                                                            <td class="{% if child.profit < 0 %}negative{% endif %}"><b>{{ child.profit|vnd }}</b></td>
+                                                            <td><span class="tree-margin-badge {% if child.margin >= 30 %}is-good{% elif child.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ child.margin }}%</span></td>
+                                                            <td>{{ child.profit_share }}%</td>
+                                                            <td><span class="margin-suggestion margin-suggestion--{{ child.suggestion_key }}">{{ child.suggestion }}</span></td>
+                                                        </tr>
+                                                            {% for product in child.products %}
+                                                            <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ child.path }}" data-profit-level="3" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                                <td>{{ product.quantity }}</td>
+                                                                <td>{{ product.revenue|vnd }}</td>
+                                                                <td>{{ product.cogs|vnd }}</td>
+                                                                <td class="{% if product.profit < 0 %}negative{% endif %}"><b>{{ product.profit|vnd }}</b></td>
+                                                                <td><span class="tree-margin-badge {% if product.margin >= 30 %}is-good{% elif product.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ product.margin }}%</span></td>
+                                                                <td>{{ product.profit_share }}%</td>
+                                                                <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                            {% for grandchild in child.children_list %}
+                                                            <tr data-profit-row="{{ grandchild.path }}" data-profit-parent="{{ child.path }}" data-profit-level="3" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ grandchild.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ grandchild.name }}</b></td>
+                                                                <td>{{ grandchild.quantity }}</td>
+                                                                <td>{{ grandchild.revenue|vnd }}</td>
+                                                                <td>{{ grandchild.cogs|vnd }}</td>
+                                                                <td class="{% if grandchild.profit < 0 %}negative{% endif %}"><b>{{ grandchild.profit|vnd }}</b></td>
+                                                                <td><span class="tree-margin-badge {% if grandchild.margin >= 30 %}is-good{% elif grandchild.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ grandchild.margin }}%</span></td>
+                                                                <td>{{ grandchild.profit_share }}%</td>
+                                                                <td><span class="margin-suggestion margin-suggestion--{{ grandchild.suggestion_key }}">{{ grandchild.suggestion }}</span></td>
+                                                            </tr>
+                                                                {% for product in grandchild.products %}
+                                                                <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ grandchild.path }}" data-profit-level="4" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                    <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                                    <td>{{ product.quantity }}</td>
+                                                                    <td>{{ product.revenue|vnd }}</td>
+                                                                    <td>{{ product.cogs|vnd }}</td>
+                                                                    <td class="{% if product.profit < 0 %}negative{% endif %}"><b>{{ product.profit|vnd }}</b></td>
+                                                                    <td><span class="tree-margin-badge {% if product.margin >= 30 %}is-good{% elif product.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ product.margin }}%</span></td>
+                                                                    <td>{{ product.profit_share }}%</td>
+                                                                    <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                                {% for leaf in grandchild.children_list %}
+                                                                <tr data-profit-row="{{ leaf.path }}" data-profit-parent="{{ grandchild.path }}" data-profit-level="4" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                    <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ leaf.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ leaf.name }}</b></td>
+                                                                    <td>{{ leaf.quantity }}</td>
+                                                                    <td>{{ leaf.revenue|vnd }}</td>
+                                                                    <td>{{ leaf.cogs|vnd }}</td>
+                                                                    <td class="{% if leaf.profit < 0 %}negative{% endif %}"><b>{{ leaf.profit|vnd }}</b></td>
+                                                                    <td><span class="tree-margin-badge {% if leaf.margin >= 30 %}is-good{% elif leaf.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ leaf.margin }}%</span></td>
+                                                                    <td>{{ leaf.profit_share }}%</td>
+                                                                    <td><span class="margin-suggestion margin-suggestion--{{ leaf.suggestion_key }}">{{ leaf.suggestion }}</span></td>
+                                                                </tr>
+                                                                    {% for product in leaf.products %}
+                                                                    <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ leaf.path }}" data-profit-level="5" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                        <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                                        <td>{{ product.quantity }}</td>
+                                                                        <td>{{ product.revenue|vnd }}</td>
+                                                                        <td>{{ product.cogs|vnd }}</td>
+                                                                        <td class="{% if product.profit < 0 %}negative{% endif %}"><b>{{ product.profit|vnd }}</b></td>
+                                                                        <td><span class="tree-margin-badge {% if product.margin >= 30 %}is-good{% elif product.margin >= 20 %}is-ok{% else %}is-low{% endif %}">{{ product.margin }}%</span></td>
+                                                                        <td>{{ product.profit_share }}%</td>
+                                                                        <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                {% endfor %}
+                                                            {% endfor %}
+                                                        {% endfor %}
+                                                    {% empty %}
+                                                    <tr><td colspan="8">Chưa có dữ liệu đóng góp lợi nhuận.</td></tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    {% if contribution_insight_cards %}
+                                    <aside class="margin-insight-cards">
+                                        <h3>Insight cards</h3>
+                                        {% for card in contribution_insight_cards %}
+                                        <article>
+                                            <span>{{ card.title }}</span>
+                                            <p>{{ card.body }}</p>
+                                        </article>
+                                        {% endfor %}
+                                    </aside>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="analytics-tab-panel" data-profit-sub-tab-panel="margin" hidden>
+                                <div class="margin-kpi-row">
+                                    <article>
+                                        <span>Biên cao nhất</span>
+                                        <strong>{% if margin_kpis.best %}{{ margin_kpis.best.margin }}%{% else %}0%{% endif %}</strong>
+                                        <small>{% if margin_kpis.best %}{{ margin_kpis.best.name }}{% else %}Chưa có dữ liệu{% endif %}</small>
+                                    </article>
+                                    <article>
+                                        <span>Biên thấp nhất</span>
+                                        <strong>{% if margin_kpis.worst %}{{ margin_kpis.worst.margin }}%{% else %}0%{% endif %}</strong>
+                                        <small>{% if margin_kpis.worst %}{{ margin_kpis.worst.name }}{% else %}Chưa có dữ liệu{% endif %}</small>
+                                    </article>
+                                </div>
+
+                                <div class="margin-analysis-layout {% if margin_insight_cards %}has-insights{% endif %}">
+                                    <div class="margin-analysis-main">
+                                        <div class="margin-ranking-chart">
+                                            <div class="margin-ranking-head">
+                                                <div class="margin-ranking-legend" aria-label="Chú thích biểu đồ biên lợi nhuận">
+                                                    <span><b class="margin-legend-positive"></b>Biên lợi nhuận gộp</span>
+                                                    <span><b class="margin-legend-negative"></b>Biên âm</span>
+                                                </div>
+                                                <span>Lợi nhuận gộp / {{ profit_chart_rows.0.quantity_label|default:'đơn vị' }} và số lượng bán giúp đọc chất lượng bán hàng.</span>
+                                            </div>
+                                            {% for item in profit_chart_rows %}
+                                            <div class="margin-ranking-row {% if item.is_negative %}is-negative{% endif %}">
+                                                <div class="margin-ranking-name">
+                                                    <strong>{{ item.name|truncatechars:34 }}</strong>
+                                                    <small>{{ item.suggestion }}</small>
+                                                </div>
+                                                <div class="margin-ranking-track" style="--bar-width: {{ item.bar_width }}%;">
+                                                    <span class="margin-ranking-fill"></span>
+                                                    <span class="margin-ranking-tooltip" role="tooltip">
+                                                        <strong>{{ item.name }}</strong>
+                                                        <span><i class="margin-tooltip-revenue"></i>Doanh thu: {{ item.revenue|vnd }}</span>
+                                                        <span><i class="margin-tooltip-cogs"></i>Giá vốn: {{ item.cogs|vnd }}</span>
+                                                        <span><i class="margin-tooltip-margin"></i>Biên lợi nhuận gộp: {{ item.margin }}%</span>
+                                                    </span>
+                                                </div>
+                                                <div class="margin-ranking-values">
+                                                    <strong>{{ item.margin }}%</strong>
+                                                    <span>{{ item.profit_per_unit|vnd }}/{{ item.quantity_label|default:'đơn vị' }}</span>
+                                                    <small>SL bán: {{ item.quantity }} {{ item.quantity_label|default:'đơn vị' }}</small>
+                                                </div>
+                                            </div>
+                                            {% empty %}
+                                            <p class="analytics-empty">Chưa có dữ liệu biên lợi nhuận.</p>
+                                            {% endfor %}
+                                        </div>
+
+                                        <div class="margin-detail-table-wrap">
+                                            <div class="margin-table-actions">
+                                                <button type="button" data-tree-expand="margin-tree">Mở tất cả</button>
+                                                <button type="button" data-tree-collapse="margin-tree">Thu gọn</button>
+                                            </div>
+                                            <table class="analytics-mini-table margin-detail-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Sản phẩm / Danh mục</th>
+                                                        <th>Số lượng bán</th>
+                                                        <th>Giá bán TB</th>
+                                                        <th>Giá vốn TB</th>
+                                                        <th>Lợi nhuận gộp / đơn vị</th>
+                                                        <th>Biên lợi nhuận gộp</th>
+                                                        <th>Tổng lợi nhuận gộp</th>
+                                                        <th>Gợi ý</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="analytics-profit-tree margin-profit-tree" id="margin-tree" data-profit-auto-expand="{% if profit_tree_auto_expand %}1{% else %}0{% endif %}">
+                                                    {% for node in profit_tree_roots %}
+                                                    <tr data-profit-row="{{ node.path }}" data-profit-level="1">
+                                                        <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ node.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ node.name }}</b></td>
+                                                        <td>{{ node.quantity }}</td>
+                                                        <td>{{ node.avg_price|vnd }}</td>
+                                                        <td>{{ node.avg_cost|vnd }}</td>
+                                                        <td>{{ node.profit_per_unit|vnd }}</td>
+                                                        <td><b class="{% if node.margin < 0 %}is-negative{% endif %}">{{ node.margin }}%</b></td>
+                                                        <td><b class="{% if node.profit < 0 %}is-negative{% endif %}">{{ node.profit|vnd }}</b></td>
+                                                        <td><span class="margin-suggestion margin-suggestion--{{ node.suggestion_key }}">{{ node.suggestion }}</span></td>
+                                                    </tr>
+                                                        {% for product in node.products %}
+                                                        <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ node.path }}" data-profit-level="2" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                            <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                            <td>{{ product.quantity }}</td>
+                                                            <td>{{ product.avg_price|vnd }}</td>
+                                                            <td>{{ product.avg_cost|vnd }}</td>
+                                                            <td>{{ product.profit_per_unit|vnd }}</td>
+                                                            <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
+                                                            <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
+                                                            <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                        {% for child in node.children_list %}
+                                                        <tr data-profit-row="{{ child.path }}" data-profit-parent="{{ node.path }}" data-profit-level="2" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                            <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ child.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ child.name }}</b></td>
+                                                            <td>{{ child.quantity }}</td>
+                                                            <td>{{ child.avg_price|vnd }}</td>
+                                                            <td>{{ child.avg_cost|vnd }}</td>
+                                                            <td>{{ child.profit_per_unit|vnd }}</td>
+                                                            <td><b class="{% if child.margin < 0 %}is-negative{% endif %}">{{ child.margin }}%</b></td>
+                                                            <td><b class="{% if child.profit < 0 %}is-negative{% endif %}">{{ child.profit|vnd }}</b></td>
+                                                            <td><span class="margin-suggestion margin-suggestion--{{ child.suggestion_key }}">{{ child.suggestion }}</span></td>
+                                                        </tr>
+                                                            {% for product in child.products %}
+                                                            <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ child.path }}" data-profit-level="3" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                                <td>{{ product.quantity }}</td>
+                                                                <td>{{ product.avg_price|vnd }}</td>
+                                                                <td>{{ product.avg_cost|vnd }}</td>
+                                                                <td>{{ product.profit_per_unit|vnd }}</td>
+                                                                <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
+                                                                <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
+                                                                <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                            </tr>
+                                                            {% endfor %}
+                                                            {% for grandchild in child.children_list %}
+                                                            <tr data-profit-row="{{ grandchild.path }}" data-profit-parent="{{ child.path }}" data-profit-level="3" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ grandchild.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ grandchild.name }}</b></td>
+                                                                <td>{{ grandchild.quantity }}</td>
+                                                                <td>{{ grandchild.avg_price|vnd }}</td>
+                                                                <td>{{ grandchild.avg_cost|vnd }}</td>
+                                                                <td>{{ grandchild.profit_per_unit|vnd }}</td>
+                                                                <td><b class="{% if grandchild.margin < 0 %}is-negative{% endif %}">{{ grandchild.margin }}%</b></td>
+                                                                <td><b class="{% if grandchild.profit < 0 %}is-negative{% endif %}">{{ grandchild.profit|vnd }}</b></td>
+                                                                <td><span class="margin-suggestion margin-suggestion--{{ grandchild.suggestion_key }}">{{ grandchild.suggestion }}</span></td>
+                                                            </tr>
+                                                                {% for product in grandchild.products %}
+                                                                <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ grandchild.path }}" data-profit-level="4" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                    <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                                    <td>{{ product.quantity }}</td>
+                                                                    <td>{{ product.avg_price|vnd }}</td>
+                                                                    <td>{{ product.avg_cost|vnd }}</td>
+                                                                    <td>{{ product.profit_per_unit|vnd }}</td>
+                                                                    <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
+                                                                    <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
+                                                                    <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                                </tr>
+                                                                {% endfor %}
+                                                                {% for leaf in grandchild.children_list %}
+                                                                <tr data-profit-row="{{ leaf.path }}" data-profit-parent="{{ grandchild.path }}" data-profit-level="4" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                    <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ leaf.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ leaf.name }}</b></td>
+                                                                    <td>{{ leaf.quantity }}</td>
+                                                                    <td>{{ leaf.avg_price|vnd }}</td>
+                                                                    <td>{{ leaf.avg_cost|vnd }}</td>
+                                                                    <td>{{ leaf.profit_per_unit|vnd }}</td>
+                                                                    <td><b class="{% if leaf.margin < 0 %}is-negative{% endif %}">{{ leaf.margin }}%</b></td>
+                                                                    <td><b class="{% if leaf.profit < 0 %}is-negative{% endif %}">{{ leaf.profit|vnd }}</b></td>
+                                                                    <td><span class="margin-suggestion margin-suggestion--{{ leaf.suggestion_key }}">{{ leaf.suggestion }}</span></td>
+                                                                </tr>
+                                                                    {% for product in leaf.products %}
+                                                                    <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ leaf.path }}" data-profit-level="5" data-profit-kind="product" {% if not profit_tree_auto_expand %}hidden{% endif %}>
+                                                                        <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
+                                                                        <td>{{ product.quantity }}</td>
+                                                                        <td>{{ product.avg_price|vnd }}</td>
+                                                                        <td>{{ product.avg_cost|vnd }}</td>
+                                                                        <td>{{ product.profit_per_unit|vnd }}</td>
+                                                                        <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
+                                                                        <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
+                                                                        <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
+                                                                    </tr>
+                                                                    {% endfor %}
+                                                                {% endfor %}
+                                                            {% endfor %}
+                                                        {% endfor %}
+                                                    {% empty %}
+                                                    <tr><td colspan="8">Chưa có dữ liệu biên lợi nhuận.</td></tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    {% if margin_insight_cards %}
+                                    <aside class="margin-insight-cards">
+                                        <h3>Insight cards</h3>
+                                        {% for card in margin_insight_cards %}
+                                        <article>
+                                            <span>{{ card.title }}</span>
+                                            <p>{{ card.body }}</p>
+                                        </article>
+                                        {% endfor %}
+                                    </aside>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div></section>
+            </div>
+
+            <div class="analytics-main-pane" data-main-pane="expense" hidden>
+                <section class="analytics-card analytics-expense-card">
                 <div class="analytics-card-head">
                     <h2><i data-lucide="bar-chart-3"></i> Phân tích chi phí</h2>
                     <span>Hover từng cột để xem phân bổ chi phí trong kỳ</span>
@@ -515,10 +1039,12 @@
                     <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
                     <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
                     <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                    <input type="hidden" name="revenue_granularity" value="{{ revenue_granularity }}">
                     <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
                     <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
                     <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
                     <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                    <input type="hidden" name="profit_granularity" value="{{ profit_granularity }}">
                     <span>Gom theo</span>
                     <select name="expense_granularity" data-auto-submit>
                         <option value="month" {% if expense_granularity == 'month' %}selected{% endif %}>Tháng</option>
@@ -553,266 +1079,270 @@
                     </table>
                 </div>
             </section>
+            </div>
 
-            <div class="analytics-bottom-grid">
-                <section class="analytics-card analytics-profit-card">
-                    <div class="analytics-small-head">
-                        <h2>Phân tích biên lợi nhuận</h2>
-                        <span>Biên lợi nhuận TB: {{ margin_kpis.average_margin }}%</span>
-                    </div>
-                    <form method="get" class="analytics-profit-controls">
-                        <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
-                        <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
-                        <input type="hidden" name="cash_granularity" value="{{ cash_granularity }}">
-                        <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
-                        <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
-                        <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
-                        <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
-                        <select name="profit_view">
-                            <option value="category" {% if profit_view_mode == 'category' %}selected{% endif %}>Theo danh mục</option>
-                            <option value="product" {% if profit_view_mode == 'product' %}selected{% endif %}>Theo sản phẩm</option>
-                        </select>
-                        <input type="hidden" name="profit_category" id="profitCategoryInput" value="{{ profit_category_filter }}">
-                        <div class="analytics-category-picker" id="profitCategoryPicker">
-                            <button type="button" class="analytics-category-picker__trigger" id="profitCategoryTrigger">
-                                {% if profit_category_filter %}{{ profit_category_filter }}{% else %}Tất cả danh mục{% endif %}
-                            </button>
-                            <div class="analytics-category-picker__menu" id="profitCategoryMenu" hidden>
-                                <button type="button" class="analytics-category-option" data-category-value="">Tất cả danh mục</button>
-                                {% for node in category_option_tree %}
-                                <div class="analytics-category-node analytics-category-node--level-1">
-                                    <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
-                                    <button type="button" class="analytics-category-option" data-category-value="{{ node.path }}">{{ node.name }}</button>
-                                </div>
-                                <div class="analytics-category-children" hidden>
-                                    {% for child in node.children_list %}
-                                    <div class="analytics-category-node analytics-category-node--level-2">
-                                        <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
-                                        <button type="button" class="analytics-category-option" data-category-value="{{ child.path }}">{{ child.name }}</button>
-                                    </div>
-                                    <div class="analytics-category-children" hidden>
-                                        {% for grandchild in child.children_list %}
-                                        <div class="analytics-category-node analytics-category-node--level-3">
-                                            <button type="button" class="analytics-category-toggle" data-category-toggle>+</button>
-                                            <button type="button" class="analytics-category-option" data-category-value="{{ grandchild.path }}">{{ grandchild.name }}</button>
-                                        </div>
-                                        <div class="analytics-category-children" hidden>
-                                            {% for leaf in grandchild.children_list %}
-                                            <div class="analytics-category-node analytics-category-node--level-4">
-                                                <span></span>
-                                                <button type="button" class="analytics-category-option" data-category-value="{{ leaf.path }}">{{ leaf.name }}</button>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% endfor %}
-                            </div>
+            <div class="analytics-main-pane" data-main-pane="cashflow" hidden>
+                <section class="analytics-card cashflow-kpi-section cashflow-snapshot-section">
+                    <div class="cashflow-section-title">
+                        <b>1</b>
+                        <div>
+                            <h2>Snapshot dòng tiền</h2>
+                            <p>Đang có gì trong tay?</p>
                         </div>
-                        <select name="profit_rank">
-                            <option value="top10" {% if profit_rank == 'top10' %}selected{% endif %}>Top 10</option>
-                            <option value="bottom10" {% if profit_rank == 'bottom10' %}selected{% endif %}>Bottom 10</option>
-                            <option value="all" {% if profit_rank == 'all' %}selected{% endif %}>Tất cả</option>
-                        </select>
-                        <button type="submit">Áp dụng</button>
-                    </form>
-
-                    <div class="margin-kpi-row">
-                        <article>
-                            <span>Biên lợi nhuận TB</span>
-                            <strong>{{ margin_kpis.average_margin }}%</strong>
-                            <small>Tính trên doanh thu và lợi nhuận gộp trong kỳ.</small>
+                    </div>
+                    <div class="cashflow-snapshot-grid">
+                        <article class="cashflow-kpi-card is-income">
+                            <span>Tiền thực thu</span>
+                            <strong>{{ cash_income|vnd }}</strong>
+                            <small>Khách đã trả thật</small>
                         </article>
-                        <article>
-                            <span>Lãi / đơn vị TB</span>
-                            <strong>{{ margin_kpis.average_profit_per_unit|vnd }}</strong>
-                            <small>Lợi nhuận gộp chia tổng số lượng bán.</small>
+                        <article class="cashflow-kpi-card is-out">
+                            <span>Tiền thực chi</span>
+                            <strong>{{ cash_outflow|vnd }}</strong>
+                            <small>Đã xuất tiền</small>
                         </article>
-                        <article>
-                            <span>Biên cao nhất</span>
-                            <strong>{% if margin_kpis.best %}{{ margin_kpis.best.margin }}%{% else %}0%{% endif %}</strong>
-                            <small>{% if margin_kpis.best %}{{ margin_kpis.best.name }}{% else %}Chưa có dữ liệu{% endif %}</small>
+                        <article class="cashflow-kpi-card is-net">
+                            <span>Dòng tiền thuần</span>
+                            <strong class="{% if net_cash_flow < 0 %}is-danger{% else %}is-good{% endif %}">{{ net_cash_flow|vnd }}</strong>
+                            <em>{% if net_cash_flow < 0 %}↓ Âm kỳ này{% else %}↑ Dương kỳ này{% endif %}</em>
                         </article>
-                        <article>
-                            <span>Biên thấp nhất</span>
-                            <strong>{% if margin_kpis.worst %}{{ margin_kpis.worst.margin }}%{% else %}0%{% endif %}</strong>
-                            <small>{% if margin_kpis.worst %}{{ margin_kpis.worst.name }}{% else %}Chưa có dữ liệu{% endif %}</small>
+                        <article class="cashflow-kpi-card cashflow-kpi-card--wide">
+                            <span>Cash burn / ngày</span>
+                            <strong class="is-danger">{{ cash_burn_per_day|vnd }}</strong>
+                            <small>Tốc độ đốt tiền trung bình/ngày</small>
+                            <p>Với dòng tiền hiện tại, cửa hàng cần thu về ít nhất <b>{{ cash_burn_per_day|vnd }}/ngày</b> để không âm thêm.</p>
+                        </article>
+                        <article class="cashflow-kpi-card cashflow-kpi-card--wide">
+                            <span>Số ngày dự trữ tiền mặt</span>
+                            <strong class="is-warn">{% if cash_runway_days == None %}Đủ{% else %}~{{ cash_runway_days }} ngày{% endif %}</strong>
+                            <small>Nếu doanh thu = 0, tiền còn đủ dùng bao lâu</small>
+                            <p>{% if cash_runway_days != None and cash_runway_days < 7 %}Dưới 7 ngày - mức rủi ro. Nên duy trì tối thiểu 14 ngày dự trữ.{% else %}Mức dự trữ hiện tại đang ổn hơn ngưỡng rủi ro ngắn hạn.{% endif %}</p>
                         </article>
                     </div>
-
-                    <div class="margin-analysis-layout {% if margin_insight_cards %}has-insights{% endif %}">
-                        <div class="margin-analysis-main">
-                            <div class="margin-ranking-chart">
-                                <div class="margin-ranking-head">
-                                    <div class="margin-ranking-legend" aria-label="Chú thích biểu đồ biên lợi nhuận">
-                                        <span><b class="margin-legend-positive"></b>Biên lợi nhuận gộp</span>
-                                        <span><b class="margin-legend-negative"></b>Biên âm</span>
-                                    </div>
-                                    <span>Lãi / {{ profit_chart_rows.0.quantity_label|default:'đơn vị' }} và số lượng bán giúp đọc chất lượng bán hàng.</span>
-                                </div>
-                                {% for item in profit_chart_rows %}
-                                <div class="margin-ranking-row {% if item.is_negative %}is-negative{% endif %}">
-                                    <div class="margin-ranking-name">
-                                        <strong>{{ item.name|truncatechars:34 }}</strong>
-                                        <small>{{ item.suggestion }}</small>
-                                    </div>
-                                    <div class="margin-ranking-track" style="--bar-width: {{ item.bar_width }}%;">
-                                        <span class="margin-ranking-fill"></span>
-                                        <span class="margin-ranking-tooltip" role="tooltip">
-                                            <strong>{{ item.name }}</strong>
-                                            <span><i class="margin-tooltip-revenue"></i>Doanh thu: {{ item.revenue|vnd }}</span>
-                                            <span><i class="margin-tooltip-cogs"></i>Giá vốn hàng bán: {{ item.cogs|vnd }}</span>
-                                            <span><i class="margin-tooltip-margin"></i>Biên lợi nhuận gộp: {{ item.margin }}%</span>
-                                        </span>
-                                    </div>
-                                    <div class="margin-ranking-values">
-                                        <strong>{{ item.margin }}%</strong>
-                                        <span>{{ item.profit_per_unit|vnd }}/{{ item.quantity_label }}</span>
-                                        <small>SL bán: {{ item.quantity }} {{ item.quantity_label }}</small>
-                                    </div>
-                                </div>
+                </section>
+                <section class="analytics-card analytics-cashflow-card cashflow-kpi-section">
+                <div class="cashflow-section-title">
+                    <b>2</b>
+                    <div>
+                        <h2>Biểu đồ dòng tiền theo thời gian</h2>
+                        <p>Chỉ tính tiền thật đã thu và đã chi.</p>
+                    </div>
+                </div>
+                <form method="get" class="analytics-profit-controls analytics-local-controls">
+                    <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
+                    <input type="hidden" name="end_date" value="{{ end_date|default:'' }}">
+                    <input type="hidden" name="revenue_view" value="{{ revenue_view_mode }}">
+                    <input type="hidden" name="revenue_category" value="{{ revenue_category_filter }}">
+                    <input type="hidden" name="revenue_rank" value="{{ revenue_rank }}">
+                    <input type="hidden" name="revenue_granularity" value="{{ revenue_granularity }}">
+                    <input type="hidden" name="profit_view" value="{{ profit_view_mode }}">
+                    <input type="hidden" name="profit_category" value="{{ profit_category_filter }}">
+                    <input type="hidden" name="profit_rank" value="{{ profit_rank }}">
+                    <input type="hidden" name="profit_granularity" value="{{ profit_granularity }}">
+                    <input type="hidden" name="expense_granularity" value="{{ expense_granularity }}">
+                    <span>Gom theo</span>
+                    <select name="cash_granularity" data-auto-submit>
+                        <option value="month" {% if cash_granularity == 'month' %}selected{% endif %}>Tháng</option>
+                        <option value="week" {% if cash_granularity == 'week' %}selected{% endif %}>Tuần</option>
+                        <option value="day" {% if cash_granularity == 'day' %}selected{% endif %}>Ngày</option>
+                        <option value="year" {% if cash_granularity == 'year' %}selected{% endif %}>Năm</option>
+                    </select>
+                    <button type="submit">Áp dụng</button>
+                </form>
+                <div class="analytics-revenue-grid">
+                    <div class="analytics-combo-chart">
+                        <div class="analytics-cash-chart" data-cash-chart>
+                            <div class="cash-chart-legend">
+                                <span><i class="cash-in"></i>Tiền thực thu</span>
+                                <span><i class="cash-out"></i>Tiền thực chi</span>
+                                <span><i class="cash-net"></i>Dòng tiền thuần</span>
+                            </div>
+                            <div class="cash-chart-canvas" data-cash-chart-canvas></div>
+                            <p class="cash-chart-hint">Nhấn vào cột để xem chi tiết tiền vào / tiền ra</p>
+                            <button type="button" class="cash-table-toggle" data-cash-table-toggle aria-expanded="false">Hiện bảng chi tiết</button>
+                            <div class="cash-chart-tooltip" data-cash-chart-tooltip hidden></div>
+                            <div class="cash-chart-detail" data-cash-chart-detail hidden></div>
+                        </div>
+                        {{ cash_chart_points|json_script:"cash-chart-points" }}
+                    </div>
+                    <div class="analytics-revenue-table-panel cash-chart-table-panel" data-cash-table-panel hidden>
+                        <table class="analytics-mini-table">
+                            <thead>
+                                <tr><th>Kỳ</th><th>Tiền vào</th><th>Tiền ra</th><th>Thuần</th><th>Số dư tích lũy</th><th>Tỉ lệ thu hồi</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for row in cash_chart_rows %}
+                                <tr>
+                                    <td>{{ row.label }}</td>
+                                    <td><b>{{ row.cash_in|vnd }}</b></td>
+                                    <td>{{ row.cash_out|vnd }}</td>
+                                    <td class="{% if row.net < 0 %}negative{% else %}positive{% endif %}"><b>{{ row.net|vnd }}</b></td>
+                                    <td class="{% if row.running_balance < 0 %}negative{% else %}positive{% endif %}"><b>{{ row.running_balance|vnd }}</b></td>
+                                    <td>{% if row.collection_rate == None %}--{% else %}{{ row.collection_rate }}%{% endif %}</td>
+                                </tr>
                                 {% empty %}
-                                <p class="analytics-empty">Chưa có dữ liệu biên lợi nhuận.</p>
+                                <tr><td colspan="6">Chưa có dòng tiền trong kỳ.</td></tr>
                                 {% endfor %}
-                            </div>
-
-                            <div class="margin-detail-table-wrap">
-                                <div class="margin-table-actions">
-                                    <button type="button" id="expandProfitTree">Mở tất cả</button>
-                                    <button type="button" id="collapseProfitTree">Thu gọn</button>
-                                </div>
-                                <table class="analytics-mini-table margin-detail-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Sản phẩm/Danh mục</th>
-                                            <th>Số lượng bán</th>
-                                            <th>Giá bán TB</th>
-                                            <th>Giá vốn TB</th>
-                                            <th>Lãi gộp / đơn vị</th>
-                                            <th>Biên lợi nhuận gộp</th>
-                                            <th>Tổng lãi gộp</th>
-                                            <th>Gợi ý</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="analytics-profit-tree margin-profit-tree" data-profit-auto-expand="{% if profit_tree_auto_expand %}1{% else %}0{% endif %}">
-                                        {% for node in profit_tree_roots %}
-                                        <tr data-profit-row="{{ node.path }}" data-profit-level="1">
-                                            <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ node.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ node.name }}</b></td>
-                                            <td>{{ node.quantity }}</td>
-                                            <td>{{ node.avg_price|vnd }}</td>
-                                            <td>{{ node.avg_cost|vnd }}</td>
-                                            <td>{{ node.profit_per_unit|vnd }}</td>
-                                            <td><b class="{% if node.margin < 0 %}is-negative{% endif %}">{{ node.margin }}%</b></td>
-                                            <td><b class="{% if node.profit < 0 %}is-negative{% endif %}">{{ node.profit|vnd }}</b></td>
-                                            <td><span class="margin-suggestion margin-suggestion--{{ node.suggestion_key }}">{{ node.suggestion }}</span></td>
-                                        </tr>
-                                            {% for product in node.products %}
-                                            <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ node.path }}" data-profit-level="2" {% if not profit_tree_auto_expand %}hidden{% endif %}>
-                                                <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
-                                                <td>{{ product.quantity }}</td>
-                                                <td>{{ product.avg_price|vnd }}</td>
-                                                <td>{{ product.avg_cost|vnd }}</td>
-                                                <td>{{ product.profit_per_unit|vnd }}</td>
-                                                <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
-                                                <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
-                                                <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
-                                            </tr>
-                                            {% endfor %}
-                                            {% for child in node.children_list %}
-                                            <tr data-profit-row="{{ child.path }}" data-profit-parent="{{ node.path }}" data-profit-level="2" {% if not profit_tree_auto_expand %}hidden{% endif %}>
-                                                <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ child.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ child.name }}</b></td>
-                                                <td>{{ child.quantity }}</td>
-                                                <td>{{ child.avg_price|vnd }}</td>
-                                                <td>{{ child.avg_cost|vnd }}</td>
-                                                <td>{{ child.profit_per_unit|vnd }}</td>
-                                                <td><b class="{% if child.margin < 0 %}is-negative{% endif %}">{{ child.margin }}%</b></td>
-                                                <td><b class="{% if child.profit < 0 %}is-negative{% endif %}">{{ child.profit|vnd }}</b></td>
-                                                <td><span class="margin-suggestion margin-suggestion--{{ child.suggestion_key }}">{{ child.suggestion }}</span></td>
-                                            </tr>
-                                                {% for product in child.products %}
-                                                <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ child.path }}" data-profit-level="3" {% if not profit_tree_auto_expand %}hidden{% endif %}>
-                                                    <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
-                                                    <td>{{ product.quantity }}</td>
-                                                    <td>{{ product.avg_price|vnd }}</td>
-                                                    <td>{{ product.avg_cost|vnd }}</td>
-                                                    <td>{{ product.profit_per_unit|vnd }}</td>
-                                                    <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
-                                                    <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
-                                                    <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
-                                                </tr>
-                                                {% endfor %}
-                                                {% for grandchild in child.children_list %}
-                                                <tr data-profit-row="{{ grandchild.path }}" data-profit-parent="{{ child.path }}" data-profit-level="3" {% if not profit_tree_auto_expand %}hidden{% endif %}>
-                                                    <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ grandchild.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ grandchild.name }}</b></td>
-                                                    <td>{{ grandchild.quantity }}</td>
-                                                    <td>{{ grandchild.avg_price|vnd }}</td>
-                                                    <td>{{ grandchild.avg_cost|vnd }}</td>
-                                                    <td>{{ grandchild.profit_per_unit|vnd }}</td>
-                                                    <td><b class="{% if grandchild.margin < 0 %}is-negative{% endif %}">{{ grandchild.margin }}%</b></td>
-                                                    <td><b class="{% if grandchild.profit < 0 %}is-negative{% endif %}">{{ grandchild.profit|vnd }}</b></td>
-                                                    <td><span class="margin-suggestion margin-suggestion--{{ grandchild.suggestion_key }}">{{ grandchild.suggestion }}</span></td>
-                                                </tr>
-                                                    {% for product in grandchild.products %}
-                                                    <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ grandchild.path }}" data-profit-level="4" {% if not profit_tree_auto_expand %}hidden{% endif %}>
-                                                        <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
-                                                        <td>{{ product.quantity }}</td>
-                                                        <td>{{ product.avg_price|vnd }}</td>
-                                                        <td>{{ product.avg_cost|vnd }}</td>
-                                                        <td>{{ product.profit_per_unit|vnd }}</td>
-                                                        <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
-                                                        <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
-                                                        <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
-                                                    </tr>
-                                                    {% endfor %}
-                                                    {% for leaf in grandchild.children_list %}
-                                                    <tr data-profit-row="{{ leaf.path }}" data-profit-parent="{{ grandchild.path }}" data-profit-level="4" {% if not profit_tree_auto_expand %}hidden{% endif %}>
-                                                        <td><button type="button" class="profit-tree-toggle" data-profit-toggle="{{ leaf.path }}">{% if profit_tree_auto_expand %}-{% else %}+{% endif %}</button><b>{{ leaf.name }}</b></td>
-                                                        <td>{{ leaf.quantity }}</td>
-                                                        <td>{{ leaf.avg_price|vnd }}</td>
-                                                        <td>{{ leaf.avg_cost|vnd }}</td>
-                                                        <td>{{ leaf.profit_per_unit|vnd }}</td>
-                                                        <td><b class="{% if leaf.margin < 0 %}is-negative{% endif %}">{{ leaf.margin }}%</b></td>
-                                                        <td><b class="{% if leaf.profit < 0 %}is-negative{% endif %}">{{ leaf.profit|vnd }}</b></td>
-                                                        <td><span class="margin-suggestion margin-suggestion--{{ leaf.suggestion_key }}">{{ leaf.suggestion }}</span></td>
-                                                    </tr>
-                                                        {% for product in leaf.products %}
-                                                        <tr data-profit-row="{{ product.path }}" data-profit-parent="{{ leaf.path }}" data-profit-level="5" {% if not profit_tree_auto_expand %}hidden{% endif %}>
-                                                            <td><span class="profit-tree-spacer"></span>{{ product.name }}</td>
-                                                            <td>{{ product.quantity }}</td>
-                                                            <td>{{ product.avg_price|vnd }}</td>
-                                                            <td>{{ product.avg_cost|vnd }}</td>
-                                                            <td>{{ product.profit_per_unit|vnd }}</td>
-                                                            <td><b class="{% if product.margin < 0 %}is-negative{% endif %}">{{ product.margin }}%</b></td>
-                                                            <td><b class="{% if product.profit < 0 %}is-negative{% endif %}">{{ product.profit|vnd }}</b></td>
-                                                            <td><span class="margin-suggestion margin-suggestion--{{ product.suggestion_key }}">{{ product.suggestion }}</span></td>
-                                                        </tr>
-                                                        {% endfor %}
-                                                    {% endfor %}
-                                                {% endfor %}
-                                            {% endfor %}
-                                        {% empty %}
-                                        <tr><td colspan="8">Chưa có dữ liệu biên lợi nhuận.</td></tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                                <tr class="analytics-total-row">
+                                    <td>Tổng cộng</td>
+                                    <td><b>{{ cash_income|vnd }}</b></td>
+                                    <td>{{ cash_outflow|vnd }}</td>
+                                    <td class="{% if net_cash_flow < 0 %}negative{% else %}positive{% endif %}"><b>{{ net_cash_flow|vnd }}</b></td>
+                                    <td class="{% if net_cash_flow < 0 %}negative{% else %}positive{% endif %}"><b>{{ net_cash_flow|vnd }}</b></td>
+                                    <td>{% if total_income %}{{ cash_income|percentage_of:total_income }}{% else %}--{% endif %}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+                <section class="analytics-card cashflow-kpi-section">
+                    <div class="cashflow-section-title">
+                        <b>3</b>
+                        <div>
+                            <h2>Thu - tiền vào từ đâu và chất lượng thế nào?</h2>
+                            <p>Không chỉ bao nhiêu, mà còn bao nhiêu là tiền thật và nợ.</p>
                         </div>
-                        {% if margin_insight_cards %}
-                        <aside class="margin-insight-cards">
-                            <h3>Insight cards</h3>
-                            {% for card in margin_insight_cards %}
-                            <article>
-                                <span>{{ card.title }}</span>
-                                <p>{{ card.body }}</p>
-                            </article>
-                            {% endfor %}
-                        </aside>
-                        {% endif %}
+                    </div>
+                    <div class="cashflow-grid cashflow-grid--four">
+                        <article class="cashflow-kpi-card">
+                            <span>Tỷ lệ thu tiền mặt</span>
+                            <strong>{{ cash_conversion_rate }}%</strong>
+                            <i style="--meter: {{ cash_conversion_rate }}%;"></i>
+                            <em>{% if cash_conversion_rate >= 90 %}Tốt{% elif cash_conversion_rate >= 60 %}Ổn{% else %}Cần thu nợ{% endif %}</em>
+                        </article>
+                        <article class="cashflow-kpi-card">
+                            <span>Công nợ chưa thu</span>
+                            <strong>{{ revenue_uncollected|vnd }}</strong>
+                            <small>{{ revenue_uncollected_order_count }} đơn pending</small>
+                            <em>{% if revenue_uncollected %}Cần theo dõi{% else %}Sạch nợ{% endif %}</em>
+                        </article>
+                        <article class="cashflow-kpi-card">
+                            <span>Thời gian thu tiền TB</span>
+                            <strong>{% if revenue_uncollected %}{{ report_days }} ngày{% else %}0 ngày{% endif %}</strong>
+                            <small>DSO - Days Sales Outstanding</small>
+                        </article>
+                        <article class="cashflow-kpi-card">
+                            <span>Thu bình quân / ngày</span>
+                            <strong>{{ cash_income_per_day|vnd }}</strong>
+                            <small>{{ report_days }} ngày trong kỳ</small>
+                        </article>
                     </div>
                 </section>
 
+                <section class="analytics-card cashflow-kpi-section">
+                    <div class="cashflow-section-title">
+                        <b>4</b>
+                        <div>
+                            <h2>Chi - tiền ra vì lý do gì, kiểm soát được không?</h2>
+                            <p>Tách nhập hàng và vận hành; tách cố định và biến đổi.</p>
+                        </div>
+                    </div>
+                    <div class="cashflow-grid cashflow-grid--three">
+                        <article class="cashflow-kpi-card">
+                            <span>Chi nhập hàng (COGS cash)</span>
+                            <strong>{{ cash_purchase|vnd }}</strong>
+                            <dl><dt>% tổng chi</dt><dd>{{ cash_purchase_share }}%</dd></dl>
+                        </article>
+                        <article class="cashflow-kpi-card">
+                            <span>Chi vận hành (OPEX cash)</span>
+                            <strong class="is-danger">{{ cash_expense|vnd }}</strong>
+                            <dl><dt>% tổng chi</dt><dd>{{ cash_opex_share }}%</dd></dl>
+                        </article>
+                        <article class="cashflow-kpi-card">
+                            <span>Chi / đồng doanh thu</span>
+                            <strong class="is-danger">{{ cash_out_revenue_ratio }}đ</strong>
+                            <small>Cứ thu 1đ, phải chi {{ cash_out_revenue_ratio }}đ</small>
+                            <em>{% if cash_out_revenue_ratio > 1 %}Mất cân bằng nghiêm trọng{% else %}Đang kiểm soát{% endif %}</em>
+                        </article>
+                        <article class="cashflow-kpi-card cashflow-kpi-card--wide">
+                            <span>Phân loại chi phí</span>
+                            <dl><dt>Cố định (mặt bằng, lương...)</dt><dd>{{ cash_fixed_expense|vnd }}</dd></dl>
+                            <dl><dt>Biến đổi (NCC, vận chuyển...)</dt><dd>{{ cash_variable_expense|vnd }}</dd></dl>
+                            <dl><dt>Tỷ lệ cố định/tổng</dt><dd>{{ cash_fixed_expense_share }}%</dd></dl>
+                            <p>{% if cash_fixed_expense_share >= 70 %}Chi phí cố định rất cao - khó cắt giảm ngắn hạn. Ưu tiên tăng doanh thu.{% else %}Cơ cấu chi phí còn linh hoạt để điều chỉnh khi doanh thu biến động.{% endif %}</p>
+                        </article>
+                        <article class="cashflow-kpi-card cashflow-kpi-card--wide">
+                            <span>Nợ nhà cung cấp chưa trả</span>
+                            <strong>{{ payable_debt|vnd }}</strong>
+                            <small>DPO - Days Payable Outstanding</small>
+                            <em>{% if payable_debt %}Có nợ NCC{% else %}Không nợ NCC{% endif %}</em>
+                            <hr>
+                            <span>Khoản sắp đến hạn (7 ngày tới)</span>
+                            <strong class="is-warn">{{ upcoming_payable|vnd }}</strong>
+                            {% if next_payable_item %}<small>{{ next_payable_item.label }} - {{ next_payable_item.date|date:'d/m' }}</small>{% endif %}
+                        </article>
+                    </div>
+                </section>
+
+                <section class="analytics-card cashflow-kpi-section">
+                    <div class="cashflow-section-title">
+                        <b>5</b>
+                        <div>
+                            <h2>Xu hướng & dự báo</h2>
+                            <p>Dòng tiền đang đi về đâu? Kỳ tới trông như thế nào?</p>
+                        </div>
+                    </div>
+                    <div class="cashflow-grid cashflow-grid--two">
+                        <article class="cashflow-kpi-card">
+                            <span>Dòng tiền 5 ngày gần nhất</span>
+                            <div class="cashflow-spark">
+                                {% for day in recent_cashflow_days %}
+                                <i class="{% if day.net < 0 %}is-negative{% else %}is-positive{% endif %}" style="height: {{ day.height }}%;"></i>
+                                {% endfor %}
+                            </div>
+                            <small>{% if recent_negative_streak %}Dòng tiền âm liên tục {{ recent_negative_streak }} ngày{% else %}Không có chuỗi âm ở cuối kỳ{% endif %}</small>
+                            <em>{% if recent_negative_streak >= 3 %}Xu hướng xấu đi{% else %}Theo dõi tiếp{% endif %}</em>
+                        </article>
+                        <article class="cashflow-kpi-card">
+                            <span>Dự báo dòng tiền 7 ngày tới</span>
+                            <strong class="{% if cash_forecast_7d < 0 %}is-danger{% else %}is-good{% endif %}">{{ cash_forecast_7d|vnd }}</strong>
+                            <small>Dựa trên burn rate hiện tại + chi cố định đến hạn</small>
+                            <dl><dt>Chi cố định đến hạn</dt><dd>{{ upcoming_payable|vnd }}</dd></dl>
+                            <dl><dt>Burn rate dự kiến</dt><dd>{{ cash_burn_per_day|vnd }}</dd></dl>
+                            <p>{% if cash_forecast_need %}Cần thu về ít nhất <b>{{ cash_forecast_need|vnd }}</b> trong 7 ngày tới để không âm thêm.{% else %}Dự báo ngắn hạn chưa cần bù tiền thêm.{% endif %}</p>
+                        </article>
+                    </div>
+                </section>
+
+                <section class="analytics-card cashflow-kpi-section">
+                    <div class="cashflow-section-title">
+                        <b>6</b>
+                        <div>
+                            <h2>Chỉ số sức khỏe dòng tiền</h2>
+                            <p>Nhìn một chỗ, hiểu ngay cửa hàng đang ở đâu.</p>
+                        </div>
+                    </div>
+                    <div class="cashflow-grid cashflow-grid--four">
+                        <article class="cashflow-kpi-card cashflow-health-card">
+                            <span>Operating cash ratio</span>
+                            <strong class="{% if operating_cash_ratio != None and operating_cash_ratio >= 1 %}is-good{% else %}is-danger{% endif %}">{% if operating_cash_ratio == None %}--{% else %}{{ operating_cash_ratio }}{% endif %}</strong>
+                            <small>Thu / Chi - Ngưỡng an toàn: &gt;1</small>
+                            <em>{% if operating_cash_ratio != None and operating_cash_ratio >= 1 %}An toàn{% else %}Nguy hiểm{% endif %}</em>
+                        </article>
+                        <article class="cashflow-kpi-card cashflow-health-card">
+                            <span>Cash conversion</span>
+                            <strong class="is-good">{{ cash_conversion_rate }}%</strong>
+                            <small>Doanh thu → tiền mặt</small>
+                            <em>{% if cash_conversion_rate >= 90 %}Xuất sắc{% elif cash_conversion_rate >= 60 %}Ổn{% else %}Yếu{% endif %}</em>
+                        </article>
+                        <article class="cashflow-kpi-card cashflow-health-card">
+                            <span>Cash flow margin</span>
+                            <strong class="{% if cash_flow_margin < 0 %}is-danger{% else %}is-good{% endif %}">{{ cash_flow_margin }}%</strong>
+                            <small>Dòng tiền thuần / Doanh thu</small>
+                            <em>{% if cash_flow_margin < 0 %}Mất kiểm soát{% else %}Tích cực{% endif %}</em>
+                        </article>
+                        <article class="cashflow-kpi-card cashflow-health-card">
+                            <span>Runway</span>
+                            <strong class="is-warn">{% if cash_runway_days == None %}Đủ{% else %}~{{ cash_runway_days }} ngày{% endif %}</strong>
+                            <small>Còn bao lâu trước khi cạn tiền</small>
+                            <em>{% if cash_runway_days != None and cash_runway_days < 14 %}Cần hành động{% else %}Ổn{% endif %}</em>
+                        </article>
+                    </div>
+                </section>
+            </div>
+
+            <div class="analytics-main-pane" data-main-pane="inventory" hidden>
                 <section class="analytics-card">
                     <div class="analytics-small-head">
                         <h2>Chất lượng hàng tồn kho</h2>
@@ -893,26 +1423,102 @@
 </div>
 <script>
 (function () {
+    function activeTabState(scope = document) {
+        return {
+            main: scope.querySelector('[data-main-tab].is-active')?.dataset.mainTab || scope.querySelector('[data-main-pane]:not([hidden])')?.dataset.mainPane || 'revenue',
+            revenue: scope.querySelector('[data-revenue-tab-button].is-active')?.dataset.revenueTabButton || 'trend',
+            profit: scope.querySelector('[data-profit-tab-button].is-active')?.dataset.profitTabButton || 'trend',
+            profitSub: scope.querySelector('[data-profit-sub-tab-button].is-active')?.dataset.profitSubTabButton || 'contribution',
+        };
+    }
+
+    function activateButtonPanel(buttons, panels, dataKey, target) {
+        buttons.forEach(button => {
+            button.classList.toggle('is-active', button.dataset[dataKey] === target);
+        });
+        panels.forEach(panel => {
+            const active = panel.dataset[dataKey.replace('Button', 'Panel')] === target;
+            panel.hidden = !active;
+            panel.classList.toggle('is-active', active);
+        });
+    }
+
+    function restoreTabState(root = document, state = activeTabState(root)) {
+        const mainTabs = Array.from(root.querySelectorAll('[data-main-tab]'));
+        const mainPanes = Array.from(root.querySelectorAll('[data-main-pane]'));
+        mainTabs.forEach(tab => tab.classList.toggle('is-active', tab.dataset.mainTab === state.main));
+        mainPanes.forEach(pane => {
+            const active = pane.dataset.mainPane === state.main;
+            pane.hidden = !active;
+            pane.classList.toggle('is-active', active);
+        });
+
+        root.querySelectorAll('[data-revenue-tabs]').forEach(tabs => {
+            activateButtonPanel(
+                Array.from(tabs.querySelectorAll('[data-revenue-tab-button]')),
+                Array.from(tabs.querySelectorAll('[data-revenue-tab-panel]')),
+                'revenueTabButton',
+                state.revenue
+            );
+        });
+
+        root.querySelectorAll('[data-profit-tabs]').forEach(tabs => {
+            activateButtonPanel(
+                Array.from(tabs.querySelectorAll('[data-profit-tab-button]')),
+                Array.from(tabs.querySelectorAll('[data-profit-tab-panel]')),
+                'profitTabButton',
+                state.profit
+            );
+        });
+
+        root.querySelectorAll('[data-profit-sub-tabs]').forEach(tabs => {
+            activateButtonPanel(
+                Array.from(tabs.querySelectorAll('[data-profit-sub-tab-button]')),
+                Array.from(tabs.querySelectorAll('[data-profit-sub-tab-panel]')),
+                'profitSubTabButton',
+                state.profitSub
+            );
+        });
+    }
+
     async function loadReportUrl(url, options = {}) {
         const scrollY = window.scrollY;
         const content = document.querySelector('.analytics-content');
         if (!content) return;
-        content.classList.add('is-loading');
+        const currentState = options.state || activeTabState(content);
+        const targetPaneName = options.targetPane || null;
+        const updateTarget = targetPaneName
+            ? content.querySelector(`[data-main-pane="${CSS.escape(targetPaneName)}"]`)
+            : content;
+        updateTarget?.classList.add('is-loading');
         try {
             const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
             const html = await response.text();
             const doc = new DOMParser().parseFromString(html, 'text/html');
             const nextContent = doc.querySelector('.analytics-content');
             if (!nextContent) throw new Error('Không tải được dữ liệu phân tích.');
-            content.replaceWith(nextContent);
+            let initRoot = nextContent;
+            if (targetPaneName) {
+                const nextPane = nextContent.querySelector(`[data-main-pane="${CSS.escape(targetPaneName)}"]`);
+                if (!updateTarget || !nextPane) throw new Error('Không tải được tab phân tích.');
+                nextPane.hidden = false;
+                nextPane.classList.add('is-active');
+                updateTarget.replaceWith(nextPane);
+                initRoot = nextPane;
+            } else {
+                content.replaceWith(nextContent);
+            }
             if (options.replace) history.replaceState({}, '', url);
             else history.pushState({}, '', url);
-            initReportInteractions(nextContent);
+            restoreTabState(document.querySelector('.analytics-content') || initRoot, currentState);
+            initReportInteractions(initRoot);
             if (window.initAnalyticsCharts) window.initAnalyticsCharts();
             if (window.lucide) lucide.createIcons();
             window.scrollTo({ top: scrollY, left: 0, behavior: options.smooth ? 'smooth' : 'auto' });
         } catch (error) {
             window.location.href = url;
+        } finally {
+            updateTarget?.classList.remove('is-loading');
         }
     }
 
@@ -920,7 +1526,14 @@
         const params = new URLSearchParams(new FormData(form));
         const action = form.getAttribute('action') || window.location.pathname;
         const url = `${action}?${params.toString()}`;
-        loadReportUrl(url);
+        const pane = form.closest('[data-main-pane]');
+        const state = activeTabState(document.querySelector('.analytics-content') || document);
+        if (pane?.dataset.mainPane) {
+            state.main = pane.dataset.mainPane;
+            loadReportUrl(url, { targetPane: pane.dataset.mainPane, state });
+            return;
+        }
+        loadReportUrl(url, { state });
     }
 
     const setupPicker = (root, pickerId, triggerId, menuId, inputId) => {
@@ -984,6 +1597,21 @@
         return `${Math.round(value)}đ`;
     };
     const fmtFull = value => `${new Intl.NumberFormat('vi-VN').format(Math.round(Math.abs(value)))}đ`;
+    const hexToRgb = hex => {
+        const clean = String(hex).replace('#', '');
+        return [
+            parseInt(clean.slice(0, 2), 16),
+            parseInt(clean.slice(2, 4), 16),
+            parseInt(clean.slice(4, 6), 16),
+        ];
+    };
+    const valueColor = (value, maxValue, lightHex, darkHex) => {
+        const ratio = maxValue ? Math.max(0, Math.min(1, Math.abs(Number(value || 0)) / maxValue)) : 0;
+        const [lr, lg, lb] = hexToRgb(lightHex);
+        const [dr, dg, db] = hexToRgb(darkHex);
+        const mix = channel => Math.round(channel[0] + (channel[1] - channel[0]) * ratio);
+        return `rgb(${mix([lr, dr])}, ${mix([lg, dg])}, ${mix([lb, db])})`;
+    };
     const fmtPct = (num, denom) => denom ? ` (${Math.round(num / denom * 100)}%)` : '';
     const monthText = (label, short = false) => {
         const parts = String(label).split('-');
@@ -994,7 +1622,13 @@
     function layeredTooltip(chart, event, item, isAllView) {
         const tooltip = chart.querySelector('[data-layered-chart-tooltip]');
         if (!tooltip) return;
-        tooltip.innerHTML = `
+        const profitOnly = chart.dataset.profitOnly === '1';
+        tooltip.innerHTML = profitOnly ? `
+            <strong>${monthText(item.label)}</strong>
+            <span class="${item.gross_profit >= 0 ? 'positive' : 'negative'}"><i style="background:${item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg}"></i>Lợi nhuận gộp: ${item.gross_profit < 0 ? '-' : ''}${fmtFull(item.gross_profit)}</span>
+            <span class="negative"><i style="background:${LAYERED_COLORS.opex}"></i>Chi phí vận hành: -${fmtFull(item.operating_expense)}</span>
+            <span class="${item.net_profit >= 0 ? 'positive' : 'negative'}"><i style="background:${LAYERED_COLORS.netPos}"></i>Lợi nhuận thuần: ${item.net_profit < 0 ? '-' : ''}${fmtFull(item.net_profit)}</span>
+        ` : `
             <strong>${monthText(item.label)}</strong>
             <span><i style="background:${LAYERED_COLORS.revenue}"></i>Doanh thu: ${fmtFull(item.revenue)}</span>
             <span class="negative"><i style="background:${LAYERED_COLORS.cogs}"></i>Giá vốn: -${fmtFull(item.cogs)}</span>
@@ -1020,19 +1654,43 @@
         equipment: '#854F0B',
         net: '#0C447C',
     };
+    const CASH_BREAKDOWN_COLORS = ['#9F1111', '#C56B14', '#E9B949', '#168A45', '#0C447C', '#6D3A9C', '#854F0B'];
 
     function cashTooltip(chart, event, item, type) {
         const tooltip = chart.querySelector('[data-cash-chart-tooltip]');
         if (!tooltip) return;
-        tooltip.innerHTML = `
-            <strong>${item.label}</strong>
+        const isOut = type === 'out';
+        const parts = item.out_parts || [];
+        tooltip.innerHTML = isOut ? `
+            <div class="expense-tooltip-head">
+                <div>
+                    <span>Tiền thực chi</span>
+                    <strong>${escapeHtml(item.label)}</strong>
+                </div>
+                <b>-${fmtFull(item.cash_out)}</b>
+            </div>
+            <div class="expense-tooltip-body">
+                <div class="expense-tooltip-donut expense-tooltip-donut--empty-center" style="${pieChartStyle(parts, CASH_BREAKDOWN_COLORS)}"></div>
+                <div class="expense-tooltip-list">
+                    ${parts.length ? parts.map((part, index) => `
+                        <div class="expense-tooltip-row">
+                            <i style="background:${CASH_BREAKDOWN_COLORS[index % CASH_BREAKDOWN_COLORS.length]}"></i>
+                            <span>${escapeHtml(part.label)}</span>
+                            <strong>${fmtFull(part.amount)}</strong>
+                            <em>${part.share}%</em>
+                        </div>
+                    `).join('') : '<p>Chưa có khoản chi trong kỳ này.</p>'}
+                </div>
+            </div>
+        ` : `
+            <strong>${escapeHtml(item.label)}</strong>
             <span class="positive"><i style="background:${CASH_COLORS.cashIn}"></i>Tiền thực thu: ${fmtFull(item.cash_in)}</span>
-            <span class="negative"><i style="background:${CASH_COLORS.cashOut}"></i>Tiền thực chi: -${fmtFull(item.cash_out)}</span>
             <span class="${item.net >= 0 ? 'positive' : 'negative'}"><i style="background:${CASH_COLORS.net}"></i>Dòng tiền thuần: ${item.net < 0 ? '-' : ''}${fmtFull(item.net)}</span>
         `;
         tooltip.hidden = false;
-        tooltip.style.left = `${Math.max(12, Math.min(window.innerWidth - 330, event.clientX + 14))}px`;
-        tooltip.style.top = `${Math.max(12, Math.min(window.innerHeight - 220, event.clientY + 14))}px`;
+        const box = tooltip.getBoundingClientRect();
+        tooltip.style.left = `${Math.max(12, Math.min(window.innerWidth - box.width - 12, event.clientX + 14))}px`;
+        tooltip.style.top = `${Math.max(12, Math.min(window.innerHeight - box.height - 12, event.clientY + 14))}px`;
     }
 
     function hideCashTooltip(chart) {
@@ -1046,11 +1704,12 @@
         const isIn = type === 'in';
         const groups = isIn
             ? [{ label: 'Doanh thu đã thu', amount: item.cash_in, count: item.counts.income || 0, color: CASH_COLORS.cashIn }]
-            : [
-                { label: 'Nhập kho', amount: item.breakdown.purchase || 0, count: item.counts.purchase || 0, color: CASH_COLORS.purchase },
-                { label: 'Chi phí khác', amount: item.breakdown.opex || 0, count: item.counts.opex || 0, color: CASH_COLORS.opex },
-                { label: 'Thiết bị', amount: item.breakdown.equipment || 0, count: item.counts.equipment || 0, color: CASH_COLORS.equipment },
-            ];
+            : (item.out_parts || []).map((part, index) => ({
+                label: part.label,
+                amount: part.amount,
+                count: '',
+                color: CASH_BREAKDOWN_COLORS[index % CASH_BREAKDOWN_COLORS.length],
+            }));
         const historyUrl = isIn ? item.history_in_url : item.history_out_url;
         detail.hidden = false;
         detail.innerHTML = `
@@ -1067,7 +1726,7 @@
                         <i style="background:${group.color}"></i>
                         <span>${group.label}</span>
                         <strong>${fmtFull(group.amount)}</strong>
-                        <em>${group.count} giao dịch</em>
+                        <em>${group.count ? `${group.count} giao dịch` : `${Math.round((Number(group.amount || 0) / Math.max(Number(isIn ? item.cash_in : item.cash_out || 0), 1)) * 1000) / 10}%`}</em>
                     </div>
                 `).join('')}
             </div>
@@ -1088,9 +1747,9 @@
             canvas.innerHTML = '<div class="cash-chart-empty">Chưa có dòng tiền trong kỳ.</div>';
             return;
         }
-        const width = Math.max(640, data.length * 118 + 140);
-        const height = 400;
-        const margin = { left: 64, right: 28, top: 30, bottom: 74 };
+        const width = Math.max(820, data.length * 132 + 160);
+        const height = 470;
+        const margin = { left: 72, right: 34, top: 34, bottom: 78 };
         const chartW = width - margin.left - margin.right;
         const chartH = height - margin.top - margin.bottom;
         const maxPositive = Math.max(...data.flatMap(item => [item.cash_in || 0, item.net > 0 ? item.net : 0]), 0);
@@ -1140,14 +1799,6 @@
                 node.addEventListener('click', () => cashDetail(chart, item, type));
                 svg.appendChild(node);
             });
-            if (item.cash_out) {
-                const purchaseH = outH * ((item.breakdown.purchase || 0) / item.cash_out);
-                const opexH = outH * ((item.breakdown.opex || 0) / item.cash_out);
-                if (purchaseH > 1) svg.appendChild(svgNode('rect', { x: outX, y: zeroY, width: barW, height: purchaseH, rx: 4, fill: CASH_COLORS.purchase, 'pointer-events': 'none' }));
-                if (opexH > 1) svg.appendChild(svgNode('rect', { x: outX, y: zeroY + purchaseH, width: barW, height: opexH, fill: CASH_COLORS.opex, 'pointer-events': 'none' }));
-                const equipmentH = Math.max(0, outH - purchaseH - opexH);
-                if (equipmentH > 1) svg.appendChild(svgNode('rect', { x: outX, y: zeroY + purchaseH + opexH, width: barW, height: equipmentH, rx: 4, fill: CASH_COLORS.equipment, 'pointer-events': 'none' }));
-            }
             netPoints.push([cx, y(item.net || 0), item.net]);
             const label = svgNode('text', { x: cx, y: height - 36, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: '#6b7280' });
             label.textContent = item.label;
@@ -1161,6 +1812,26 @@
             netPoints.forEach(([x, pointY, net]) => svg.appendChild(svgNode('circle', { cx: x, cy: pointY, r: 3.5, fill: net >= 0 ? CASH_COLORS.cashIn : CASH_COLORS.cashOut, stroke: '#fffaf0', 'stroke-width': 1.5 })));
         }
         canvas.appendChild(svg);
+    }
+
+    
+    function initMainTabs(root = document) {
+        const tabs = Array.from(root.querySelectorAll('[data-main-tab]'));
+        const panes = Array.from(root.querySelectorAll('[data-main-pane]'));
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.mainTab;
+                
+                tabs.forEach(t => t.classList.toggle('is-active', t === tab));
+                
+                panes.forEach(pane => {
+                    const active = pane.dataset.mainPane === target;
+                    pane.hidden = !active;
+                    pane.classList.toggle('is-active', active);
+                });
+            });
+        });
     }
 
     function initCashCharts(root = document) {
@@ -1188,16 +1859,15 @@
                     if (target === 'trend') {
                         initLayeredCharts(tabs);
                     }
+                    if (target === 'contribution') {
+                        initRevenueContribution(tabs);
+                    }
                 });
             });
         });
     }
 
     function initRevenueContribution(root = document) {
-        const dataNode = document.getElementById('revenue-contribution-data');
-        let data = { roots: [], products: [], totals: { revenue: 0, gross_profit: 0 } };
-        try { data = JSON.parse(dataNode?.textContent || '{}'); } catch (error) { data = { roots: [], products: [], totals: { revenue: 0, gross_profit: 0 } }; }
-
         const findNode = (nodes, path) => {
             for (const node of nodes || []) {
                 if (node.path === path) return node;
@@ -1207,23 +1877,36 @@
             return null;
         };
 
-        const metricLabel = metric => metric === 'gross_profit' ? 'Lãi gộp' : 'Doanh thu';
+        const metricLabel = metric => metric === 'gross_profit' ? 'Lợi nhuận gộp' : 'Doanh thu';
         const metricValue = (row, metric) => Number(row?.[metric] || 0);
         const money = value => `${value < 0 ? '-' : ''}${fmtFull(value)}`;
+        const marginPct = (row) => row.revenue ? Math.round((Number(row.gross_profit) || 0) / Number(row.revenue) * 100) : 0;
+        const marginBadgeClass = value => value >= 30 ? 'is-good' : value >= 20 ? 'is-ok' : 'is-low';
+        const shareMeter = value => {
+            const share = Math.max(0, Math.min(100, Number(value || 0)));
+            return `<span class="tree-share-meter"><span>${share}%</span><i><b style="width:${share}%;"></b></i></span>`;
+        };
 
         root.querySelectorAll('[data-revenue-contribution]').forEach(widget => {
+            if (widget.dataset.contributionReady === '1') return;
+            widget.dataset.contributionReady = '1';
+            const dataNode = widget.querySelector('[data-contribution-data]') || document.getElementById('revenue-contribution-data');
+            let data = { roots: [], products: [], totals: { revenue: 0, gross_profit: 0 } };
+            try { data = JSON.parse(dataNode?.textContent || '{}'); } catch (error) { data = { roots: [], products: [], totals: { revenue: 0, gross_profit: 0 } }; }
+            
             const viewSelect = widget.querySelector('[data-contribution-view]');
             const metricSelect = widget.querySelector('[data-contribution-metric]');
             const limitSelect = widget.querySelector('[data-contribution-limit]');
-            const breadcrumb = widget.querySelector('[data-contribution-breadcrumb]');
+            const categoryPickerTrigger = widget.querySelector('[data-contribution-category-trigger]');
+            const categoryPickerMenu = widget.querySelector('[data-contribution-category-menu]');
             const chart = widget.querySelector('[data-contribution-chart]');
             const tableBody = widget.querySelector('[data-contribution-table-body]');
-            const backButton = widget.querySelector('[data-contribution-back]');
             const openAllButton = widget.querySelector('[data-contribution-open-all]');
             const collapseButton = widget.querySelector('[data-contribution-collapse]');
-            if (!viewSelect || !metricSelect || !limitSelect || !breadcrumb || !chart || !tableBody) return;
+            if (!viewSelect || !metricSelect || !limitSelect || !chart || !tableBody) return;
 
             let currentPath = '';
+            let expandedPaths = new Set();
 
             const currentRows = () => {
                 if (viewSelect.value === 'product') return data.products || [];
@@ -1233,114 +1916,210 @@
                 return (node.children && node.children.length) ? node.children : (node.products || []);
             };
 
-            const visibleRows = () => {
-                const metric = metricSelect.value;
-                const rows = [...currentRows()].sort((a, b) => metricValue(b, metric) - metricValue(a, metric));
-                return limitSelect.value === 'top10' ? rows.slice(0, 10) : rows;
-            };
-
-            const renderBreadcrumb = () => {
-                if (viewSelect.value === 'product') {
-                    breadcrumb.innerHTML = '<span>Bạn đang xem: Sản phẩm</span>';
-                    if (backButton) backButton.disabled = true;
-                    return;
-                }
-                const parts = currentPath ? currentPath.split(' / ') : [];
-                const crumbs = ['<button type="button" data-breadcrumb-path="">Tất cả</button>'];
-                let cursor = '';
-                parts.forEach(part => {
-                    cursor = cursor ? `${cursor} / ${part}` : part;
-                    crumbs.push('<span>›</span>');
-                    crumbs.push(`<button type="button" data-breadcrumb-path="${escapeHtml(cursor)}">${escapeHtml(part)}</button>`);
-                });
-                breadcrumb.innerHTML = `<span>Bạn đang xem:</span> ${crumbs.join(' ')}`;
-                breadcrumb.querySelectorAll('[data-breadcrumb-path]').forEach(button => {
-                    button.addEventListener('click', () => {
-                        currentPath = button.dataset.breadcrumbPath || '';
-                        render();
-                    });
-                });
-                if (backButton) backButton.disabled = !currentPath;
-            };
-
             const renderChart = rows => {
                 const metric = metricSelect.value;
-                const maxValue = Math.max(...rows.map(row => Math.abs(metricValue(row, metric))), 0);
-                chart.innerHTML = rows.length ? `
-                    <div class="revenue-ranking-legend">
-                        <span><i class="${metric === 'gross_profit' ? 'revenue-legend-profit' : 'revenue-legend-revenue'}"></i>${metricLabel(metric)}</span>
+                let chartRows = [...rows].sort((a, b) => metricValue(b, metric) - metricValue(a, metric));
+                if (limitSelect.value === 'top10') chartRows = chartRows.slice(0, 10);
+                else if (limitSelect.value === 'bottom10') chartRows = chartRows.reverse().slice(0, 10);
+
+                const maxValue = Math.max(...chartRows.map(row => Math.abs(metricValue(row, metric))), 0);
+                const isProfit = metric === 'gross_profit';
+
+                chart.innerHTML = chartRows.length ? `
+                    <div class="margin-ranking-head">
+                        <div class="margin-ranking-legend">
+                            <span><b class="${isProfit ? 'margin-legend-positive' : 'margin-tooltip-revenue'}"></b>${metricLabel(metric)}</span>
+                            <span><b class="margin-legend-negative"></b>Giá trị âm</span>
+                        </div>
                     </div>
-                    ${rows.map(row => {
+                    ${chartRows.map(row => {
                         const value = metricValue(row, metric);
                         const width = maxValue ? Math.max(3, Math.round(Math.abs(value) / maxValue * 100)) : 0;
-                        const clickable = viewSelect.value === 'category' && row.kind === 'category';
+                        const isNegative = value < 0;
                         return `
-                            <div class="revenue-ranking-row ${clickable ? 'is-clickable' : ''}" data-row-path="${escapeHtml(row.path || '')}">
-                                <strong>${escapeHtml(row.name)}</strong>
-                                <div class="revenue-ranking-bars">
-                                    <span class="revenue-ranking-bar ${metric === 'gross_profit' ? 'revenue-ranking-bar--profit' : 'revenue-ranking-bar--revenue'} ${value < 0 ? 'is-negative' : ''}" style="--bar-width: ${width}%;"></span>
+                            <div class="margin-ranking-row ${isNegative ? 'is-negative' : ''}">
+                                <div class="margin-ranking-name">
+                                    <strong>${escapeHtml(row.name)}</strong>
                                 </div>
-                                <span>${money(value)}</span>
+                                <div class="margin-ranking-track" style="--bar-width: ${width}%; --bar-color: ${valueColor(value, maxValue, isNegative ? '#F8D9D9' : (isProfit ? '#F4D7D7' : '#DBEAFE'), isNegative ? '#B42318' : (isProfit ? '#7A1A1A' : '#2563EB'))};">
+                                    <span class="margin-ranking-fill"></span>
+                                    <span class="margin-ranking-tooltip" role="tooltip">
+                                        <strong>${escapeHtml(row.name)}</strong>
+                                        <span><i class="margin-tooltip-revenue"></i>Doanh thu: ${money(Number(row.revenue))}</span>
+                                        <span><i class="margin-tooltip-cogs"></i>Giá vốn: ${money(Number(row.cogs))}</span>
+                                        <span><i class="margin-tooltip-margin"></i>Lợi nhuận gộp: ${money(Number(row.gross_profit))}</span>
+                                    </span>
+                                </div>
+                                <div class="margin-ranking-values">
+                                    <strong>${money(value)}</strong>
+                                    <small>SL bán: ${row.quantity || 0} ${escapeHtml(row.unit || 'đơn vị')}</small>
+                                </div>
                             </div>
                         `;
                     }).join('')}
-                ` : '';
-                chart.querySelectorAll('.revenue-ranking-row.is-clickable').forEach(row => {
-                    row.addEventListener('click', () => {
-                        currentPath = row.dataset.rowPath || '';
-                        render();
+                ` : '<p class="analytics-empty">Chưa có dữ liệu đóng góp.</p>';
+            };
+
+            const renderTable = (rows) => {
+                if (!rows.length) {
+                    tableBody.innerHTML = '<tr><td colspan="7">Chưa có dữ liệu.</td></tr>';
+                    return;
+                }
+                
+                let html = '';
+                const renderNode = (node, level, parentPath) => {
+                    const hasChildren = (node.children && node.children.length > 0) || (node.products && node.products.length > 0);
+                    const isExpanded = expandedPaths.has(node.path);
+                    const isHidden = parentPath && !expandedPaths.has(parentPath);
+                    const gross = Number(node.gross_profit || 0);
+                    const margin = marginPct(node);
+                    
+                    html += `
+                        <tr data-profit-row="${escapeHtml(node.path)}" data-profit-parent="${escapeHtml(parentPath)}" data-profit-level="${level}" data-profit-kind="${escapeHtml(node.kind || 'category')}" ${isHidden ? 'hidden' : ''}>
+                            <td>
+                                ${'<span class="profit-tree-spacer"></span>'.repeat(level - 1)}
+                                ${hasChildren && viewSelect.value === 'category' ? `<button type="button" class="profit-tree-toggle" data-tree-toggle="${escapeHtml(node.path)}">${isExpanded ? '-' : '+'}</button>` : (viewSelect.value === 'category' ? '<span class="profit-tree-spacer"></span>' : '')}
+                                <b>${escapeHtml(node.name)}</b>
+                            </td>
+                            <td>${node.quantity || 0} ${node.kind === 'product' ? escapeHtml(node.unit || 'đơn vị') : ''}</td>
+                            <td><b>${money(Number(node.revenue || 0))}</b></td>
+                            <td>${money(Number(node.cogs || 0))}</td>
+                            <td class="${gross < 0 ? 'negative' : 'positive'}"><b>${money(gross)}</b></td>
+                            <td><span class="tree-margin-badge ${marginBadgeClass(margin)}">${margin}%</span></td>
+                            <td>${shareMeter(node.revenue_share)}</td>
+                        </tr>
+                    `;
+                    
+                    if (isExpanded && viewSelect.value === 'category') {
+                        if (node.children) node.children.forEach(child => renderNode(child, level + 1, node.path));
+                        if (node.products) node.products.forEach(prod => renderNode(prod, level + 1, node.path));
+                    }
+                };
+                
+                rows.forEach(root => renderNode(root, 1, ''));
+                tableBody.innerHTML = html;
+                
+                tableBody.querySelectorAll('.profit-tree-toggle').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const path = e.target.dataset.treeToggle;
+                        if (expandedPaths.has(path)) expandedPaths.delete(path);
+                        else expandedPaths.add(path);
+                        renderTable(rows);
                     });
                 });
             };
 
-            const renderTable = rows => {
-                tableBody.innerHTML = rows.length ? rows.map(row => {
-                    const gross = Number(row.gross_profit || 0);
-                    return `
-                        <tr>
-                            <td><b>${escapeHtml(row.name)}</b></td>
-                            <td>${row.quantity || 0}${row.kind === 'product' ? ` ${escapeHtml(row.unit || 'đơn vị')}` : ''}</td>
-                            <td><b>${money(Number(row.revenue || 0))}</b></td>
-                            <td>${money(Number(row.cogs || 0))}</td>
-                            <td class="${gross < 0 ? 'negative' : 'positive'}"><b>${money(gross)}</b></td>
-                            <td>${row.revenue_share || 0}%</td>
-                            <td>${row.profit_share || 0}%</td>
-                        </tr>
-                    `;
-                }).join('') : '<tr><td colspan="7">Chưa có dữ liệu.</td></tr>';
-            };
-
             function render() {
-                if (viewSelect.value === 'product') currentPath = '';
-                const rows = visibleRows();
-                renderBreadcrumb();
+                if (viewSelect.value === 'product') {
+                    currentPath = '';
+                    if (categoryPickerTrigger) {
+                        categoryPickerTrigger.disabled = true;
+                        categoryPickerTrigger.style.opacity = '0.5';
+                    }
+                } else {
+                    if (categoryPickerTrigger) {
+                        categoryPickerTrigger.disabled = false;
+                        categoryPickerTrigger.style.opacity = '1';
+                    }
+                }
+                const rows = currentRows();
                 renderChart(rows);
                 renderTable(rows);
             }
 
             [viewSelect, metricSelect, limitSelect].forEach(select => {
+                if (!select) return;
                 select.addEventListener('change', () => {
-                    if (select === viewSelect) currentPath = '';
+                    if (select === viewSelect) {
+                        currentPath = '';
+                        expandedPaths.clear();
+                        if (categoryPickerTrigger) categoryPickerTrigger.textContent = 'Tất cả danh mục';
+                    }
                     render();
                 });
             });
-            backButton?.addEventListener('click', () => {
-                const parts = currentPath ? currentPath.split(' / ') : [];
-                parts.pop();
-                currentPath = parts.join(' / ');
-                render();
-            });
+
+            if (categoryPickerTrigger && categoryPickerMenu) {
+                categoryPickerTrigger.addEventListener('click', () => {
+                    categoryPickerMenu.hidden = !categoryPickerMenu.hidden;
+                });
+                categoryPickerMenu.querySelectorAll('[data-category-toggle]').forEach(button => {
+                    button.addEventListener('click', event => {
+                        event.stopPropagation();
+                        const childBlock = button.closest('.analytics-category-node')?.nextElementSibling;
+                        if (!childBlock || !childBlock.classList.contains('analytics-category-children')) return;
+                        childBlock.hidden = !childBlock.hidden;
+                        button.textContent = childBlock.hidden ? '+' : '-';
+                    });
+                });
+                categoryPickerMenu.querySelectorAll('[data-category-value]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        currentPath = button.dataset.categoryValue || '';
+                        categoryPickerTrigger.textContent = button.textContent.trim();
+                        categoryPickerMenu.hidden = true;
+                        expandedPaths.clear();
+                        render();
+                    });
+                });
+                document.addEventListener('click', event => {
+                    if (!event.target.closest('[data-contribution-category-picker]') && !categoryPickerMenu.hidden) {
+                        categoryPickerMenu.hidden = true;
+                    }
+                });
+            }
+
             openAllButton?.addEventListener('click', () => {
-                limitSelect.value = 'all';
-                render();
+                const addPaths = nodes => {
+                    nodes.forEach(node => {
+                        expandedPaths.add(node.path);
+                        if (node.children) addPaths(node.children);
+                    });
+                };
+                addPaths(currentRows());
+                renderTable(currentRows());
             });
+            
             collapseButton?.addEventListener('click', () => {
-                currentPath = '';
-                limitSelect.value = 'top10';
-                render();
+                expandedPaths.clear();
+                renderTable(currentRows());
             });
 
             render();
+        });
+    }
+
+    function initProfitTabs(root = document) {
+        root.querySelectorAll('[data-profit-tabs]').forEach(tabs => {
+            const buttons = Array.from(tabs.querySelectorAll('[data-profit-tab-button]'));
+            const panels = Array.from(tabs.querySelectorAll('[data-profit-tab-panel]'));
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const target = button.dataset.profitTabButton;
+                    buttons.forEach(item => item.classList.toggle('is-active', item === button));
+                    panels.forEach(panel => {
+                        const active = panel.dataset.profitTabPanel === target;
+                        panel.hidden = !active;
+                        panel.classList.toggle('is-active', active);
+                    });
+                    if (target === 'trend') initLayeredCharts(tabs);
+                });
+            });
+        });
+
+        root.querySelectorAll('[data-profit-sub-tabs]').forEach(tabs => {
+            const buttons = Array.from(tabs.querySelectorAll('[data-profit-sub-tab-button]'));
+            const panels = Array.from(tabs.querySelectorAll('[data-profit-sub-tab-panel]'));
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const target = button.dataset.profitSubTabButton;
+                    buttons.forEach(item => item.classList.toggle('is-active', item === button));
+                    panels.forEach(panel => {
+                        const active = panel.dataset.profitSubTabPanel === target;
+                        panel.hidden = !active;
+                        panel.classList.toggle('is-active', active);
+                    });
+                });
+            });
         });
     }
 
@@ -1353,15 +2132,19 @@
         "'": '&#39;',
     }[char]));
 
-    function expenseDonutStyle(parts) {
+    function pieChartStyle(parts, colors) {
         let cursor = 0;
         const stops = parts.length ? parts.map((part, index) => {
             const start = cursor;
             cursor += part.share || 0;
-            const color = EXPENSE_COLORS[index % EXPENSE_COLORS.length];
+            const color = colors[index % colors.length];
             return `${color} ${start}% ${cursor}%`;
         }).join(', ') : '#e5e7eb 0% 100%';
-        return `background: conic-gradient(${stops});`;
+        return `background-image: conic-gradient(${stops}) !important;`;
+    }
+
+    function expenseDonutStyle(parts) {
+        return pieChartStyle(parts, EXPENSE_COLORS);
     }
 
     function expenseTooltip(chart, event, item) {
@@ -1378,7 +2161,7 @@
             </div>
             <div class="expense-tooltip-body">
                 <div class="expense-tooltip-donut" style="${expenseDonutStyle(parts)}">
-                    <span>${fmtFull(item.total)}</span>
+                    <span class="expense-tooltip-donut-center">${fmtFull(item.total)}</span>
                 </div>
                 <div class="expense-tooltip-list">
                     ${parts.length ? parts.map((part, index) => `
@@ -1443,13 +2226,14 @@
             const cx = gx + groupW / 2;
             const barH = item.total ? Math.max(3, y(0) - y(item.total)) : 0;
             const x = cx - barW / 2;
-            const barY = y(0) - barH;
-            const rect = svgNode('rect', { x, y: barY, width: barW, height: barH, rx: 5, fill: '#9F1111', class: 'expense-chart-hit' });
+            const rectY = y(0) - barH;
+            const fill = '#B91C1C';
+            const rect = svgNode('rect', { x, y: rectY, width: barW, height: barH, rx: 5, fill: fill, class: 'expense-chart-hit' });
             rect.addEventListener('mouseenter', event => expenseTooltip(chart, event, item));
             rect.addEventListener('mousemove', event => expenseTooltip(chart, event, item));
             rect.addEventListener('mouseleave', () => hideExpenseTooltip(chart));
             svg.appendChild(rect);
-            const valueText = svgNode('text', { x: cx, y: barY - 9, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: '#7f0d0d' });
+            const valueText = svgNode('text', { x: cx, y: rectY - 9, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: fill });
             valueText.textContent = fmt(item.total);
             svg.appendChild(valueText);
             const label = svgNode('text', { x: cx, y: height - 28, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: '#6b7280' });
@@ -1466,10 +2250,187 @@
         root.querySelectorAll('[data-expense-chart]').forEach(chart => renderExpenseChart(chart, data));
     }
 
+    const REVENUE_COMBO_COLORS = {
+        revenue: '#2563EB',
+        orders: '#C2410C',
+    };
+
+    function estimateRevenueComboLabelBox(text, x, y, fontSize, anchor = 'middle') {
+        const width = String(text).length * fontSize * 0.62 + 8;
+        const height = fontSize + 7;
+        const left = anchor === 'middle' ? x - width / 2 : anchor === 'end' ? x - width : x;
+        return { left, right: left + width, top: y - height + 3, bottom: y + 4, width, height };
+    }
+
+    function revenueComboBoxesOverlap(a, b, pad = 5) {
+        return !(a.right + pad < b.left || a.left - pad > b.right || a.bottom + pad < b.top || a.top - pad > b.bottom);
+    }
+
+    function revenueComboBoxIntersectsBar(box, bars) {
+        return bars.some(bar => !(box.right < bar.x || box.left > bar.x + bar.width || box.bottom < bar.y || box.top > bar.y + bar.height));
+    }
+
+    function renderRevenueComboLabel(svg, label, bounds, bars, occupied) {
+        for (const candidate of label.candidates) {
+            const box = estimateRevenueComboLabelBox(label.text, candidate.x, candidate.y, label.fontSize, candidate.anchor);
+            const inBounds = box.left >= bounds.left && box.right <= bounds.right && box.top >= bounds.top && box.bottom <= bounds.bottom;
+            if (!inBounds || occupied.some(used => revenueComboBoxesOverlap(box, used))) continue;
+
+            const onBar = revenueComboBoxIntersectsBar(box, bars);
+            const fill = candidate.fill || (label.kind === 'orders' ? REVENUE_COMBO_COLORS.orders : REVENUE_COMBO_COLORS.revenue);
+            const text = svgNode('text', {
+                x: candidate.x,
+                y: candidate.y,
+                'text-anchor': candidate.anchor,
+                'font-size': label.fontSize,
+                'font-weight': label.weight,
+                fill: candidate.forceLight || (label.kind === 'revenue' && onBar) ? '#fffaf0' : fill,
+                stroke: candidate.stroke || (label.kind === 'orders' || !onBar ? '#fffaf0' : 'rgba(23, 32, 51, .28)'),
+                'stroke-width': label.kind === 'orders' || !onBar ? 3 : 1.5,
+                'stroke-linejoin': 'round',
+                'paint-order': 'stroke',
+            });
+            text.textContent = label.text;
+            svg.appendChild(text);
+            occupied.push(box);
+            return;
+        }
+    }
+
+    function revenueComboTooltip(chart, event, item) {
+        const tooltip = chart.querySelector('[data-revenue-combo-tooltip]');
+        if (!tooltip) return;
+        tooltip.innerHTML = `
+            <strong>${escapeHtml(item.label)}</strong>
+            <span><i style="background:${REVENUE_COMBO_COLORS.revenue}"></i>Doanh thu: ${fmtFull(item.revenue || 0)}</span>
+            <span><i style="background:${REVENUE_COMBO_COLORS.orders}"></i>Đơn hàng: ${item.orders || 0}</span>
+            <span><i style="background:#d2a74f"></i>Doanh thu/đơn TB: ${fmtFull(item.avg_order || 0)}</span>
+        `;
+        tooltip.hidden = false;
+        tooltip.style.left = `${Math.max(12, Math.min(window.innerWidth - 320, event.clientX + 14))}px`;
+        tooltip.style.top = `${Math.max(12, Math.min(window.innerHeight - 190, event.clientY + 14))}px`;
+    }
+
+    function hideRevenueComboTooltip(chart) {
+        const tooltip = chart.querySelector('[data-revenue-combo-tooltip]');
+        if (tooltip) tooltip.hidden = true;
+    }
+
+    function renderRevenueComboChart(chart, data) {
+        const canvas = chart.querySelector('[data-revenue-combo-canvas]');
+        if (!canvas) return;
+        canvas.innerHTML = '';
+        if (!data.length) {
+            canvas.innerHTML = '<div class="cash-chart-empty">Chưa có doanh thu trong kỳ.</div>';
+            return;
+        }
+        const width = Math.max(680, data.length * 118 + 150);
+        const height = 360;
+        const margin = { left: 64, right: 34, top: 34, bottom: 64 };
+        const chartW = width - margin.left - margin.right;
+        const chartH = height - margin.top - margin.bottom;
+        const maxRevenue = Math.max(...data.map(item => Number(item.revenue || 0)), 1);
+        const maxOrders = Math.max(...data.map(item => Number(item.orders || 0)), 1);
+        const yRevenue = value => margin.top + chartH - (value / maxRevenue) * chartH;
+        const yOrders = value => margin.top + chartH - (value / maxOrders) * chartH;
+        const groupW = Math.min(110, chartW / Math.max(1, data.length));
+        const barW = Math.max(24, Math.min(48, groupW * .42));
+        const usedW = data.length * groupW;
+        const startX = margin.left + Math.max(0, (chartW - usedW) / 2);
+        const svg = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, width, height });
+
+        [0, .25, .5, .75, 1].forEach(step => {
+            const value = maxRevenue * step;
+            const yy = yRevenue(value);
+            svg.appendChild(svgNode('line', { x1: margin.left, x2: width - margin.right, y1: yy, y2: yy, stroke: 'rgba(148,163,184,.24)', 'stroke-width': 1 }));
+            svg.appendChild(svgNode('text', { x: margin.left - 10, y: yy + 4, 'text-anchor': 'end', 'font-size': 10, fill: '#6b7280' })).textContent = fmt(value);
+        });
+
+        const linePoints = [];
+        const hitAreas = [];
+        const bars = [];
+        const labels = [];
+        data.forEach((item, index) => {
+            const gx = startX + index * groupW;
+            const cx = gx + groupW / 2;
+            const revenue = Number(item.revenue || 0);
+            const orders = Number(item.orders || 0);
+            const barH = revenue ? Math.max(3, yRevenue(0) - yRevenue(revenue)) : 0;
+            const x = cx - barW / 2;
+            const barY = yRevenue(0) - barH;
+            const rect = svgNode('rect', { x, y: barY, width: barW, height: barH, rx: 5, fill: REVENUE_COMBO_COLORS.revenue, class: 'cash-chart-hit' });
+            svg.appendChild(rect);
+            bars.push({ x, y: barY, width: barW, height: barH });
+            if (data.length <= 8 && barH > 28) {
+                labels.push({
+                    kind: 'revenue',
+                    text: fmt(revenue),
+                    fontSize: 10,
+                    weight: 850,
+                    candidates: [
+                        { x: cx, y: barY + 17, anchor: 'middle', forceLight: true, stroke: 'rgba(23, 32, 51, .36)' },
+                        { x: cx, y: barY - 8, anchor: 'middle' },
+                        { x: Math.min(width - margin.right - 4, cx + barW / 2 + 10), y: Math.max(margin.top + 12, barY + 12), anchor: 'start' },
+                    ],
+                });
+            }
+            const pointY = yOrders(orders);
+            linePoints.push([cx, pointY, orders, index]);
+            hitAreas.push({ item, x: Math.max(margin.left, gx), width: Math.max(groupW, barW + 28) });
+            const period = svgNode('text', { x: cx, y: height - 26, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 750, fill: '#6b7280' });
+            period.textContent = item.label;
+            svg.appendChild(period);
+        });
+        if (linePoints.length) {
+            svg.appendChild(svgNode('polyline', { points: linePoints.map(([x, y]) => `${x},${y}`).join(' '), fill: 'none', stroke: REVENUE_COMBO_COLORS.orders, 'stroke-width': 2.4 }));
+            linePoints.forEach(([x, y, orders]) => {
+                const circle = svgNode('circle', { cx: x, cy: y, r: 4, fill: REVENUE_COMBO_COLORS.orders, stroke: '#fffaf0', 'stroke-width': 1.5, class: 'cash-chart-hit' });
+                svg.appendChild(circle);
+                labels.push({
+                    kind: 'orders',
+                    text: `${orders}`,
+                    fontSize: 11,
+                    weight: 900,
+                    candidates: [
+                        { x, y: Math.max(17, y - 14), anchor: 'middle' },
+                        { x: x + 11, y: Math.max(margin.top + 13, y - 4), anchor: 'start' },
+                        { x: x - 11, y: Math.max(margin.top + 13, y - 4), anchor: 'end' },
+                        { x, y: Math.min(height - margin.bottom - 6, y + 18), anchor: 'middle' },
+                    ],
+                });
+            });
+        }
+        const occupiedLabelBoxes = [];
+        labels.sort((a, b) => (a.kind === 'orders' ? 0 : 1) - (b.kind === 'orders' ? 0 : 1)).forEach(label => renderRevenueComboLabel(svg, label, {
+            left: margin.left,
+            right: width - margin.right,
+            top: 4,
+            bottom: height - margin.bottom + 2,
+        }, bars, occupiedLabelBoxes));
+        hitAreas.forEach(({ item, x, width }) => {
+            const hitArea = svgNode('rect', { x, y: margin.top, width, height: chartH, fill: 'transparent', class: 'cash-chart-hit' });
+            hitArea.addEventListener('mouseenter', event => revenueComboTooltip(chart, event, item));
+            hitArea.addEventListener('mousemove', event => revenueComboTooltip(chart, event, item));
+            hitArea.addEventListener('mouseleave', () => hideRevenueComboTooltip(chart));
+            svg.appendChild(hitArea);
+        });
+        canvas.appendChild(svg);
+    }
+
+    function initRevenueComboCharts(root = document) {
+        const dataNode = document.getElementById('revenue-combo-chart-points');
+        let data = [];
+        try { data = JSON.parse(dataNode?.textContent || '[]'); } catch (error) { data = []; }
+        root.querySelectorAll('[data-revenue-combo-chart]').forEach(chart => renderRevenueComboChart(chart, data));
+    }
+
     function setLayeredLegend(chart, detail, isAllView) {
         const legend = chart.querySelector('[data-layered-chart-legend]');
         if (!legend) return;
-        const items = detail
+        const profitOnly = chart.dataset.profitOnly === '1';
+        const items = profitOnly
+            ? [['Lợi nhuận gộp', LAYERED_COLORS.grossPos], ['Lợi nhuận thuần', LAYERED_COLORS.netPos]]
+            : detail
             ? [['Doanh thu', LAYERED_COLORS.revenue], ['Giá vốn', LAYERED_COLORS.cogs], ['Lợi nhuận gộp', LAYERED_COLORS.grossPos], ...(isAllView ? [['Chi phí vận hành', LAYERED_COLORS.opex], ['Lợi nhuận thuần', LAYERED_COLORS.netPos]] : [])]
             : [['Doanh thu', LAYERED_COLORS.revenue], ['Lợi nhuận gộp', LAYERED_COLORS.grossPos], ...(isAllView ? [['Lợi nhuận thuần', LAYERED_COLORS.netLine, true]] : [])];
         legend.innerHTML = items.map(([label, color, dot]) => `<span><i class="${dot ? 'is-dot' : ''}" style="background:${color}"></i>${label}</span>`).join('');
@@ -1489,15 +2450,19 @@
             canvas.innerHTML = '<p class="analytics-empty">Chưa có dữ liệu để vẽ biểu đồ.</p>';
             return;
         }
+        const profitOnly = chart.dataset.profitOnly === '1';
         const width = Math.max(580, data.length * 90);
         const height = 260;
         const margin = { left: 56, right: 20, top: 24, bottom: 44 };
         const chartW = width - margin.left - margin.right;
         const chartH = height - margin.top - margin.bottom;
-        const values = data.flatMap(item => [0, item.revenue, item.gross_profit, isAllView ? item.net_profit : 0]);
+        const values = profitOnly
+            ? data.flatMap(item => [0, item.gross_profit, item.net_profit])
+            : data.flatMap(item => [0, item.revenue, item.gross_profit, isAllView ? item.net_profit : 0]);
         const max = Math.max(...values);
         const min = Math.min(...values);
         const range = max - min || 1;
+        const maxAbsValue = Math.max(...values.map(value => Math.abs(Number(value || 0))), 1);
         const y = value => margin.top + ((max - value) / range) * chartH;
         const zeroY = y(0);
         const grpW = chartW / Math.max(data.length, 1);
@@ -1521,14 +2486,18 @@
             overlay.addEventListener('mouseleave', () => hideLayeredTooltip(chart));
             overlay.addEventListener('click', () => renderLayeredDetail(chart, data, item, isAllView));
             svg.appendChild(overlay);
-            [
-                [item.revenue, cx - barW - 2, LAYERED_COLORS.revenue],
-                [item.gross_profit, cx + 2, item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg],
-            ].forEach(([value, x, color]) => {
+            const bars = profitOnly ? [
+                [item.gross_profit, cx - barW - 2, item.gross_profit >= 0 ? '#E8F5E2' : '#F8D9D9', item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg],
+                [item.net_profit, cx + 2, '#D7E7F8', item.net_profit >= 0 ? LAYERED_COLORS.netPos : LAYERED_COLORS.netNeg],
+            ] : [
+                [item.revenue, cx - barW - 2, '#DBEAFE', LAYERED_COLORS.revenue],
+                [item.gross_profit, cx + 2, item.gross_profit >= 0 ? '#E8F5E2' : '#F8D9D9', item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg],
+            ];
+            bars.forEach(([value, x, light, dark]) => {
                 const by = y(Math.max(value, 0));
-                svg.appendChild(svgNode('rect', { x, y: value >= 0 ? by : zeroY, width: barW, height: Math.max(2, Math.abs(y(value) - zeroY)), rx: 3, fill: color }));
+                svg.appendChild(svgNode('rect', { x, y: value >= 0 ? by : zeroY, width: barW, height: Math.max(2, Math.abs(y(value) - zeroY)), rx: 3, fill: valueColor(value, maxAbsValue, light, dark) }));
             });
-            if (isAllView) netPoints.push([cx, y(item.net_profit)]);
+            if (isAllView && !profitOnly) netPoints.push([cx, y(item.net_profit)]);
             const label = svgNode('text', {
                 x: cx,
                 y: height - 18,
@@ -1581,10 +2550,10 @@
         setTimeout(() => {
             canvas.innerHTML = '';
             const bars = [
-                ['Doanh thu', 0, item.revenue, LAYERED_COLORS.revenue],
-                ['Giá vốn', item.revenue, item.gross_profit, LAYERED_COLORS.cogs],
-                ['Lợi nhuận gộp', 0, item.gross_profit, item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg],
-                ...(isAllView ? [['Chi phí vận hành', item.gross_profit, item.net_profit, LAYERED_COLORS.opex], ['Lợi nhuận thuần', 0, item.net_profit, item.net_profit >= 0 ? LAYERED_COLORS.netPos : LAYERED_COLORS.netNeg]] : []),
+                ['Doanh thu', 0, item.revenue, '#DBEAFE', LAYERED_COLORS.revenue],
+                ['Giá vốn', item.revenue, item.gross_profit, '#F8D9D9', LAYERED_COLORS.cogs],
+                ['Lợi nhuận gộp', 0, item.gross_profit, item.gross_profit >= 0 ? '#E8F5E2' : '#F8D9D9', item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg],
+                ...(isAllView ? [['Chi phí vận hành', item.gross_profit, item.net_profit, '#F7DFC4', LAYERED_COLORS.opex], ['Lợi nhuận thuần', 0, item.net_profit, item.net_profit >= 0 ? '#D7E7F8' : '#F8D9D9', item.net_profit >= 0 ? LAYERED_COLORS.netPos : LAYERED_COLORS.netNeg]] : []),
             ];
             const width = isAllView ? 760 : 560;
             const height = 300;
@@ -1592,6 +2561,7 @@
             const chartW = width - margin.left - margin.right, chartH = height - margin.top - margin.bottom;
             const values = bars.flatMap(([, base, top]) => [0, base, top]);
             const max = Math.max(...values), min = Math.min(...values), range = max - min || 1;
+            const maxAbsValue = Math.max(...values.map(value => Math.abs(Number(value || 0))), 1);
             const y = value => margin.top + ((max - value) / range) * chartH;
             const barW = Math.min(92, chartW / bars.length * .48);
             const gap = Math.max(42, (chartW - bars.length * barW) / Math.max(1, bars.length - 1));
@@ -1608,9 +2578,11 @@
                 'stroke-dasharray': '4,3',
             }));
             bars.slice(0, -1).forEach((bar, index) => connector(index, index + 1, bar[2]));
-            bars.forEach(([label, base, top, color], index) => {
+            bars.forEach(([label, base, top, light, dark], index) => {
                 const x = startX + index * (barW + gap);
                 const y1 = y(base), y2 = y(top), rectY = Math.min(y1, y2), h = Math.max(2, Math.abs(y2 - y1));
+                const value = top - base;
+                const color = valueColor(value, maxAbsValue, light, dark);
                 svg.appendChild(svgNode('line', {
                     x1: x - 7,
                     x2: x + barW + 7,
@@ -1620,7 +2592,6 @@
                     'stroke-width': 1.2,
                 }));
                 svg.appendChild(svgNode('rect', { x, y: rectY, width: barW, height: h, rx: 4, fill: color }));
-                const value = top - base;
                 const val = svgNode('text', { x: x + barW / 2, y: value >= 0 ? rectY - 7 : rectY + h + 14, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 500, fill: color });
                 val.textContent = `${value < 0 ? '-' : ''}${fmt(Math.abs(value))}`;
                 svg.appendChild(val);
@@ -1647,11 +2618,26 @@
     }
 
     function initReportInteractions(root = document) {
+        initMainTabs(root);
         initLayeredCharts(root);
+        initRevenueComboCharts(root);
         initCashCharts(root);
         initExpenseCharts(root);
         initRevenueTabs(root);
+        initProfitTabs(root);
         initRevenueContribution(root);
+        root.querySelectorAll('[data-cash-table-toggle]').forEach(button => {
+            if (button.dataset.ready === '1') return;
+            button.dataset.ready = '1';
+            button.addEventListener('click', () => {
+                const section = button.closest('.analytics-cashflow-card');
+                const panel = section?.querySelector('[data-cash-table-panel]');
+                if (!panel) return;
+                panel.hidden = !panel.hidden;
+                button.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+                button.textContent = panel.hidden ? 'Hiện bảng chi tiết' : 'Ẩn bảng chi tiết';
+            });
+        });
         root.querySelectorAll('[data-auto-submit]').forEach(input => {
             input.addEventListener('change', () => {
                 const form = input.closest('form');
@@ -1700,13 +2686,23 @@
                 if (!opening) hideDescendants(path);
             });
         });
-        root.querySelector('#expandProfitTree')?.addEventListener('click', () => {
-            root.querySelectorAll('[data-profit-parent]').forEach(row => row.hidden = false);
-            root.querySelectorAll('[data-profit-toggle]:not(.is-empty)').forEach(button => button.textContent = '-');
+        root.querySelectorAll('[data-tree-expand]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.treeExpand;
+                const tbody = root.querySelector(`#${targetId}`);
+                if (!tbody) return;
+                tbody.querySelectorAll('[data-profit-parent]').forEach(row => row.hidden = false);
+                tbody.querySelectorAll('[data-profit-toggle]:not(.is-empty)').forEach(button => button.textContent = '-');
+            });
         });
-        root.querySelector('#collapseProfitTree')?.addEventListener('click', () => {
-            root.querySelectorAll('[data-profit-parent]').forEach(row => row.hidden = true);
-            root.querySelectorAll('[data-profit-toggle]:not(.is-empty)').forEach(button => button.textContent = '+');
+        root.querySelectorAll('[data-tree-collapse]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.treeCollapse;
+                const tbody = root.querySelector(`#${targetId}`);
+                if (!tbody) return;
+                tbody.querySelectorAll('[data-profit-parent]').forEach(row => row.hidden = true);
+                tbody.querySelectorAll('[data-profit-toggle]:not(.is-empty)').forEach(button => button.textContent = '+');
+            });
         });
 
         function hideRevenueDescendants(path) {
