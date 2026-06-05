@@ -35,8 +35,7 @@ core/
 
 - `/` - landing page giới thiệu Pixiu Flow.
 - `/login/`, `/signup/` - giao diện đăng nhập/đăng ký.
-- `/onboarding/` - màn hình chào mừng.
-- `/onboarding/opening-stock/` - wizard khai báo tồn kho ban đầu.
+- `/setup/products/` - thiết lập sản phẩm và hàng ban đầu.
 
 ### 2. Bảng theo dõi
 
@@ -522,8 +521,7 @@ File CSS chính được import qua `core/static/core/css/styles.css`:
 /                                      Landing
 /login/                                Đăng nhập
 /signup/                               Đăng ký
-/onboarding/                           Chào mừng
-/onboarding/opening-stock/             Wizard tồn kho ban đầu
+/setup/products/                       Thiết lập sản phẩm và hàng ban đầu
 
 /dashboard/                            Bảng theo dõi
 /inventory/                            Sản phẩm và tồn kho

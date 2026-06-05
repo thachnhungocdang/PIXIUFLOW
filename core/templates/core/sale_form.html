@@ -118,7 +118,7 @@
                                 <input type="hidden" name="order_category_level_4[]" class="sale-category-level-4" value="{{ row.category_level_4|default:'' }}">
                                 <input type="hidden" name="order_stock_quantity[]" class="sale-stock-quantity" value="{{ row.stock_quantity|default:'' }}">
                                 <input type="hidden" name="order_stock_unit_cost[]" class="sale-stock-unit-cost" value="{{ row.stock_unit_cost|default:'' }}">
-                                <input type="hidden" name="order_stock_origin[]" class="sale-stock-origin" value="{{ row.stock_origin|default:'opening' }}">
+                                <input type="hidden" name="order_stock_origin[]" class="sale-stock-origin" value="{{ row.stock_origin|default:'purchase' }}">
                                 <input type="hidden" name="order_stock_purchase_date[]" class="sale-stock-purchase-date" value="{{ row.stock_purchase_date|default:sale_values.date }}">
                                 <input type="hidden" name="order_stock_supplier_name[]" class="sale-stock-supplier-name" value="{{ row.stock_supplier_name|default:'' }}">
                                 <input type="hidden" name="order_stock_note[]" class="sale-stock-note" value="{{ row.stock_note|default:'' }}">
@@ -155,8 +155,8 @@
                             {% endfor %}
                         </select>
                     </label>
-                    <label class="sale-debt-field" id="saleDebtField">
-                        <span>Ngày nhắc nợ</span>
+                    <label class="debt-field" id="saleDebtField">
+                        <span>Ngày nhắc thu nợ</span>
                         <input type="date" name="payment_due_date" id="salePaymentDueDate" value="{{ sale_values.payment_due_date }}">
                     </label>
                     <label>
@@ -205,7 +205,7 @@
             <input type="hidden" name="order_category_level_4[]" class="sale-category-level-4">
             <input type="hidden" name="order_stock_quantity[]" class="sale-stock-quantity">
             <input type="hidden" name="order_stock_unit_cost[]" class="sale-stock-unit-cost">
-            <input type="hidden" name="order_stock_origin[]" class="sale-stock-origin" value="opening">
+            <input type="hidden" name="order_stock_origin[]" class="sale-stock-origin" value="purchase">
             <input type="hidden" name="order_stock_purchase_date[]" class="sale-stock-purchase-date">
             <input type="hidden" name="order_stock_supplier_name[]" class="sale-stock-supplier-name">
             <input type="hidden" name="order_stock_note[]" class="sale-stock-note">
@@ -331,39 +331,23 @@
                 </div>
             </div>
             <div class="product-stock-source">
-                <h3>Khai báo tồn kho <span class="required-mark" aria-label="bắt buộc">*</span></h3>
-                <p>Khai báo tồn kho để bạn có thể bán hàng và tính giá vốn đúng.</p>
-                <div class="product-stock-grid">
+                <h3>Nhập kho sản phẩm mới <span class="required-mark" aria-label="bắt buộc">*</span></h3>
+                <p>Tạo phiếu nhập hàng để sản phẩm có tồn kho trước khi bán và tính giá vốn đúng.</p>
+                <div class="product-stock-grid" id="stockInputsGrid">
                     <label class="product-modal-field">
-                        <span><span id="stockQuantityLabel">Số lượng hiện có</span> <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                        <span><span id="stockQuantityLabel">Số lượng nhập</span> <span class="required-mark" aria-label="bắt buộc">*</span></span>
                         <input type="number" id="modalStockQuantity" min="1" step="1" placeholder="Ví dụ: 20">
                     </label>
                     <label class="product-modal-field">
-                        <span id="stockUnitCostLabel">Giá vốn ước tính / đơn vị <span class="required-mark" aria-label="bắt buộc">*</span></span>
+                        <span id="stockUnitCostLabel">Giá vốn nhập / đơn vị <span class="required-mark" aria-label="bắt buộc">*</span></span>
                         <input type="text" id="modalStockUnitCost" inputmode="numeric" placeholder="Ví dụ: 5.000">
                     </label>
                 </div>
-                <div class="stock-origin-options">
-                    <label class="stock-origin-card">
-                        <input type="radio" name="modalStockOrigin" value="opening" checked>
-                        <span>
-                            <strong>Hàng tôi đã có sẵn</strong>
-                            <small>Hàng có sẵn - không tính chi phí kỳ này</small>
-                        </span>
-                    </label>
-                    <label class="stock-origin-card">
-                        <input type="radio" name="modalStockOrigin" value="purchase">
-                        <span>
-                            <strong>Vừa nhập hôm nay</strong>
-                            <small>Tạo phiếu nhập, ghi chi phí hập hàng</small>
-                        </span>
-                    </label>
-                </div>
-                <label class="product-modal-field stock-purchase-date-wrap" id="stockPurchaseDateWrap" hidden>
+                <label class="product-modal-field stock-purchase-date-wrap" id="stockPurchaseDateWrap">
                     <span>Ngày nhập hàng</span>
                     <input type="date" id="modalStockPurchaseDate" value="{{ sale_values.date }}">
                 </label>
-                <div class="stock-purchase-extra" id="stockPurchaseExtra" hidden>
+                <div class="stock-purchase-extra" id="stockPurchaseExtra">
                     <label class="product-modal-field">
                         <span>Nhà cung cấp <span class="modal-field-badge">tuỳ chọn</span></span>
                         <input type="text" id="modalStockSupplierName" placeholder="Ví dụ: Công ty ABC">
@@ -377,7 +361,7 @@
         </div>
         <p class="product-modal-error" id="productModalError" hidden></p>
         <div class="product-modal-actions">
-            <button type="button" class="secondary-action" id="cancelProductModal">Huỷ</button>
+            <button type="button" class="secondary-action" id="cancelProductModal">HỦY</button>
             <button type="button" id="saveProductModal">Dùng sản phẩm này</button>
         </div>
     </div>
@@ -417,7 +401,6 @@
     const notificationMessages = document.getElementById('notificationMessages');
     const closeNotificationChat = document.getElementById('closeNotificationChat');
     let pendingNotifications = [];
-    const stockOriginInputs = document.querySelectorAll('input[name="modalStockOrigin"]');
     const categoryTree = JSON.parse(document.getElementById('categoryTreeData').textContent || '{}');
     const productList = JSON.parse(document.getElementById('productNameData').textContent || '[]');
     const categoryControls = [1, 2, 3, 4].map(level => ({
@@ -483,7 +466,7 @@
         saleDebtField.classList.toggle('is-disabled', !isDebt);
         salePaymentDueDate.disabled = !isDebt;
         salePaymentDueDate.required = isDebt;
-        salePaymentDueDate.title = isDebt ? '' : 'Đã thanh toán, không cần ngày nhắc nợ.';
+        salePaymentDueDate.title = isDebt ? '' : 'Đã thanh toán, không cần ngày nhắc thu nợ.';
         if (isDebt && !salePaymentDueDate.value) salePaymentDueDate.value = today;
         if (!isDebt) salePaymentDueDate.value = '';
     }
@@ -788,12 +771,7 @@
         modalStockNote.value = row.querySelector('.sale-stock-note').value || '';
         formatMoneyInput(modalStockUnitCost);
         formatMoneyInput(modalProductSellPrice);
-        const stockOrigin = row.querySelector('.sale-stock-origin').value || 'opening';
-        stockOriginInputs.forEach(input => {
-            input.checked = input.value === stockOrigin;
-        });
         modalStockPurchaseDate.value = row.querySelector('.sale-stock-purchase-date').value || document.querySelector('input[name="date"]').value;
-        updateStockOriginUi();
         categoryControls.forEach(control => {
             control.select.value = '';
             control.input.value = '';
@@ -831,16 +809,8 @@
         activeProductRow = null;
     }
 
-    function updateStockOriginUi() {
-        const stockOrigin = document.querySelector('input[name="modalStockOrigin"]:checked').value;
-        const shouldShowDate = stockOrigin === 'purchase';
-        stockQuantityLabel.textContent = shouldShowDate ? 'Số lượng nhập' : 'Số lượng hiện có';
-        stockUnitCostLabel.innerHTML = `${shouldShowDate ? 'Giá vốn nhập / đơn vị' : 'Giá vốn ước tính / đơn vị'} <span class="required-mark" aria-label="bắt buộc">*</span>`;
-        stockPurchaseDateWrap.style.display = shouldShowDate ? 'block' : 'none';
-        stockPurchaseDateWrap.hidden = !shouldShowDate;
-        stockPurchaseExtra.style.display = shouldShowDate ? 'grid' : 'none';
-        stockPurchaseExtra.hidden = !shouldShowDate;
-        if (shouldShowDate && !modalStockPurchaseDate.value) {
+    function initializeStockOriginUi() {
+        if (!modalStockPurchaseDate.value) {
             modalStockPurchaseDate.value = document.querySelector('input[name="date"]').value;
         }
     }
@@ -878,7 +848,7 @@
         const stockQuantity = Number(modalStockQuantity.value || 0);
         const stockUnitCost = parseMoney(modalStockUnitCost.value);
         const productSellPrice = parseMoney(modalProductSellPrice.value);
-        const stockOrigin = document.querySelector('input[name="modalStockOrigin"]:checked').value;
+        const stockOrigin = document.querySelector('input[name="modalStockOrigin"]:checked')?.value || 'purchase';
         if (!productName || !category1) {
             productModalError.textContent = 'Nhập tên sản phẩm và danh mục cấp 1 trước khi tiếp tục.';
             productModalError.hidden = false;
@@ -890,20 +860,21 @@
             return;
         }
         if (!stockQuantity || stockQuantity <= 0) {
-            productModalError.textContent = 'Nhập số lượng tồn kho cho sản phẩm mới.';
+            productModalError.textContent = 'Nhập số lượng nhập kho cho sản phẩm mới.';
             productModalError.hidden = false;
             return;
         }
         if (stockUnitCost <= 0) {
-            productModalError.textContent = 'Nhập giá vốn nhập/ước tính lớn hơn 0 cho sản phẩm mới.';
+            productModalError.textContent = 'Nhập giá vốn nhập lớn hơn 0 cho sản phẩm mới.';
             productModalError.hidden = false;
             return;
         }
-        if (stockOrigin === 'purchase' && !modalStockPurchaseDate.value) {
+        if (!modalStockPurchaseDate.value) {
             productModalError.textContent = 'Chọn ngày nhập hàng cho lần nhập hôm nay.';
             productModalError.hidden = false;
             return;
         }
+
 
         const formData = new FormData();
         formData.append('name', productName);
@@ -1054,7 +1025,7 @@
     document.getElementById('cancelProductModal').addEventListener('click', closeProductModal);
     document.getElementById('saveProductModal').addEventListener('click', saveProductModal);
     salePaymentMethod?.addEventListener('change', syncSaleDebtField);
-    stockOriginInputs.forEach(input => input.addEventListener('change', updateStockOriginUi));
+    initializeStockOriginUi();
     modalStockUnitCost.addEventListener('input', () => formatMoneyInput(modalStockUnitCost));
     modalProductSellPrice.addEventListener('input', () => formatMoneyInput(modalProductSellPrice));
     notificationButton.addEventListener('click', () => {

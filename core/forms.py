@@ -22,7 +22,14 @@ class ProductForm(forms.ModelForm):
         name = cleaned_data.get('name')
         unit = cleaned_data.get('unit')
         category = cleaned_data.get('category')
+        alert_threshold = cleaned_data.get('alert_threshold')
         price_sell = cleaned_data.get('price_sell')
+
+        if not (category or '').strip():
+            self.add_error('category', "Danh mục là bắt buộc.")
+
+        if alert_threshold is None:
+            self.add_error('alert_threshold', "Ngưỡng cảnh báo tồn kho là bắt buộc.")
 
         if price_sell is None or price_sell <= 0:
             self.add_error('price_sell', "Giá bán là bắt buộc và phải lớn hơn 0.")

@@ -21,33 +21,50 @@
     </header>
 
     <section class="dashboard-content">
-        {% if not onboarding_complete %}
+        {% if show_initial_setup_reminder %}
         <section class="quick-start-panel">
             <div class="quick-start-head">
-                <div><span>Bắt đầu nhanh</span><h2>3 bước để bắt đầu</h2></div>
-                <a href="/onboarding/" class="quick-start-help"><i data-lucide="circle-help"></i> Xem hướng dẫn</a>
+                <div>
+                    <span>Hướng dẫn bắt đầu</span>
+                    <h2>Bắt đầu với Pixiu Flow</h2>
+                </div>
+                <form method="post" class="quick-start-dismiss">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="hide_checklist">
+                    <button type="submit">Ẩn hướng dẫn này</button>
+                </form>
             </div>
             <div class="quick-start-list">
-                <a href="/products/create/" class="quick-start-item {% if has_products %}is-done{% endif %}"><b>1</b><span>Thêm sản phẩm đầu tiên</span><i data-lucide="{% if has_products %}check-circle-2{% else %}arrow-right{% endif %}"></i></a>
-                <a href="/sales/create/" class="quick-start-item {% if has_transactions %}is-done{% endif %}"><b>2</b><span>Ghi nhận giao dịch đầu tiên</span><i data-lucide="{% if has_transactions %}check-circle-2{% else %}arrow-right{% endif %}"></i></a>
-                <a href="/report/" class="quick-start-item {% if has_viewed_report %}is-done{% endif %}"><b>3</b><span>Xem báo cáo đầu tiên</span><i data-lucide="{% if has_viewed_report %}check-circle-2{% else %}arrow-right{% endif %}"></i></a>
+                <a href="/setup/products/" class="quick-start-item {% if has_opening_stock %}is-done{% endif %}">
+                    <b>1</b>
+                    <span><strong>Khai báo hàng ban đầu</strong><small>Nhập số hàng bạn đã có trước khi bắt đầu dùng Pixiu Flow.</small><em>Khai báo hàng ban đầu</em></span>
+                    <i data-lucide="{% if has_opening_stock %}check-circle-2{% else %}arrow-right{% endif %}"></i>
+                </a>
+                <a href="/transactions/create/" class="quick-start-item {% if has_transactions %}is-done{% endif %}">
+                    <b>2</b>
+                    <span><strong>Ghi nhận giao dịch đầu tiên</strong><small>Bán hàng, nhập hàng mới hoặc ghi chi phí đầu tiên.</small><em>Ghi nhận giao dịch</em></span>
+                    <i data-lucide="{% if has_transactions %}check-circle-2{% else %}arrow-right{% endif %}"></i>
+                </a>
+                <a href="/report/" class="quick-start-item {% if has_viewed_report %}is-done{% endif %}">
+                    <b>3</b>
+                    <span><strong>Xem báo cáo</strong><small>Theo dõi tồn kho, lợi nhuận và dòng tiền.</small><em>Xem báo cáo</em></span>
+                    <i data-lucide="{% if has_viewed_report %}check-circle-2{% else %}arrow-right{% endif %}"></i>
+                </a>
             </div>
         </section>
-        {% else %}
-        <a href="/onboarding/" class="dashboard-guide-link"><i data-lucide="circle-help"></i> Xem hướng dẫn</a>
         {% endif %}
 
         {% if products_missing_stock %}
         <div class="stock-alert stock-alert--setup">
             <div>
-                <strong>Có {{ products_missing_stock_count }} sản phẩm chưa khai báo tồn kho</strong>
+                <strong>Có {{ products_missing_stock_count }} sản phẩm chưa có tồn kho</strong>
                 <span>
                     {% for product in products_missing_stock|slice:":3" %}{{ product.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
                     {% if products_missing_stock_count > 3 %}...{% endif %}
-                    đang có tồn kho 0 vì bạn đã chọn để sau.
+                    đang có tồn kho 0 và cần nhập hàng trước khi bán.
                 </span>
             </div>
-            <a href="/products/create/?product_id={{ products_missing_stock.0.id }}">Thêm tồn kho ngay</a>
+            <a href="/expenses/create/?mode=purchase&product_id={{ products_missing_stock.0.id }}">Nhập hàng ngay</a>
         </div>
         {% endif %}
 
@@ -132,15 +149,16 @@
             <button type="submit" class="apply-btn">Áp dụng</button>
         </form>
 
-        <div class="metric-grid">
+        <div class="metric-story">
+            <section class="metric-row metric-row--accrual" aria-label="Góc nhìn lãi lỗ">
             <article class="metric-card {% if income_change is None %}{% if has_comparison_data and recognized_revenue > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif income_change < 0 %}metric-card--negative{% else %}metric-card--positive{% endif %}">
                 <div class="metric-card__top"><div class="metric-card__info"><h3>Doanh thu ghi nhận <span class="metric-info" data-tooltip="Bao gồm cả đơn khách chưa trả tiền vì việc bán hàng đã xảy ra.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ recognized_revenue|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--income"><i data-lucide="trending-up"></i></span></div>
                 <div class="metric-card__bottom">{% if income_change is None and not has_comparison_data %}<span class="metric-context metric-note">Bao gồm cả đơn khách chưa trả tiền.</span>{% elif income_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if income_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if income_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ income_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
             </article>
 
             <article class="metric-card {% if gross_profit_change is None %}{% if has_comparison_data and gross_profit < 0 %}metric-card--negative{% elif has_comparison_data and gross_profit > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif gross_profit_change < 0 %}metric-card--negative{% else %}metric-card--positive{% endif %}">
-                <div class="metric-card__top"><div class="metric-card__info"><h3>Lãi gộp <span class="metric-info" data-tooltip="Doanh thu ghi nhận trừ giá vốn hàng bán. Chưa trừ chi phí vận hành như điện, mặt bằng, khấu hao.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ gross_profit|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--profit"><i data-lucide="wallet-cards"></i></span></div>
-                <div class="metric-breakdown" aria-label="Chi tiết lãi gộp">
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Lợi nhuận gộp <span class="metric-info" data-tooltip="Doanh thu ghi nhận trừ giá vốn hàng bán. Chưa trừ chi phí vận hành như điện, mặt bằng, khấu hao.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ gross_profit|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--profit"><i data-lucide="wallet-cards"></i></span></div>
+                <div class="metric-breakdown" aria-label="Chi tiết lợi nhuận gộp">
                     <div class="metric-breakdown__row"><span>Doanh thu</span><strong>{% if dashboard_empty %}--{% else %}{{ recognized_revenue|vnd }}{% endif %}</strong></div>
                     <div class="metric-breakdown__row is-cost"><span>Giá vốn</span><strong>{% if dashboard_empty %}--{% else %}-{{ cogs|vnd }}{% endif %}</strong></div>
                 </div>
@@ -148,12 +166,24 @@
             </article>
 
             <article class="metric-card {% if profit_change is None %}{% if has_comparison_data and net_profit < 0 %}metric-card--negative{% elif has_comparison_data and net_profit > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif profit_change < 0 %}metric-card--negative{% else %}metric-card--positive{% endif %}">
-                <div class="metric-card__top"><div class="metric-card__info"><h3>Lợi nhuận thuần <span class="metric-info" data-tooltip="Lãi gộp trừ chi phí vận hành trong kỳ. Đây là lãi/lỗ theo ghi nhận, không phải dòng tiền.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ net_profit|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--profit"><i data-lucide="badge-dollar-sign"></i></span></div>
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Lợi nhuận thuần <span class="metric-info" data-tooltip="Lợi nhuận gộp trừ chi phí vận hành trong kỳ. Đây là lãi/lỗ theo ghi nhận, không phải dòng tiền.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ net_profit|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--profit"><i data-lucide="badge-dollar-sign"></i></span></div>
                 <div class="metric-breakdown" aria-label="Chi tiết lợi nhuận thuần">
-                    <div class="metric-breakdown__row"><span>Lãi gộp</span><strong>{% if dashboard_empty %}--{% else %}{{ gross_profit|vnd }}{% endif %}</strong></div>
+                    <div class="metric-breakdown__row"><span>Lợi nhuận gộp</span><strong>{% if dashboard_empty %}--{% else %}{{ gross_profit|vnd }}{% endif %}</strong></div>
                     <div class="metric-breakdown__row is-cost"><span>Chi phí vận hành</span><strong>{% if dashboard_empty %}--{% else %}-{{ operating_expense|vnd }}{% endif %}</strong></div>
                 </div>
-                <div class="metric-card__bottom">{% if profit_change is None and not has_comparison_data %}<span class="metric-context metric-note">Lãi gộp trừ chi phí vận hành.</span>{% elif profit_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if profit_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if profit_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ profit_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
+                <div class="metric-card__bottom">{% if profit_change is None and not has_comparison_data %}<span class="metric-context metric-note">Lợi nhuận gộp trừ chi phí vận hành.</span>{% elif profit_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if profit_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if profit_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ profit_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
+            </article>
+            </section>
+
+            <section class="metric-row metric-row--cash" aria-label="Góc nhìn dòng tiền">
+            <article class="metric-card metric-card--cash">
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Tiền đã thu <span class="metric-info" data-tooltip="Tiền thực tế đã thu từ khách trong kỳ, không bao gồm đơn còn nợ.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ cash_in|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--cash-in"><i data-lucide="circle-dollar-sign"></i></span></div>
+                <div class="metric-card__bottom"><span class="metric-context metric-note">Tiền thực thu từ khách.</span></div>
+            </article>
+
+            <article class="metric-card metric-card--cash">
+                <div class="metric-card__top"><div class="metric-card__info"><h3>Tiền đã chi <span class="metric-info" data-tooltip="Tiền thực tế đã chi cho nhập hàng và chi phí đã thanh toán trong kỳ.">?</span></h3><strong>{% if dashboard_empty %}--{% else %}{{ cash_out|vnd }}{% endif %}</strong></div><span class="metric-icon metric-icon--cash-out"><i data-lucide="receipt"></i></span></div>
+                <div class="metric-card__bottom"><span class="metric-context metric-note">Tiền thực chi ra khỏi cửa hàng.</span></div>
             </article>
 
             <article class="metric-card metric-card--cash {% if cash_flow_change is None %}{% if has_comparison_data and net_cash_flow < 0 %}metric-card--negative-soft{% elif has_comparison_data and net_cash_flow > 0 %}metric-card--positive{% else %}metric-card--neutral{% endif %}{% elif cash_flow_change < 0 %}metric-card--negative-soft{% else %}metric-card--positive{% endif %}">
@@ -164,6 +194,7 @@
                 </div>
                 <div class="metric-card__bottom">{% if cash_flow_change is None and not has_comparison_data %}<span class="metric-context metric-note">Tiền thu vào trừ tiền chi ra.</span>{% elif cash_flow_change is None %}<span class="metric-change metric-change--zero">Kỳ trước 0đ</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% else %}<span class="metric-change {% if cash_flow_change < 0 %}metric-change--down{% else %}metric-change--up{% endif %}"><i data-lucide="{% if cash_flow_change < 0 %}trending-down{% else %}trending-up{% endif %}"></i> {{ cash_flow_change }}%</span><span class="metric-context metric-comparison" title="{{ previous_period_text }}">{{ previous_period_text }}</span>{% endif %}</div>
             </article>
+            </section>
         </div>
 
         <div class="dashboard-grid">
@@ -174,7 +205,7 @@
                 </div>
             </section>
             <aside class="dashboard-side">
-                <section class="side-panel quick-stats"><h2>Thống kê nhanh</h2><div><span>Doanh thu trung bình/ngày</span><strong>{{ avg_income_per_day|vnd }}</strong></div><div><span>Chi phí lãi/lỗ trung bình/ngày</span><strong>{{ avg_expense_per_day|vnd }}</strong></div><div><span>Tiền ra trung bình/ngày</span><strong>{{ avg_cash_out_per_day|vnd }}</strong></div><div><span>Biên lợi nhuận</span><strong>{{ gross_margin }}%</strong></div><div><span>Số lượng giao dịch</span><strong>{{ total_transactions }} đơn</strong></div></section>
+                <section class="side-panel quick-stats"><h2>Thống kê nhanh</h2><div><span>Doanh thu trung bình/ngày</span><strong>{{ avg_income_per_day|vnd }}</strong></div><div><span>Chi phí lãi/lỗ trung bình/ngày</span><strong>{{ avg_expense_per_day|vnd }}</strong></div><div><span>Tiền ra trung bình/ngày</span><strong>{{ avg_cash_out_per_day|vnd }}</strong></div><div><span>Biên lợi nhuận gộp</span><strong>{{ gross_margin }}%</strong></div><div><span>Số lượng giao dịch</span><strong>{{ total_transactions }} đơn</strong></div></section>
                 <section class="insight-card"><h2>Phân tích chuyên sâu</h2><p>Xem chi tiết doanh thu, chi phí, lợi nhuận và khác biệt giữa dòng tiền với lãi/lỗ.</p><a href="/report/?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}">Xem phân tích <i data-lucide="chevron-right"></i></a></section>
             </aside>
         </div>

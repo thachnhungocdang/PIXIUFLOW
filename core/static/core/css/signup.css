@@ -288,12 +288,6 @@
     min-width: 0;
 }
 
-.step-card__header .sc-btn-outline {
-    flex-shrink: 0;
-    align-self: center;
-    margin-top: -3px;
-}
-
 .step-card__icon {
     width: 24px;
     height: 24px;
@@ -392,13 +386,9 @@
 }
 
 #step1 .step-card__actions {
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
     padding-top: 0;
-}
-
-#step1 .sc-btn-primary {
-    margin-left: 0;
 }
 
 .sc-field label {
@@ -504,28 +494,6 @@
 /* ════════════════════════════════
    BUTTONS
 ════════════════════════════════ */
-.sc-btn-google {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 20px;
-    height: 44px;
-    background: #fff;
-    border: 1.5px solid #ddd;
-    border-radius: 9px;
-    font-size: 18px;
-    font-family: "Inter", Arial, sans-serif;
-    color: #444;
-    cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    white-space: nowrap;
-}
-
-.sc-btn-google:hover {
-    border-color: #aaa;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-}
-
 .sc-btn-primary {
     margin-left: auto;
     padding: 0 28px;
@@ -549,37 +517,6 @@
 .sc-btn-primary:hover { background: #a51212; transform: translateY(-1px); }
 .sc-btn-primary:active { transform: translateY(1px); }
 
-.sc-btn-primary--lg {
-    padding: 0 36px;
-    height: 50px;
-    font-size: 18px;
-}
-
-/* Outline button (for "Thêm danh mục") */
-.sc-btn-outline {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 18px;
-    height: 40px;
-    background: transparent;
-    border: 1.5px solid #FFBB00;
-    border-radius: 9px;
-    font-size: 16px;
-    font-weight: 700;
-    font-family: "Inter", Arial, sans-serif;
-    color: #8b1010;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.15s, box-shadow 0.15s;
-    flex-shrink: 0;
-}
-
-.sc-btn-outline:hover {
-    background: rgba(139,16,16,0.05);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-}
-
 /* Ghost button */
 .sc-btn-ghost {
     padding: 0 24px;
@@ -597,245 +534,20 @@
 
 .sc-btn-ghost:hover { border-color: #aaa; }
 
-/* ════════════════════════════════
-   STEP 3 & 4 — HIERARCHY + LIST
-════════════════════════════════ */
-.sc-section-label {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    color: #aaa;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-}
-
-.sc-hierarchy {
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 20px;
-}
-
-.sc-hierarchy__level {
-    padding: 14px 20px;
+/* Footer and errors */
+.signup-errors {
+    border: 1px solid #fca5a5;
+    border-radius: 9px;
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 12px 16px;
     font-size: 16px;
-    font-weight: 500;
-    color: #444;
-    background: #FFF6DA;
-    border-bottom: 1px solid #f0e4b0;
-}
-
-.sc-hierarchy__level:last-child { border-bottom: none; }
-
-.sc-hierarchy__level--1 {
-    background: #8b1010;
-    color: #fff;
     font-weight: 700;
 }
 
-/* Dynamic list items */
-.sc-category-list,
-.sc-expense-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 20px;
-    min-height: 0;
-}
-
-.sc-list-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #fff;
-    border: 1.5px solid #F7A848;
-    border-radius: 9px;
-    padding: 0 12px 0 0;
-    overflow: hidden;
-}
-
-.sc-list-item__input {
-    flex: 1;
-    height: 44px;
-    border: none;
-    background: transparent;
-    padding: 0 14px;
-    font-size: 16px;
-    font-family: "Inter", Arial, sans-serif;
-    color: #1a1a1a;
-    outline: none;
-}
-
-.sc-list-item__input::placeholder { color: #c0c0c0; }
-
-.sc-list-item__remove {
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: rgba(139,16,16,0.07);
-    border-radius: 6px;
-    color: #8b1010;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: background 0.15s;
-}
-
-.sc-list-item__remove:hover { background: rgba(139,16,16,0.15); }
-
-/* Hint text */
-.sc-hint {
-    font-size: 15px;
-    color: #999;
-    font-style: italic;
+.signup-errors ul {
     margin: 0;
-    flex: 1;
-}
-
-/* ════════════════════════════════
-   STEP 5 — COMPLETE
-════════════════════════════════ */
-.step-card--complete {
-    border-color: #ffd700;
-    background: #FFF6DA;
-}
-
-.sc-complete {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 32px 24px;
-    gap: 16px;
-}
-
-.sc-complete__icon {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: #ffd700;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #8b1010;
-}
-
-.sc-complete__title {
-    font-size: 24px;
-    font-weight: 900;
-    color: #8b1010;
-    margin: 0;
-}
-
-.sc-complete__sub {
-    font-size: 18px;
-    color: #666;
-    line-height: 1.6;
-    max-width: 550px;
-    margin: 0;
-}
-
-.sc-complete__actions {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 8px;
-}
-
-.stock-choice-grid {
-    width: min(980px, 100%);
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 22px;
-    margin-top: 18px;
-}
-
-.stock-choice-card {
-    min-height: 132px;
-    border: 2px solid #f7a848;
-    border-radius: 18px;
-    background: #fffaf0;
-    color: #7a1e24;
-    padding: 24px 26px;
-    display: flex;
-    align-items: flex-start;
-    gap: 18px;
-    text-align: left;
-    font-family: "Inter", Arial, sans-serif;
-    cursor: pointer;
-    box-shadow: 0 8px 22px rgba(139, 16, 16, 0.08);
-    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.stock-choice-card:hover {
-    transform: translateY(-2px);
-    border-color: #8b1010;
-    background: #fff3d4;
-    box-shadow: 0 14px 30px rgba(139, 16, 16, 0.16);
-}
-
-.stock-choice-card--primary {
-    background: #fff1c8;
-    border-color: #8b1010;
-}
-
-.stock-choice-card__icon {
-    width: 58px;
-    height: 58px;
-    border-radius: 16px;
-    background: #8b1010;
-    color: #ffd700;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.stock-choice-card strong,
-.stock-choice-card small {
-    display: block;
-}
-
-.stock-choice-card strong {
-    font-size: 21px;
-    font-weight: 900;
-    color: #8b1010;
-    line-height: 1.2;
-}
-
-.stock-choice-card small {
-    margin-top: 10px;
-    font-size: 16px;
-    line-height: 1.5;
-    color: #5f5f68;
-}
-
-.sc-complete__legal {
-    font-size: 14px;
-    color: #aaa;
-    margin: 0;
-}
-
-.sc-complete__legal a {
-    color: #8b1010;
-    font-weight: 600;
-    text-decoration: underline;
-}
-
-/* ════════════════════════════════
-   FOOTER & MISC
-════════════════════════════════ */
-.sc-form-error {
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    color: #b91c1c;
-    border-radius: 9px;
-    padding: 12px 16px;
-    font-size: 18px;
+    padding-left: 20px;
 }
 
 .signup-footer {
@@ -866,12 +578,9 @@
         align-items: stretch;
         flex-direction: column;
     }
-    #step1 .sc-btn-google,
     #step1 .sc-btn-primary {
         width: 100%;
         justify-content: center;
     }
     .step-card__header { flex-wrap: wrap; }
-    .sc-btn-outline { margin-top: 8px; }
-    .stock-choice-grid { grid-template-columns: 1fr; }
 }

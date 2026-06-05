@@ -32,12 +32,6 @@
                 </div>
                 <span>Hồ sơ doanh nghiệp</span>
             </div>
-            <div class="sb-step" data-step="3">
-                <div class="sb-step__dot">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <span>Hoàn tất</span>
-            </div>
         </nav>
 
         <div class="sb-user">
@@ -132,11 +126,7 @@
                         </div>
                     </div>
                     <div class="step-card__actions">
-                        <button type="button" class="sc-btn-google">
-                            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-                            Đăng ký nhanh với Google
-                        </button>
-                        <button type="button" class="sc-btn-primary" onclick="goStep(2)">Tiếp tục thiết lập</button>
+                        <button type="button" class="sc-btn-primary" onclick="goStep(2)">Tiếp tục</button>
                     </div>
                 </div>
             </div>
@@ -192,56 +182,15 @@
                         </div>
                     </div>
                     <div class="step-card__actions step-card__actions--right">
-                        <button type="button" class="sc-btn-primary" onclick="goStep(3)">Hoàn tất thiết lập</button>
+                        <button type="button" class="sc-btn-ghost" onclick="goStep(1)">Quay lại</button>
+                        <button type="submit" class="sc-btn-primary">
+                            Tạo tài khoản
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div class="step-card step-card--complete" id="step3">
-                <div class="step-card__body">
-                    <div class="sc-complete">
-                        <div class="sc-complete__icon">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                        </div>
-                        <h3 class="sc-complete__title">Tuyệt vời! Bạn đã sẵn sàng bắt đầu</h3>
-                        <p class="sc-complete__sub">Mọi thiết lập cơ bản đã hoàn tất. Cửa hàng của bạn hiện có hàng tồn kho ban đầu không?</p>
-                        <div class="stock-choice-grid">
-                            <button type="submit" class="stock-choice-card" name="has_stock" value="no" formaction="{% url 'onboarding_welcome' %}">
-                                <span class="stock-choice-card__icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.3 7L12 12l8.7-5"/><path d="M12 22V12"/></svg>
-                                </span>
-                                <span>
-                                    <strong>Chưa có hoặc để sau</strong>
-                                    <small>Vào dashboard ngay, Pixiu Flow sẽ nhắc bạn bổ sung kho khi cần.</small>
-                                </span>
-                            </button>
-                            <button type="submit" class="stock-choice-card stock-choice-card--primary" name="has_stock" value="yes" formaction="{% url 'onboarding_welcome' %}">
-                                <span class="stock-choice-card__icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 7l10 5 10-5"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/><path d="M12 2l10 5-10 5L2 7l10-5z"/></svg>
-                                </span>
-                                <span>
-                                    <strong>Tôi đã có hàng trong kho</strong>
-                                    <small>Mở Opening Stock Wizard để khai báo hàng có sẵn.</small>
-                                </span>
-                            </button>
-                        </div>
-                        <div class="sc-complete__actions">
-                            <button type="submit" class="sc-btn-primary sc-btn-primary--lg" name="has_stock" value="no" formaction="{% url 'onboarding_welcome' %}">
-                                Bỏ qua và vào dashboard
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-                            </button>
-                        </div>
-                        <p class="sc-complete__legal">Bạn có thể khai báo tồn kho ngay hoặc bỏ qua và bổ sung sau trong màn hình Hàng tồn kho.</p>
-                    </div>
-                </div>
-            </div>
-
-            {% if form.errors %}
-            <div class="sc-form-error">
-                {% for field in form %}{% for error in field.errors %}{{ error }} {% endfor %}{% endfor %}
-                {% for error in form.non_field_errors %}{{ error }} {% endfor %}
-            </div>
-            {% endif %}
         </form>
 
         <footer class="signup-footer">

@@ -56,7 +56,7 @@
                     </label>
                     <label class="product-field">
                         <span>Đơn vị tính</span>
-                        <input type="text" name="unit" value="{{ form.unit.value|default:'cái' }}" placeholder="cái, hộp, kg..." required>
+                        <input type="text" name="unit" value="{{ form.unit.value|default:'' }}" placeholder="cái, hộp, kg..." required>
                         {{ form.unit.errors }}
                     </label>
                     <label class="product-field">
@@ -66,7 +66,7 @@
                     </label>
                     <label class="product-field">
                         <span>Cảnh báo tồn kho</span>
-                        <input type="number" name="alert_threshold" min="0" step="1" value="{{ form.alert_threshold.value|default:'10' }}" placeholder="10">
+                        <input type="number" name="alert_threshold" min="0" step="1" value="{{ form.alert_threshold.value|default:'10' }}" placeholder="10" required>
                         {{ form.alert_threshold.errors }}
                     </label>
                 </div>
@@ -93,11 +93,18 @@
                             <span>Hoặc thêm danh mục cấp {{ level.level }}</span>
                             <input type="text" name="category_level_{{ level.level }}_new" class="category-new" value="{% if level.selected and not level.selected_is_option %}{{ level.selected }}{% endif %}" placeholder="Nhập danh mục mới">
                         </label>
-                        {% if level.level < 4 %}
-                        <button type="button" class="category-level-add" data-show-category-level="{{ level.level|add:1 }}" aria-label="Thêm danh mục cấp {{ level.level|add:1 }}">
-                            <i data-lucide="plus"></i>
-                        </button>
-                        {% endif %}
+                        <div class="category-level-actions">
+                            {% if level.level < 4 %}
+                            <button type="button" class="category-level-add" data-show-category-level="{{ level.level|add:1 }}" aria-label="Thêm danh mục cấp {{ level.level|add:1 }}">
+                                <i data-lucide="plus"></i>
+                            </button>
+                            {% endif %}
+                            {% if level.level > 1 %}
+                            <button type="button" class="category-level-remove" data-remove-category-level="{{ level.level }}" aria-label="Xóa danh mục cấp {{ level.level }}">
+                                <i data-lucide="minus"></i>
+                            </button>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endfor %}
                     {{ form.category.errors }}
@@ -106,8 +113,8 @@
 
             <div class="product-form-section product-form-section--stock">
                 <div>
-                    <h2>Tồn kho ban đầu</h2>
-                    <p>Bạn có thể chỉ tạo sản phẩm trước. Khi nhớ số lượng hoặc có đơn nhập hàng, bổ sung tồn kho sau.</p>
+                    <h2>Nhập kho khi tạo sản phẩm</h2>
+                    <p>Bạn có thể chỉ tạo hồ sơ sản phẩm trước. Sau onboarding, mọi lần tăng tồn kho đều được ghi nhận bằng phiếu nhập hàng.</p>
                 </div>
                 <div>
                     <div class="stock-origin-options">
@@ -115,32 +122,25 @@
                             <input type="radio" name="stock_origin" value="later" {% if initial_purchase.stock_origin == 'later' %}checked{% endif %}>
                             <span>
                                 <strong>Để sau</strong>
-                                <small>Chỉ lưu thông tin sản phẩm. Tồn kho hiện tại để 0 và có thể bổ sung sau.</small>
-                            </span>
-                        </label>
-                        <label class="stock-origin-card">
-                            <input type="radio" name="stock_origin" value="opening" {% if initial_purchase.stock_origin == 'opening' %}checked{% endif %}>
-                            <span>
-                                <strong>Hàng có sẵn</strong>
-                                <small>Chỉ tăng tồn kho, không ghi chi phí nhập hàng kỳ này.</small>
+                                <small>Chỉ cập nhật thông tin sản phẩm, không tạo thêm phiếu nhập hàng.</small>
                             </span>
                         </label>
                         <label class="stock-origin-card">
                             <input type="radio" name="stock_origin" value="purchase" {% if initial_purchase.stock_origin == 'purchase' %}checked{% endif %}>
                             <span>
-                                <strong>Nhập hàng có tính chi phí</strong>
-                                <small>Tạo phiếu nhập hàng, cộng tồn kho và tính vào chi phí mua hàng.</small>
+                                <strong>Nhập kho ngay</strong>
+                                <small>Tạo phiếu nhập hàng, cộng tồn kho và ghi nhận dòng tiền khi thanh toán.</small>
                             </span>
                         </label>
                     </div>
                     <div class="initial-stock-box">
                         <label>
-                            <span>Số tồn kho ban đầu</span>
+                            <span>Số lượng nhập</span>
                             <input type="number" name="initial_stock_quantity" min="0" step="1" value="{{ initial_purchase.quantity }}" placeholder="Ví dụ: 20">
                         </label>
                         <label>
                             <span>Giá vốn/đơn vị (VND)</span>
-                            <input type="text" name="initial_unit_cost" class="money-input" inputmode="numeric" value="{{ initial_purchase.unit_price }}" placeholder="Nhập giá vốn nếu có tồn kho">
+                            <input type="text" name="initial_unit_cost" class="money-input" inputmode="numeric" value="{{ initial_purchase.unit_price }}" placeholder="Nhập giá vốn cho phiếu nhập">
                         </label>
                         <label data-purchase-only>
                             <span>Nhà cung cấp</span>
@@ -150,16 +150,35 @@
                             <span>Ngày nhập hàng</span>
                             <input type="date" name="initial_purchase_date" value="{{ initial_purchase.date }}">
                         </label>
+                        <label data-purchase-only>
+                            <span>Ghi chú</span>
+                            <input type="text" name="initial_purchase_notes" value="{{ initial_purchase.notes }}" placeholder="Ghi chú về phiếu nhập hàng">
+                        </label>
+                        <label data-purchase-only>
+                            <span>Phương thức thanh toán</span>
+                            <select name="initial_payment_method">
+                                <option value="">Chọn phương thức</option>
+                                <option value="cash" {% if initial_purchase.payment_method == 'cash' %}selected{% endif %}>Tiền mặt</option>
+                                <option value="transfer" {% if initial_purchase.payment_method == 'transfer' %}selected{% endif %}>Chuyển khoản</option>
+                                <option value="debt" {% if initial_purchase.payment_method == 'debt' %}selected{% endif %}>Nợ/chưa thanh toán</option>
+                            </select>
+                        </label>
+                        <label data-purchase-only data-debt-only>
+                            <span>Ngày nhắc nợ (nếu có)</span>
+                            <input type="date" name="initial_payment_due_date" value="{{ initial_purchase.payment_due_date }}">
+                        </label>
                     </div>
+                    {% if product_instance %}
                     <a class="product-purchase-link" href="/expenses/create/?mode=purchase">
                         <i data-lucide="package-plus"></i>
                         Sau khi lưu có thể vào nhập hàng để bổ sung tồn kho
                     </a>
+                    {% endif %}
                 </div>
             </div>
 
             <div class="product-form-footer">
-                <a href="/inventory/" class="secondary-action">Huỷ</a>
+                <a href="/inventory/" class="secondary-action">HỦY</a>
                             <button type="submit">{% if product_instance %}Cập nhật sản phẩm{% else %}Lưu sản phẩm{% endif %}</button>
             </div>
         </form>
@@ -217,12 +236,33 @@
         updateCategoryValue();
     }
 
+    function clearCategoryRowsFrom(level) {
+        for (let current = level; current <= 4; current += 1) {
+            const row = document.querySelector(`[data-category-level="${current}"]`);
+            if (!row) continue;
+            row.hidden = current > 1;
+            row.querySelector('.category-select').value = '';
+            row.querySelector('.category-new').value = '';
+        }
+        const previousRow = document.querySelector(`[data-category-level="${Math.max(level - 1, 1)}"]`);
+        previousRow?.querySelector('.category-select')?.focus();
+        updateCategoryValue();
+    }
+
     function updateStockOrigin() {
         const origin = document.querySelector('input[name="stock_origin"]:checked')?.value || 'later';
         const stockBox = document.querySelector('.initial-stock-box');
         if (stockBox) stockBox.hidden = origin === 'later';
         document.querySelectorAll('[data-purchase-only]').forEach(field => {
             field.hidden = origin !== 'purchase';
+        });
+        updatePaymentMethod();
+    }
+
+    function updatePaymentMethod() {
+        const method = document.querySelector('select[name="initial_payment_method"]')?.value || 'cash';
+        document.querySelectorAll('[data-debt-only]').forEach(field => {
+            field.hidden = method !== 'debt';
         });
     }
 
@@ -251,9 +291,17 @@
         });
     });
 
+    document.querySelectorAll('.category-level-remove').forEach(button => {
+        button.addEventListener('click', () => {
+            clearCategoryRowsFrom(Number(button.dataset.removeCategoryLevel));
+        });
+    });
+
     document.querySelectorAll('input[name="stock_origin"]').forEach(input => {
         input.addEventListener('change', updateStockOrigin);
     });
+
+    document.querySelector('select[name="initial_payment_method"]')?.addEventListener('change', updatePaymentMethod);
 
     form.addEventListener('submit', () => {
         updateCategoryValue();

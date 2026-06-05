@@ -1,0 +1,459 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if has_opening_stock %}Xem / sửa hàng ban đầu{% else %}Khai báo hàng ban đầu{% endif %} - Pixiu Flow</title>
+    <link rel="stylesheet" href="{% static 'core/css/styles.css' %}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+<main class="onboarding-shell onboarding-shell--wide">
+    <section class="opening-wizard setup-products-page">
+        <header class="opening-wizard__head">
+            <div>
+                <p class="onboarding-kicker">Thiết lập ban đầu</p>
+                <h1>{% if has_opening_stock %}Xem / sửa hàng ban đầu{% else %}Khai báo hàng ban đầu{% endif %}</h1>
+                <p>Khai báo các mặt hàng bạn đã có sẵn trước khi bắt đầu dùng Pixiu Flow. Đây không phải là giao dịch nhập hàng mới và không tạo dòng tiền ra.</p>
+            </div>
+        </header>
+
+        <div class="opening-guidance">
+            <div>
+                <strong>Hàng ban đầu chỉ dùng cho số hàng đã có trước khi dùng Pixiu Flow.</strong>
+                <span>Nếu bạn vừa mua thêm hàng, hãy dùng Nhập kho để hệ thống ghi nhận đúng chi phí, công nợ và dòng tiền. Nếu bạn chỉ muốn tạo thông tin sản phẩm nhưng chưa có hàng, hãy dùng Thêm sản phẩm.</span>
+            </div>
+            <div class="opening-guidance__actions">
+                <a href="/expenses/create/?mode=purchase">Đi tới Nhập kho</a>
+                <a href="/products/create/" class="opening-guidance__secondary">Chỉ thêm sản phẩm</a>
+            </div>
+        </div>
+
+        {% if errors %}
+        <div class="transaction-errors opening-errors">
+            {% for error in errors %}<div>{{ error }}</div>{% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" id="setupProductsForm" autocomplete="off" data-preserve-values="{{ form_submitted|yesno:'1,0' }}" data-has-transactions="{{ has_transactions|yesno:'1,0' }}" data-edit-unlocked="{% if has_transactions %}0{% else %}1{% endif %}">
+            {% csrf_token %}
+            <div class="opening-table-wrap setup-products-table-wrap">
+                <table class="opening-table setup-products-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th><span class="opening-th-content">Tên sản phẩm * <button type="button" class="opening-column-help" aria-label="Giải thích cột Tên sản phẩm" data-tooltip="Tên mặt hàng bạn đang có trong kho, ví dụ: Cà phê sữa, Áo thun trắng."><span aria-hidden="true">?</span></button></span></th>
+                            <th><span class="opening-th-content">Danh mục * <button type="button" class="opening-column-help" aria-label="Giải thích cột Danh mục" data-tooltip="Nhóm sản phẩm để dễ quản lý. Có thể nhập dạng nhiều cấp, ví dụ: Đồ uống / Cà phê."><span aria-hidden="true">?</span></button></span></th>
+                            <th><span class="opening-th-content">Đơn vị <button type="button" class="opening-column-help" aria-label="Giải thích cột Đơn vị" data-tooltip="Đơn vị bán hoặc theo dõi tồn kho, ví dụ: cái, hộp, gói, ly, kg."><span aria-hidden="true">?</span></button></span></th>
+                            <th><span class="opening-th-content">Giá bán * <button type="button" class="opening-column-help" aria-label="Giải thích cột Giá bán" data-tooltip="Giá bạn dự kiến bán cho khách. Có thể sửa lại sau."><span aria-hidden="true">?</span></button></span></th>
+                            <th><span class="opening-th-content">Giá vốn ước tính * <button type="button" class="opening-column-help" aria-label="Giải thích cột Giá vốn ước tính" data-tooltip="Chi phí ước tính cho 1 đơn vị hàng đã có sẵn. Dùng để tính giá trị tồn kho và lợi nhuận ban đầu."><span aria-hidden="true">?</span></button></span></th>
+                            <th><span class="opening-th-content">Tồn kho ban đầu * <button type="button" class="opening-column-help" aria-label="Giải thích cột Tồn kho ban đầu" data-tooltip="Số lượng hàng bạn đã có trước khi bắt đầu dùng Pixiu Flow. Màn này chỉ lưu khi số lượng lớn hơn 0."><span aria-hidden="true">?</span></button></span></th>
+                            <th><span class="opening-th-content">Ngưỡng cảnh báo <button type="button" class="opening-column-help" aria-label="Giải thích cột Ngưỡng cảnh báo" data-tooltip="Khi tồn kho bằng hoặc thấp hơn số này, hệ thống sẽ cảnh báo sắp hết hàng."><span aria-hidden="true">?</span></button></span></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="setupProductRows">
+                        {% for row in rows %}
+                        <tr
+                            data-existing="{{ row.product_id|yesno:'1,0' }}"
+                            data-has-transactions="{{ has_transactions|yesno:'1,0' }}"
+                            data-original-quantity="{{ row.quantity|default:'0' }}"
+                            data-original-cost="{{ row.estimated_unit_cost|default:'0' }}"
+                        >
+                            <td class="opening-row-number">{{ forloop.counter }}</td>
+                            <td>
+                                <input type="hidden" name="product_id[]" value="{% if form_submitted %}{{ row.product_id }}{% endif %}" autocomplete="off">
+                                <input type="hidden" name="confirm_opening_change[]" value="{% if form_submitted %}{{ row.confirm_opening_change|default:'0' }}{% else %}0{% endif %}" class="setup-confirm-change" autocomplete="off">
+                                <input type="hidden" name="delete_opening_stock[]" value="{% if form_submitted %}{{ row.delete_opening_stock|default:'0' }}{% else %}0{% endif %}" class="setup-delete-opening" autocomplete="off">
+                                <input type="text" name="product_name[]" value="{% if form_submitted %}{{ row.product_name }}{% endif %}" placeholder="Ví dụ: Cà phê sữa" autocomplete="off">
+                            </td>
+                            <td>
+                                <div class="setup-category-builder" data-max-levels="4">
+                                    <input type="hidden" name="category[]" value="{% if form_submitted %}{{ row.category }}{% endif %}" class="setup-category-value" autocomplete="off">
+                                    <div class="setup-category-levels">
+                                        <input type="text" class="setup-category-level" data-level="1" placeholder="Cấp 1: Đồ uống" autocomplete="off">
+                                    </div>
+                                    <div class="setup-category-actions">
+                                        <button type="button" class="setup-category-add-level" title="Thêm cấp danh mục dưới" aria-label="Thêm cấp danh mục dưới"><i data-lucide="plus"></i></button>
+                                        <button type="button" class="setup-category-remove-level" title="Xóa cấp danh mục dưới cùng" aria-label="Xóa cấp danh mục dưới cùng" hidden><i data-lucide="minus"></i></button>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><input type="text" name="unit[]" value="{% if form_submitted %}{{ row.unit }}{% endif %}" placeholder="gói" autocomplete="off"></td>
+                            <td><input type="text" name="price_sell[]" value="{% if form_submitted %}{{ row.price_sell }}{% endif %}" inputmode="numeric" class="opening-money" placeholder="15.000" autocomplete="off"></td>
+                            <td><input type="text" name="estimated_unit_cost[]" value="{% if form_submitted %}{{ row.estimated_unit_cost }}{% endif %}" inputmode="numeric" class="opening-money setup-cost-input" placeholder="5.000" autocomplete="off"></td>
+                            <td><input type="number" name="quantity[]" value="{% if form_submitted %}{{ row.quantity }}{% endif %}" min="1" step="1" class="setup-quantity-input" placeholder="Ví dụ: 40" autocomplete="off"></td>
+                            <td><input type="number" name="alert_threshold[]" value="{% if form_submitted %}{{ row.alert_threshold }}{% endif %}" min="0" step="1" placeholder="10" autocomplete="off"></td>
+                            <td class="setup-row-actions">
+                                {% if row.has_opening_stock %}
+                                <button type="button" class="setup-edit-opening" title="Sửa hàng ban đầu" aria-label="Sửa hàng ban đầu"><i data-lucide="pencil"></i></button>
+                                <button type="button" class="setup-clear-opening" title="Xóa hàng ban đầu" aria-label="Xóa hàng ban đầu"><i data-lucide="trash-2"></i></button>
+                                {% elif not row.product_id %}
+                                <button type="button" class="opening-remove" title="Xóa dòng" aria-label="Xóa dòng"><i data-lucide="trash-2"></i></button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="opening-actions">
+                <button type="button" class="secondary-action" id="addSetupProductRow"><i data-lucide="plus"></i> Thêm dòng</button>
+                <div>
+                    <button type="submit">Lưu thay đổi</button>
+                </div>
+            </div>
+        </form>
+
+        <form method="post" class="opening-no-stock-form">
+            {% csrf_token %}
+            <button type="submit" name="action" value="skip" class="secondary-action">Bỏ qua</button>
+        </form>
+    </section>
+</main>
+
+<template id="setupProductRowTemplate">
+    <tr data-existing="0" data-has-transactions="{{ has_transactions|yesno:'1,0' }}" data-original-quantity="0" data-original-cost="0">
+        <td class="opening-row-number"></td>
+        <td>
+            <input type="hidden" name="product_id[]" value="" autocomplete="off">
+            <input type="hidden" name="confirm_opening_change[]" value="0" class="setup-confirm-change" autocomplete="off">
+            <input type="hidden" name="delete_opening_stock[]" value="0" class="setup-delete-opening" autocomplete="off">
+            <input type="text" name="product_name[]" placeholder="Ví dụ: Cà phê sữa" autocomplete="off">
+        </td>
+        <td>
+            <div class="setup-category-builder" data-max-levels="4">
+                <input type="hidden" name="category[]" value="" class="setup-category-value" autocomplete="off">
+                <div class="setup-category-levels">
+                    <input type="text" class="setup-category-level" data-level="1" placeholder="Cấp 1: Đồ uống" autocomplete="off">
+                </div>
+                <div class="setup-category-actions">
+                    <button type="button" class="setup-category-add-level" title="Thêm cấp danh mục dưới" aria-label="Thêm cấp danh mục dưới"><i data-lucide="plus"></i></button>
+                    <button type="button" class="setup-category-remove-level" title="Xóa cấp danh mục dưới cùng" aria-label="Xóa cấp danh mục dưới cùng" hidden><i data-lucide="minus"></i></button>
+                </div>
+            </div>
+        </td>
+        <td><input type="text" name="unit[]" placeholder="gói" autocomplete="off"></td>
+        <td><input type="text" name="price_sell[]" inputmode="numeric" class="opening-money" placeholder="15.000" autocomplete="off"></td>
+        <td><input type="text" name="estimated_unit_cost[]" inputmode="numeric" class="opening-money setup-cost-input" placeholder="5.000" autocomplete="off"></td>
+        <td><input type="number" name="quantity[]" min="1" step="1" class="setup-quantity-input" placeholder="Ví dụ: 40" autocomplete="off"></td>
+        <td><input type="number" name="alert_threshold[]" min="0" step="1" placeholder="10" autocomplete="off"></td>
+        <td class="setup-row-actions"><button type="button" class="opening-remove" title="Xóa dòng" aria-label="Xóa dòng"><i data-lucide="trash-2"></i></button></td>
+    </tr>
+</template>
+
+<div class="setup-warning-modal" id="setupWarningModal" hidden>
+    <div class="setup-warning-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="setupWarningTitle">
+        <h2 id="setupWarningTitle">Lưu ý khi sửa hàng ban đầu</h2>
+        <p>Bạn đã có giao dịch sau khi thiết lập hàng ban đầu.<br>Việc sửa tồn kho ban đầu có thể làm thay đổi tồn kho và báo cáo.<br>Nếu đây là hàng mới mua thêm, hãy dùng Nhập kho thay vì sửa hàng ban đầu.</p>
+        <div>
+            <button type="button" class="secondary-action" id="cancelSetupWarning">Hủy</button>
+            <button type="button" id="confirmSetupWarning">Tôi hiểu, vẫn muốn sửa</button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const form = document.getElementById('setupProductsForm');
+    const rows = document.getElementById('setupProductRows');
+    const template = document.getElementById('setupProductRowTemplate');
+    const modal = document.getElementById('setupWarningModal');
+    const columnTooltip = document.createElement('div');
+    let pendingRow = null;
+    let pendingAction = null;
+
+    columnTooltip.className = 'opening-column-tooltip';
+    columnTooltip.setAttribute('role', 'tooltip');
+    columnTooltip.hidden = true;
+    document.body.appendChild(columnTooltip);
+
+    function hideColumnTooltip() {
+        columnTooltip.hidden = true;
+    }
+
+    function showColumnTooltip(button) {
+        columnTooltip.textContent = button.dataset.tooltip || '';
+        columnTooltip.hidden = false;
+        columnTooltip.classList.remove('is-left', 'is-below');
+
+        const tooltipRect = columnTooltip.getBoundingClientRect();
+        const margin = 8;
+        const gap = 6;
+        const buttonRect = button.getBoundingClientRect();
+        let left = buttonRect.right + gap;
+        let top = buttonRect.top + buttonRect.height / 2 - tooltipRect.height / 2;
+        let placement = 'right';
+
+        if (left + tooltipRect.width > window.innerWidth - margin) {
+            left = buttonRect.left - tooltipRect.width - gap;
+            placement = 'left';
+        }
+        if (left < margin) {
+            left = buttonRect.left + buttonRect.width / 2 - tooltipRect.width / 2;
+            top = buttonRect.bottom + gap;
+            placement = 'below';
+        }
+
+        left = Math.max(margin, Math.min(left, window.innerWidth - tooltipRect.width - margin));
+        top = Math.max(margin, Math.min(top, window.innerHeight - tooltipRect.height - margin));
+
+        columnTooltip.style.left = `${Math.round(left)}px`;
+        columnTooltip.style.top = `${Math.round(top)}px`;
+        columnTooltip.classList.toggle('is-left', placement === 'left');
+        columnTooltip.classList.toggle('is-below', placement === 'below');
+    }
+
+    function parseNumber(value) {
+        return Number(String(value || '').replace(/[^\d]/g, '') || 0);
+    }
+
+    function formatMoney(input) {
+        const value = parseNumber(input.value);
+        input.value = value ? value.toLocaleString('vi-VN') : '';
+    }
+
+    function updateRowNumbers() {
+        rows.querySelectorAll('tr').forEach((row, index) => {
+            row.querySelector('.opening-row-number').textContent = index + 1;
+        });
+    }
+
+    function categoryPlaceholder(level) {
+        const examples = {
+            1: 'Cấp 1: Đồ uống',
+            2: 'Cấp 2: Cà phê',
+            3: 'Cấp 3: Cà phê sữa',
+            4: 'Cấp 4: Size M'
+        };
+        return examples[level] || `Cấp ${level}`;
+    }
+
+    function syncCategoryValue(builder) {
+        const parts = Array.from(builder.querySelectorAll('.setup-category-level'))
+            .map(input => input.value.trim())
+            .filter(Boolean);
+        const levelCount = builder.querySelectorAll('.setup-category-level').length;
+        const maxLevels = Number(builder.dataset.maxLevels || 4);
+        builder.querySelector('.setup-category-value').value = parts.join(' / ');
+        builder.querySelector('.setup-category-remove-level').hidden = levelCount <= 1;
+        builder.querySelector('.setup-category-add-level').hidden = levelCount >= maxLevels;
+    }
+
+    function addCategoryLevel(builder, value = '') {
+        const levels = builder.querySelector('.setup-category-levels');
+        const maxLevels = Number(builder.dataset.maxLevels || 4);
+        const currentCount = levels.querySelectorAll('.setup-category-level').length;
+        if (currentCount >= maxLevels) return;
+
+        const level = currentCount + 1;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'setup-category-level';
+        input.dataset.level = String(level);
+        input.placeholder = categoryPlaceholder(level);
+        input.autocomplete = 'off';
+        input.value = value;
+        input.addEventListener('input', () => syncCategoryValue(builder));
+        levels.appendChild(input);
+        syncCategoryValue(builder);
+    }
+
+    function bindCategoryBuilder(builder) {
+        if (!builder || builder.dataset.bound === '1') return;
+        builder.dataset.bound = '1';
+        const hidden = builder.querySelector('.setup-category-value');
+        const firstInput = builder.querySelector('.setup-category-level');
+        const parts = String(hidden.value || '').split('/').map(part => part.trim()).filter(Boolean);
+        firstInput.value = parts[0] || '';
+        firstInput.addEventListener('input', () => syncCategoryValue(builder));
+        parts.slice(1, Number(builder.dataset.maxLevels || 4)).forEach(part => addCategoryLevel(builder, part));
+
+        builder.querySelector('.setup-category-add-level').addEventListener('click', () => {
+            addCategoryLevel(builder);
+            const inputs = builder.querySelectorAll('.setup-category-level');
+            inputs[inputs.length - 1].focus();
+            lucide.createIcons();
+        });
+        builder.querySelector('.setup-category-remove-level').addEventListener('click', () => {
+            const inputs = builder.querySelectorAll('.setup-category-level');
+            if (inputs.length <= 1) return;
+            inputs[inputs.length - 1].remove();
+            syncCategoryValue(builder);
+        });
+        syncCategoryValue(builder);
+    }
+
+    function clearBrowserPrefillOnFreshLoad() {
+        if (form.dataset.preserveValues === '1') return;
+        rows.querySelectorAll('tr').forEach(row => {
+            row.dataset.existing = '0';
+            row.dataset.originalQuantity = '0';
+            row.dataset.originalCost = '0';
+            row.querySelectorAll('input').forEach(input => {
+                if (input.name === 'confirm_opening_change[]' || input.name === 'delete_opening_stock[]') {
+                    input.value = '0';
+                } else {
+                    input.value = '';
+                }
+            });
+        });
+    }
+
+    function setRowEditable(row, editable) {
+        row.querySelectorAll('input:not([type="hidden"])').forEach(input => {
+            input.disabled = !editable;
+        });
+        row.querySelectorAll('.setup-category-add-level, .setup-category-remove-level').forEach(button => {
+            button.disabled = !editable;
+        });
+        row.classList.toggle('is-reviewing', !editable);
+    }
+
+    function setupDeleteConfirm() {
+        return confirm('Bạn có chắc muốn xóa mặt hàng này khỏi danh sách hàng ban đầu không? Tồn kho ban đầu của sản phẩm này sẽ được trừ lại.');
+    }
+
+    function runAfterEditWarning(action, row = null) {
+        if (form.dataset.hasTransactions !== '1' || form.dataset.editUnlocked === '1') {
+            action();
+            return;
+        }
+        pendingAction = action;
+        pendingRow = row;
+        modal.hidden = false;
+    }
+
+    function openingChanged(row) {
+        if (row.querySelector('.setup-delete-opening').value === '1') return true;
+        const quantity = parseNumber(row.querySelector('.setup-quantity-input').value);
+        const cost = parseNumber(row.querySelector('.setup-cost-input').value);
+        const originalQuantity = parseNumber(row.dataset.originalQuantity);
+        const originalCost = parseNumber(row.dataset.originalCost);
+        return quantity !== originalQuantity || ((quantity > 0 || originalQuantity > 0) && cost !== originalCost);
+    }
+
+    function bindRow(row) {
+        bindCategoryBuilder(row.querySelector('.setup-category-builder'));
+        if (form.dataset.hasTransactions === '1' && form.dataset.editUnlocked !== '1') {
+            setRowEditable(row, false);
+        }
+        const editOpening = row.querySelector('.setup-edit-opening');
+        if (editOpening) {
+            editOpening.addEventListener('click', () => {
+                runAfterEditWarning(() => setRowEditable(row, true), row);
+            });
+        }
+        const remove = row.querySelector('.opening-remove');
+        if (remove) {
+            remove.addEventListener('click', () => {
+                row.remove();
+                updateRowNumbers();
+            });
+        }
+        const clearOpening = row.querySelector('.setup-clear-opening');
+        if (clearOpening) {
+            clearOpening.addEventListener('click', () => {
+                runAfterEditWarning(() => {
+                    if (!setupDeleteConfirm()) return;
+                    setRowEditable(row, true);
+                    row.querySelector('.setup-delete-opening').value = '1';
+                    row.querySelector('.setup-quantity-input').value = '';
+                    row.querySelector('.setup-cost-input').value = '';
+                    row.classList.add('is-marked-delete');
+                }, row);
+            });
+        }
+        row.querySelectorAll('.setup-quantity-input, .setup-cost-input').forEach(input => {
+            input.addEventListener('input', () => {
+                row.querySelector('.setup-delete-opening').value = '0';
+                row.classList.remove('is-marked-delete');
+            });
+        });
+        row.querySelectorAll('.opening-money').forEach(input => {
+            formatMoney(input);
+            input.addEventListener('input', () => formatMoney(input));
+        });
+    }
+
+    function addRow() {
+        runAfterEditWarning(() => {
+            const row = template.content.firstElementChild.cloneNode(true);
+            rows.appendChild(row);
+            bindRow(row);
+            setRowEditable(row, true);
+            updateRowNumbers();
+            lucide.createIcons();
+            row.querySelector('input[name="product_name[]"]').focus();
+        });
+    }
+
+    function nextUnconfirmedChangedRow() {
+        return Array.from(rows.querySelectorAll('tr')).find(row => (
+            row.dataset.hasTransactions === '1'
+            && row.querySelector('input[name="product_name[]"]').value.trim()
+            && openingChanged(row)
+            && row.querySelector('.setup-confirm-change').value !== '1'
+        ));
+    }
+
+    form.addEventListener('submit', event => {
+        const row = nextUnconfirmedChangedRow();
+        if (row) {
+            event.preventDefault();
+            pendingRow = row;
+            pendingAction = null;
+            modal.hidden = false;
+            return;
+        }
+        rows.querySelectorAll('input:disabled').forEach(input => {
+            input.disabled = false;
+        });
+        rows.querySelectorAll('.opening-money').forEach(input => {
+            input.value = parseNumber(input.value);
+        });
+        rows.querySelectorAll('.setup-category-builder').forEach(syncCategoryValue);
+    });
+
+    document.getElementById('confirmSetupWarning').addEventListener('click', () => {
+        const action = pendingAction;
+        form.dataset.editUnlocked = '1';
+        rows.querySelectorAll('tr').forEach(row => {
+            row.querySelector('.setup-confirm-change').value = '1';
+        });
+        if (pendingRow) pendingRow.querySelector('.setup-confirm-change').value = '1';
+        pendingAction = null;
+        pendingRow = null;
+        modal.hidden = true;
+        if (action) {
+            action();
+        } else {
+            rows.querySelectorAll('input:disabled').forEach(input => { input.disabled = false; });
+            form.requestSubmit();
+        }
+    });
+    document.getElementById('cancelSetupWarning').addEventListener('click', () => {
+        pendingAction = null;
+        pendingRow = null;
+        modal.hidden = true;
+    });
+    document.getElementById('addSetupProductRow').addEventListener('click', addRow);
+    document.querySelectorAll('.opening-column-help').forEach(button => {
+        button.addEventListener('mouseenter', () => showColumnTooltip(button));
+        button.addEventListener('mouseleave', hideColumnTooltip);
+        button.addEventListener('focus', () => showColumnTooltip(button));
+        button.addEventListener('blur', hideColumnTooltip);
+    });
+    window.addEventListener('resize', hideColumnTooltip);
+    window.addEventListener('scroll', hideColumnTooltip, true);
+
+    clearBrowserPrefillOnFreshLoad();
+    rows.querySelectorAll('tr').forEach(bindRow);
+    updateRowNumbers();
+    lucide.createIcons();
+})();
+</script>
+</body>
+</html>

@@ -4,6 +4,10 @@
     box-sizing: border-box;
 }
 
+html {
+    zoom: 0.8;
+}
+
 :root {
     --red: #8b1010;
     --red-dark: #760b0b;
