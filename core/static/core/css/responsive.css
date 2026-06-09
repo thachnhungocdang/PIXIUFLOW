@@ -78,8 +78,7 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
     }
 
-    .sidebar-collapse-toggle,
-    .sidebar-restore-toggle {
+    .sidebar-collapse-toggle {
         display: none !important;
     }
 
@@ -232,8 +231,7 @@
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
     }
 
-    .sidebar-collapse-toggle,
-    .sidebar-restore-toggle {
+    .sidebar-collapse-toggle {
         display: none !important;
     }
 

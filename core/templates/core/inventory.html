@@ -11,22 +11,15 @@
 {% block content %}
 <div class="inventory-page inventory-shell">
     <header class="transaction-topbar inventory-topbar">
-        <div class="transaction-search">
-            <i data-lucide="search"></i>
-            <input type="search" id="inventoryGlobalSearch" placeholder="Tìm kiếm sản phẩm, danh mục, nhà cung cấp...">
-            <button type="button" class="inventory-search-clear" id="clearInventoryGlobalSearch" hidden aria-label="Xóa tìm kiếm">
-                <i data-lucide="x"></i>
-            </button>
+        <div class="transaction-heading transaction-heading--topbar">
+            <h1>Sản phẩm &amp; tồn kho</h1>
+            <p>Quản lý sản phẩm, tồn kho và lịch sử nhập hàng theo dữ liệu hiện có.</p>
         </div>
     </header>
 
     <section class="inventory-layout-v2">
         <main class="inventory-main-v2">
             <div class="inventory-page-heading inventory-page-heading-v2">
-                <div>
-                    <h1>Sản phẩm &amp; tồn kho</h1>
-                    <p>Quản lý sản phẩm, tồn kho và lịch sử nhập hàng theo dữ liệu hiện có.</p>
-                </div>
                 <div class="inventory-title-actions">
                     <a href="/expenses/create/?mode=purchase" class="inventory-topbar-link">
                         <i data-lucide="package-plus"></i> Nhập kho
@@ -1084,6 +1077,7 @@
     const details = JSON.parse(document.getElementById('inventoryProductDetails').textContent || '[]');
     const createdProductId = JSON.parse(document.getElementById('inventoryCreatedProductId').textContent || 'null');
     const detailById = new Map(details.map(item => [String(item.id), item]));
+    const urlParams = new URLSearchParams(window.location.search);
     const noProductsState = document.getElementById('inventoryNoProductsState');
     const noFilterState = document.getElementById('inventoryNoFilterState');
     const bulkBar = document.getElementById('inventoryBulkBar');
@@ -1139,6 +1133,7 @@
 
     let currentFilter = 'all';
     let currentCategory = 'all';
+    let linkedProductIds = new Set();
     let activeColumnFilterKey = null;
     let activeColumnSortKey = null;
     let activeColumnSortButton = null;
@@ -1255,6 +1250,7 @@
         const query = (search ? search.value : '').trim();
         if (currentFilter !== 'all') notes.push(`Trạng thái: ${filterLabels[currentFilter] || currentFilter}`);
         if (currentCategory !== 'all') notes.push(`Danh mục: ${currentCategory}`);
+        if (linkedProductIds.size) notes.push(`${linkedProductIds.size} sản phẩm từ báo cáo`);
         if (query) notes.push(`Tìm kiếm: "${query}"`);
         Object.entries(columnFilters).forEach(([key, values]) => {
             if (!values || !values.size) return;
@@ -1279,7 +1275,8 @@
             const matchesStatus   = filter === 'all' || row.dataset.stockStatus === filter;
             const matchesCategory = currentCategory === 'all' || row.dataset.categoryPath.startsWith(currentCategory);
             const matchesSearch   = !query || row.dataset.search.includes(query);
-            const visible = matchesStatus && matchesCategory && matchesSearch && rowMatchesColumnFilters(row);
+            const matchesLinkedProducts = !linkedProductIds.size || linkedProductIds.has(row.dataset.productId);
+            const visible = matchesStatus && matchesCategory && matchesSearch && matchesLinkedProducts && rowMatchesColumnFilters(row);
             row.hidden = !visible;
             if (visible) visibleCount += 1;
         });
@@ -1380,6 +1377,7 @@
         if (globalSearch) globalSearch.value = '';
         if (clearGlobalSearch) clearGlobalSearch.hidden = true;
         currentCategory = 'all';
+        linkedProductIds = new Set();
         Object.keys(columnFilters).forEach(key => delete columnFilters[key]);
         if (categoryLabel) categoryLabel.textContent = 'Danh mục';
         if (categoryTrigger) categoryTrigger.classList.remove('is-active');
@@ -1403,6 +1401,8 @@
     tabButtons.forEach(btn => btn.addEventListener('click', () => activateTab(btn.dataset.inventoryTab)));
     const savedTab = sessionStorage.getItem('inventoryActiveTab');
     if (savedTab && tabButtons.some(btn => btn.dataset.inventoryTab === savedTab)) activateTab(savedTab);
+    const requestedTab = urlParams.get('tab');
+    if (requestedTab && tabButtons.some(btn => btn.dataset.inventoryTab === requestedTab)) activateTab(requestedTab);
 
     // ── Bulk select ────────────────────────────────────────────────
     function selectedRows() { return Array.from(document.querySelectorAll('.inventory-row-check:checked')); }
@@ -1678,6 +1678,34 @@
         openDetail(createdProductId);
         showToast('Đã lưu sản phẩm thành công. Đang mở chi tiết sản phẩm vừa lưu.', 'confirm');
     }
+
+    function applyUrlFilters() {
+        const productIds = (urlParams.get('products') || '')
+            .split(',')
+            .map(value => value.trim())
+            .filter(Boolean);
+        if (productIds.length) linkedProductIds = new Set(productIds);
+        const query = urlParams.get('q') || '';
+        if (query && search) search.value = query;
+        const status = urlParams.get('status') || '';
+        if (status && filterLabels[status]) currentFilter = status;
+        const category = urlParams.get('category') || '';
+        if (category) {
+            currentCategory = category;
+            if (categoryLabel) categoryLabel.textContent = category;
+            if (categoryTrigger) categoryTrigger.classList.add('is-active');
+        }
+        if (productIds.length || query || status || category || requestedTab === 'products') {
+            activateTab('products');
+            applyInventoryFilter(currentFilter);
+            const firstVisible = rows.find(row => !row.hidden);
+            if (firstVisible) {
+                firstVisible.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstVisible.classList.add('is-just-created');
+            }
+        }
+    }
+    applyUrlFilters();
 
     // ── Column toggle ──────────────────────────────────────────────
     const columnTrigger = document.getElementById('columnMenuTrigger');

@@ -797,6 +797,70 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
 }
 
+.dashboard-chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin: -6px 0 12px;
+    color: #404854;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.dashboard-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.dashboard-chart-legend i {
+    display: inline-block;
+    width: 28px;
+    height: 12px;
+}
+
+.dashboard-chart-legend .legend-profit {
+    width: 13px;
+    border-radius: 3px;
+    background: #b91c1c;
+}
+
+.dashboard-chart-legend .legend-revenue,
+.dashboard-chart-legend .legend-cash {
+    position: relative;
+}
+
+.dashboard-chart-legend .legend-revenue::before,
+.dashboard-chart-legend .legend-cash::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: 999px;
+    background: #0c447c;
+    transform: translateY(-50%);
+}
+
+.dashboard-chart-legend .legend-revenue::after,
+.dashboard-chart-legend .legend-cash::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: #0c447c;
+    transform: translate(-50%, -50%);
+}
+
+.dashboard-chart-legend .legend-cash::before,
+.dashboard-chart-legend .legend-cash::after {
+    background: #b21919;
+}
+
 .chart-box {
     width: 100%;
     max-width: 780px;
@@ -819,6 +883,18 @@
     font-size: 16px;
 }
 
+.chart-labels .chart-zero-line {
+    stroke: rgba(82, 4, 3, 0.55);
+    stroke-width: 1.8;
+    stroke-dasharray: 0;
+}
+
+.chart-labels .chart-zero-label {
+    fill: #626a73;
+    font-size: 16px;
+    font-weight: 700;
+}
+
 .chart-empty {
     fill: #8a8f98;
     font-size: 16px;
@@ -832,9 +908,74 @@
 
 .area-line {
     fill: none;
-    stroke: #b21919;
     stroke-width: 4;
     stroke-linecap: round;
+}
+
+.area-line--revenue {
+    stroke: #0c447c;
+}
+
+.area-line--cash {
+    stroke: #b21919;
+}
+
+.area-line-fill--cash {
+    fill: rgba(178, 25, 25, 0.13);
+}
+
+.chart-profit-bar {
+    fill: #b91c1c;
+}
+
+.chart-value-label {
+    font-size: 13px;
+    font-weight: 900;
+    paint-order: stroke;
+    stroke: #fffaf0;
+    stroke-width: 4;
+}
+
+.chart-value-label--profit {
+    fill: #b91c1c;
+}
+
+.chart-value-label--revenue {
+    fill: #0c447c;
+}
+
+.chart-hit-area {
+    fill: transparent;
+    cursor: crosshair;
+}
+
+.dashboard-chart-tooltip {
+    position: fixed;
+    z-index: 4000;
+    min-width: 180px;
+    padding: 10px 12px;
+    border: 1px solid rgba(178, 25, 25, 0.28);
+    border-radius: 8px;
+    background: #fffaf0;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+    color: #172033;
+    font-size: 13px;
+    pointer-events: none;
+}
+
+.dashboard-chart-tooltip strong,
+.dashboard-chart-tooltip span {
+    display: block;
+}
+
+.dashboard-chart-tooltip strong {
+    margin-bottom: 4px;
+    color: #520403;
+    font-size: 14px;
+}
+
+.dashboard-chart-tooltip span {
+    font-weight: 800;
 }
 
 .dashboard-side {

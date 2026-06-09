@@ -7,9 +7,9 @@
 {% block content %}
 <div class="transaction-page">
     <header class="transaction-topbar">
-        <div class="transaction-search">
-            <i data-lucide="search"></i>
-            <input type="search" placeholder="Tìm kiếm giao dịch, đối tác...">
+        <div class="transaction-heading transaction-heading--topbar">
+            <h1>Ghi nhận nhiều giao dịch</h1>
+            <p>Nhập nhiều giao dịch doanh thu hoặc chi phí cùng lúc để tiết kiệm thời gian.</p>
         </div>
         <div class="topbar-actions">
             <button type="button" class="icon-btn" aria-label="Thông báo">
@@ -26,11 +26,6 @@
     </header>
 
     <section class="bulk-content">
-        <div class="transaction-heading">
-            <h1>Ghi nhận nhiều giao dịch</h1>
-            <p>Nhập nhiều giao dịch doanh thu hoặc chi phí cùng lúc để tiết kiệm thời gian.</p>
-        </div>
-
         <form method="post" class="bulk-sheet" id="bulkTransactionForm">
             {% csrf_token %}
             <div class="bulk-toolbar">

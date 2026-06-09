@@ -74,6 +74,21 @@
     font-size: 16px;
 }
 
+.transaction-heading--topbar {
+    margin-bottom: 0;
+    min-width: 0;
+}
+
+.transaction-heading--topbar h1 {
+    font-size: 26px;
+    line-height: 1.2;
+}
+
+.transaction-heading--topbar p {
+    max-width: 620px;
+    font-size: 15px;
+}
+
 /* ── Layout grid ─────────────────────────────────────────────────── */
 
 .transaction-layout {

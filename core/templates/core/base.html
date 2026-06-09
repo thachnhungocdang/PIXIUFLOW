@@ -15,6 +15,9 @@
         <button class="menu-toggle" id="menuToggle" type="button" aria-label="Mở menu">
             <i data-lucide="menu"></i>
         </button>
+        <button type="button" class="sidebar-restore-toggle" id="sidebarRestoreToggle" aria-label="Hiện thanh điều hướng" hidden>
+            <i data-lucide="menu"></i>
+        </button>
         <div class="mobile-topbar-title">PIXIU FLOW</div>
     </div>
 
@@ -58,7 +61,7 @@
 
                 <a href="/report/" class="menu-item {% if '/report/' in request.path %}active{% endif %}">
                     <i data-lucide="bar-chart-3"></i>
-                    <span>Phân tích thêm</span>
+                    <span>Xem thêm chỉ số</span>
                 </a>
             </nav>
 
@@ -73,10 +76,6 @@
                 </a>
             </div>
         </aside>
-
-        <button type="button" class="sidebar-restore-toggle" id="sidebarRestoreToggle" aria-label="Hiện thanh điều hướng" hidden>
-            <i data-lucide="panel-left-open"></i>
-        </button>
 
         <main class="main-content">
             {% block content %}{% endblock %}
@@ -131,6 +130,26 @@
         const sidebarRestoreToggle = document.getElementById('sidebarRestoreToggle');
         const sidebarCollapseKey = 'pixiu_sidebar_collapsed';
 
+        function placeSidebarRestoreToggle() {
+            if (!sidebarRestoreToggle) return;
+            const titleBlock = document.querySelector(
+                '.dashboard-topbar > div:first-child, ' +
+                '.analytics-topbar > div:first-child, ' +
+                '.transaction-topbar .transaction-heading, ' +
+                '.transaction-content > .transaction-heading, ' +
+                '.product-create-content > .transaction-heading'
+            );
+            if (!titleBlock || titleBlock.contains(sidebarRestoreToggle)) return;
+            const titleText = document.createElement('div');
+            titleText.className = 'page-title-text';
+            Array.from(titleBlock.childNodes).forEach(node => titleText.appendChild(node));
+            titleBlock.classList.add('page-title-with-sidebar');
+            titleBlock.appendChild(sidebarRestoreToggle);
+            titleBlock.appendChild(titleText);
+        }
+
+        placeSidebarRestoreToggle();
+
         function setSidebarCollapsed(collapsed, persist = true) {
             document.body.classList.toggle('sidebar-collapsed', collapsed);
             if (sidebarCollapseToggle) sidebarCollapseToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
@@ -161,7 +180,10 @@
 
         if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
         if (sidebarCollapseToggle) sidebarCollapseToggle.addEventListener('click', () => setSidebarCollapsed(true));
-        if (sidebarRestoreToggle) sidebarRestoreToggle.addEventListener('click', () => setSidebarCollapsed(false));
+        if (sidebarRestoreToggle) sidebarRestoreToggle.addEventListener('click', () => {
+            setSidebarCollapsed(false);
+            if (window.innerWidth <= 1360) openSidebar();
+        });
 
         window.addEventListener('resize', function () {
             if (window.innerWidth > 1024) closeSidebar();

@@ -1,19 +1,19 @@
-﻿{% extends 'core/base.html' %}
+{% extends 'core/base.html' %}
 {% load format_utils %}
 {% load static %}
 
-{% block title %}Phân tích chuyên sâu - Pixiu Flow{% endblock %}
+{% block title %}Xem thêm chỉ số - Pixiu Flow{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'core/css/analytics.css' %}?v=20260606-cashflow-chart-table">
+<link rel="stylesheet" href="{% static 'core/css/analytics.css' %}?v=20260609-more-metrics">
 {% endblock %}
 
 {% block content %}
 <div class="analytics-page">
     <header class="analytics-topbar">
         <div>
-            <h1>Phân tích chuyên sâu</h1>
-            <p>Doanh thu, lợi nhuận, dòng tiền và chất lượng tồn kho</p>
+            <h1>Xem thêm chỉ số</h1>
+            <p>Doanh thu, lợi nhuận, chi phí và dòng tiền</p>
         </div>
         <div class="topbar-user analytics-user">
             <div>
@@ -54,7 +54,7 @@
             <button type="submit">Áp dụng</button>
         </form>
         <main class="analytics-main">
-            <div class="analytics-main-tabs" role="tablist" aria-label="Phân tích chuyên sâu">
+            <div class="analytics-main-tabs" role="tablist" aria-label="Xem thêm chỉ số">
                 <button type="button" class="analytics-main-tab is-active" data-main-tab="revenue">
                     <span><i data-lucide="trending-up"></i></span> Doanh thu
                 </button>
@@ -66,9 +66,6 @@
                 </button>
                 <button type="button" class="analytics-main-tab" data-main-tab="cashflow">
                     <span><i data-lucide="banknote"></i></span> Dòng tiền
-                </button>
-                <button type="button" class="analytics-main-tab" data-main-tab="inventory">
-                    <span><i data-lucide="package"></i></span> Tồn kho
                 </button>
             </div>
 
@@ -485,6 +482,17 @@
                         </div>
                     </div>
                 </div>
+                <div class="ranking-section">
+                    <h3 class="ranking-title">Thông tin xếp hạng</h3>
+                    <div class="ranking-grid">
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Sản phẩm bán chạy nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.best_product %}{{ ranking_revenue.best_product.orders }} đơn{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.best_product %}{{ ranking_revenue.best_product.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Sản phẩm có số lượng bán ra nhiều nhất trong kỳ bạn chọn.">?</span></div><small>Theo số lượng bán trong kỳ</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Khách hàng mua nhiều nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.top_customer %}{{ ranking_revenue.top_customer.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.top_customer %}{{ ranking_revenue.top_customer.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Khách hàng đem lại doanh thu cao nhất. Giao dịch không ghi tên được tính là Khách lẻ.">?</span></div><small>Theo doanh thu trong kỳ</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Danh mục doanh thu cao nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.top_category %}{{ ranking_revenue.top_category.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.top_category %}{{ ranking_revenue.top_category.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhóm sản phẩm đóng góp doanh thu nhiều nhất trong kỳ.">?</span></div><small>Theo nhóm sản phẩm</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Ngày bán nhiều nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.best_day %}{{ ranking_revenue.best_day.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.best_day %}{{ ranking_revenue.best_day.date|date:"d/m/Y" }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Ngày có doanh thu cao nhất trong kỳ bạn đang xem.">?</span></div><small>Ngày có doanh thu cao nhất</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tỷ lệ khách trả ngay</span><b class="ranking-card-value {% if ranking_revenue.paid_ratio.pct >= 80 %}text-green{% else %}text-orange{% endif %}">{% if ranking_revenue.paid_ratio %}{{ ranking_revenue.paid_ratio.pct }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.paid_ratio %}{{ ranking_revenue.paid_ratio.paid }}/{{ ranking_revenue.paid_ratio.total }} đơn{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tỷ lệ khách thanh toán ngay khi mua. Càng cao thì dòng tiền càng khỏe.">?</span></div><small>Trong tổng số đơn</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Doanh thu chưa thu được</span><b class="ranking-card-value text-orange">{% if ranking_revenue.unpaid_revenue %}{{ ranking_revenue.unpaid_revenue.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.unpaid_revenue %}{{ ranking_revenue.unpaid_revenue.count }} đơn{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tổng tiền khách đã mua nhưng chưa trả, cần theo dõi để tránh thất thoát.">?</span></div><small>Tiền khách vẫn còn nợ</small></article>
+                    </div>
+                </div>
             </section>
             </div>
 
@@ -509,11 +517,6 @@
                         <span>Biên lợi nhuận gộp TB</span>
                         <strong>{{ margin_kpis.average_margin }}%</strong>
                         <small>Tính trên doanh thu và lợi nhuận gộp trong kỳ.</small>
-                    </article>
-                    <article>
-                        <span>Điểm hòa vốn</span>
-                        <strong>{% if break_even_revenue %}{{ break_even_revenue|vnd }}{% else %}Chưa xác định{% endif %}</strong>
-                        <small>{% if break_even_gap > 0 %}Cần thêm {{ break_even_gap|vnd }} DT{% elif break_even_revenue %}Đã vượt điểm hòa vốn{% else %}Biên gộp chưa dương{% endif %}</small>
                     </article>
                     <article>
                         <span>Lợi nhuận gộp/đơn vị TB</span>
@@ -1024,7 +1027,19 @@
                             </div>
                         </div>
                     </div>
-                </div></section>
+                </div>
+                <div class="ranking-section">
+                    <h3 class="ranking-title">Thông tin xếp hạng</h3>
+                    <div class="ranking-grid">
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Sản phẩm lời nhất</span><b class="ranking-card-value text-red">{% if ranking_profit.best_product %}{{ ranking_profit.best_product.profit|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_profit.best_product %}{{ ranking_profit.best_product.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Sản phẩm tạo ra nhiều lợi nhuận nhất sau khi trừ giá vốn.">?</span></div><small>Theo lợi nhuận gộp</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Biên lợi nhuận thấp nhất</span><b class="ranking-card-value text-orange">{% if ranking_profit.worst_margin %}{{ ranking_profit.worst_margin.margin }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_profit.worst_margin %}{{ ranking_profit.worst_margin.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Sản phẩm có tỷ lệ lãi thấp nhất trên doanh thu, cần xem xét điều chỉnh giá hoặc cắt giảm giá vốn.">?</span></div><small>Biên lợi nhuận gộp thấp nhất</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Danh mục biên lợi nhuận cao nhất</span><b class="ranking-card-value text-green">{% if ranking_profit.best_category_margin %}{{ ranking_profit.best_category_margin.margin }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_profit.best_category_margin %}{{ ranking_profit.best_category_margin.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhóm hàng có tỷ lệ lãi trên doanh thu cao nhất.">?</span></div><small>% lãi trên mỗi đồng bán</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Biên lợi nhuận trung bình</span><b class="ranking-card-value {% if ranking_profit.avg_margin >= 20 %}text-green{% else %}text-orange{% endif %}">{% if ranking_profit.avg_margin != None %}{{ ranking_profit.avg_margin }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_profit.avg_margin != None %}Toàn kỳ{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Trung bình bạn lãi bao nhiêu phần trăm trên mỗi đồng doanh thu.">?</span></div><small>Toàn bộ sản phẩm trong kỳ</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Lợi nhuận sau khấu hao</span><b class="ranking-card-value {% if ranking_profit.profit_after_depreciation < 0 %}text-orange{% else %}text-red{% endif %}">{% if ranking_profit.profit_after_depreciation != None %}{{ ranking_profit.profit_after_depreciation|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_profit.profit_after_depreciation != None %}Lợi nhuận thuần{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Lợi nhuận thực tế sau khi trừ thêm phần chi phí thiết bị phân bổ theo vòng đời.">?</span></div><small>Đã trừ chi phí thiết bị phân bổ</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Kỳ lời nhất</span><b class="ranking-card-value text-red">{% if ranking_profit.best_period %}{{ ranking_profit.best_period.profit|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_profit.best_period %}{{ ranking_profit.best_period.label }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Thời điểm kinh doanh hiệu quả nhất trong kỳ bạn đang xem.">?</span></div><small>Kỳ có lợi nhuận cao nhất</small></article>
+                    </div>
+                </div>
+                </section>
             </div>
 
             <div class="analytics-main-pane" data-main-pane="expense" hidden>
@@ -1054,29 +1069,157 @@
                     <button type="submit">Áp dụng</button>
                 </form>
 
-                <div class="analytics-expense-grid">
-                    <div class="analytics-expense-timeline" data-expense-chart>
-                        <div class="expense-chart-canvas" data-expense-chart-canvas></div>
-                        <div class="expense-chart-tooltip" data-expense-chart-tooltip hidden></div>
-                        {{ expense_chart_points|json_script:"expense-chart-points" }}
+                <div class="expense-flow-layout">
+                    <div class="expense-flow-meta">
+                        <span>Kỳ này: {{ expense_period_label }} · Gom theo {{ expense_granularity }}</span>
                     </div>
 
-                    <table class="analytics-mini-table">
-                        <thead>
-                            <tr><th>Chi phí</th><th>Giá trị</th><th>%</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for item in expense_breakdown %}
-                            <tr>
-                                <td>{{ item.name }}</td>
-                                <td>{{ item.total|vnd }}</td>
-                                <td>{{ item.share }}%</td>
-                            </tr>
+                    <div class="expense-kpi-bar">
+                        <article>
+                            <span><i data-lucide="receipt-text"></i> Tổng chi phí kỳ này</span>
+                            <strong>{{ expense_period_total|vnd }}</strong>
+                            <small class="{% if expense_total_change and expense_total_change > 0 %}is-bad{% else %}is-good{% endif %}">
+                                {% if expense_total_change != None %}{% if expense_total_change > 0 %}+{% endif %}{{ expense_total_change }}% so {{ expense_previous_label }}{% else %}Chưa có dữ liệu {{ expense_previous_label }}{% endif %}
+                            </small>
+                        </article>
+                        <article>
+                            <span><i data-lucide="timer"></i> Chi phí / ngày</span>
+                            <strong>{{ expense_per_day|vnd }}</strong>
+                            <small>Tiền cần gánh mỗi ngày. {{ expense_period_day_note }}</small>
+                        </article>
+                        <article>
+                            <span><i data-lucide="archive"></i> Trong đó khấu hao</span>
+                            <strong>{{ expense_depreciation_total|vnd }}</strong>
+                            <small>Thiết bị phân bổ kỳ này</small>
+                        </article>
+                    </div>
+
+                    <section class="expense-flow-block">
+                        <h3><i data-lucide="percent"></i> Tỉ lệ quan trọng</h3>
+                        <div class="expense-ratio-grid">
+                            <article>
+                                <span>Biên lợi nhuận gộp <span class="metric-info" data-tooltip="Doanh thu trừ giá vốn, rồi chia cho doanh thu. Đây là phần còn lại trước khi trả tiền mặt bằng, lương, điện nước và chi phí khác.">?</span></span>
+                                {% if expense_period_revenue %}
+                                    <strong>{{ expense_period_gross_margin_pct }}%</strong>
+                                    <i style="--gauge: {{ expense_period_gross_margin_pct }}%;"></i>
+                                    <small>{{ expense_period_label }}: Doanh thu - Giá vốn / Doanh thu</small>
+                                {% else %}
+                                    <strong>--</strong>
+                                    <i style="--gauge: 0%;"></i>
+                                    <small>{{ expense_period_label }} chưa có doanh thu để tính</small>
+                                {% endif %}
+                            </article>
+                            <article>
+                                <span>Chi phí / Doanh thu <span class="metric-info" data-tooltip="Cứ 100 đồng doanh thu thì cửa hàng đang dùng bao nhiêu đồng để trả giá vốn và chi phí vận hành. Nhỏ hơn 75% thường dễ thở hơn.">?</span></span>
+                                {% if expense_to_revenue_pct != None %}
+                                    <strong>{{ expense_to_revenue_pct }}%</strong>
+                                    <i style="--gauge: {{ expense_to_revenue_pct }}%;"></i>
+                                    <small>{{ expense_to_revenue_note }}</small>
+                                {% else %}
+                                    <strong>--</strong>
+                                    <i style="--gauge: 0%;"></i>
+                                    <small>{{ expense_to_revenue_note }}</small>
+                                {% endif %}
+                            </article>
+                        </div>
+                        <p>Ví dụ: Nếu doanh thu 5tr và chi phí 1,5tr thì chi phí/DT = 30% là lành mạnh. Nếu chi phí vượt doanh thu thì đang lỗ.</p>
+                    </section>
+
+                    <section class="expense-flow-block">
+                        <div class="expense-flow-heading">
+                            <h3><i data-lucide="layers-3"></i> Cơ cấu chi phí theo kỳ</h3>
+                            <span>Hover từng cột để xem chi tiết</span>
+                        </div>
+                        <div class="expense-chart-legend" data-expense-legend></div>
+                        <div class="analytics-expense-timeline" data-expense-chart>
+                            <div class="expense-chart-canvas" data-expense-chart-canvas></div>
+                            <div class="expense-chart-tooltip" data-expense-chart-tooltip hidden></div>
+                            {{ expense_chart_points|json_script:"expense-chart-points" }}
+                        </div>
+                        <div class="expense-insight-box">{{ expense_insight }}</div>
+                    </section>
+
+                    <section class="expense-flow-block">
+                        <h3><i data-lucide="shuffle"></i> So sánh với kỳ trước</h3>
+                        <div class="expense-compare-list">
+                            {% for row in expense_comparison_rows %}
+                            <article>
+                                <span>{{ row.name|fix_mojibake }}</span>
+                                <div>
+                                    <i style="--bar: {{ row.previous_width }}%;"></i>
+                                    <i class="is-current" style="--bar: {{ row.current_width }}%;"></i>
+                                </div>
+                                <small>{{ expense_previous_label }}: {{ row.previous_total|vnd }}<br>{{ expense_period_label }}: {{ row.current_total|vnd }}</small>
+                                <b class="is-{{ row.badge_tone }}">{{ row.badge_label }}</b>
+                            </article>
                             {% empty %}
-                            <tr><td colspan="3">Chưa có dữ liệu chi phí.</td></tr>
+                            <p>Chưa có dữ liệu để so sánh kỳ trước.</p>
                             {% endfor %}
-                        </tbody>
-                    </table>
+                        </div>
+                    </section>
+
+                    <section class="expense-flow-block">
+                        <div class="expense-flow-heading">
+                            <h3><i data-lucide="wrench"></i> Thiết bị đang khấu hao</h3>
+                            <a href="/expenses/create/?mode=other">+ Thêm thiết bị qua Ghi nhận giao dịch</a>
+                        </div>
+                        <div class="expense-depreciation-table">
+                            <table>
+                                <thead>
+                                    <tr><th>Thiết bị</th><th>Mua ngày</th><th>Đã phân bổ</th><th>Còn lại</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in equipment_depreciation_rows %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ row.name|fix_mojibake }}</strong>
+                                            <small>{{ row.amount|vnd }} · vòng đời {{ row.lifetime_months }} tháng</small>
+                                            <i style="--bar: {{ row.progress_pct }}%;"></i>
+                                        </td>
+                                        <td>{{ row.date|date:"d/m/Y" }}</td>
+                                        <td>{{ row.recognized_amount|vnd }}</td>
+                                        <td><b>{{ row.remaining|vnd }}</b><small>{{ row.months_left }} tháng</small></td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4">Chưa có thiết bị đang khấu hao trong kỳ này.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="expense-flow-block">
+                        <h3><i data-lucide="pie-chart"></i> Phân bổ chi phí kỳ này</h3>
+                        <div class="expense-mix-layout">
+                            <div class="expense-donut" data-expense-donut style="{{ expense_donut_style }}">
+                                {% for item in expense_mix_rows %}
+                                <i data-share="{{ item.share }}" data-color-index="{{ item.color_index }}"></i>
+                                {% endfor %}
+                            </div>
+                            <div class="expense-gauge-list">
+                                {% for item in expense_mix_rows %}
+                                <article>
+                                    <span><i class="expense-color-{{ item.color_index }}"></i>{{ item.name|fix_mojibake }}</span>
+                                    <strong>{{ item.share }}%</strong>
+                                    <b style="--bar: {{ item.gauge_width }}%;"></b>
+                                </article>
+                                {% empty %}
+                                <p>Chưa có dữ liệu chi phí trong kỳ.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </section>
+                </div>
+                <div class="ranking-section">
+                    <h3 class="ranking-title">Thông tin xếp hạng</h3>
+                    <div class="ranking-grid">
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Nhóm chi phí lớn nhất</span><b class="ranking-card-value text-orange">{% if ranking_expense.top_group %}{{ ranking_expense.top_group.total|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.top_group %}{{ ranking_expense.top_group.name|fix_mojibake }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhóm chi phí chiếm tỷ trọng cao nhất trong kỳ.">?</span></div><small>Tốn tiền nhiều nhất</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Chi phí tăng nhiều nhất</span><b class="ranking-card-value text-orange">{% if ranking_expense.fastest_growing_group %}{% if ranking_expense.fastest_growing_group.change > 0 %}+{% endif %}{{ ranking_expense.fastest_growing_group.change }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.fastest_growing_group %}{{ ranking_expense.fastest_growing_group.name|fix_mojibake }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhóm chi phí có mức tăng lớn nhất so với kỳ trước.">?</span></div><small>So với kỳ trước</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Nhà cung cấp tốn tiền nhất</span><b class="ranking-card-value text-red">{% if ranking_expense.top_supplier %}{{ ranking_expense.top_supplier.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.top_supplier %}{{ ranking_expense.top_supplier.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhà cung cấp bạn đã chi nhiều tiền nhập hàng nhất trong kỳ.">?</span></div><small>Theo tổng giá trị nhập hàng</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Chi phí chưa thanh toán</span><b class="ranking-card-value text-orange">{% if ranking_expense.unpaid_expense %}{{ ranking_expense.unpaid_expense.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.unpaid_expense %}{{ ranking_expense.unpaid_expense.count }} khoản{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tổng tiền còn nợ nhà cung cấp hoặc chi phí chưa thanh toán trong kỳ.">?</span></div><small>Còn nợ nhà cung cấp/chi phí</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Chi phí cố định</span><b class="ranking-card-value text-orange">{% if ranking_expense.fixed_ratio != None %}{{ ranking_expense.fixed_ratio }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.fixed_ratio != None %}Trong tổng chi phí{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tỷ lệ chi phí cố định như lương, mặt bằng và khấu hao. Tỷ lệ cao làm tăng áp lực hòa vốn.">?</span></div><small>Cố định / biến đổi</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Thiết bị đang phân bổ</span><b class="ranking-card-value text-red">{% if ranking_expense.active_depreciation %}{{ ranking_expense.active_depreciation.monthly|vnd }}/tháng{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.active_depreciation %}{{ ranking_expense.active_depreciation.count }} thiết bị{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tổng chi phí thiết bị đang được chia đều mỗi tháng theo vòng đời.">?</span></div><small>Chi phí thiết bị chia theo vòng đời</small></article>
+                    </div>
                 </div>
             </section>
             </div>
@@ -1340,85 +1483,19 @@
                         </article>
                     </div>
                 </section>
-            </div>
-
-            <div class="analytics-main-pane" data-main-pane="inventory" hidden>
-                <section class="analytics-card">
-                    <div class="analytics-small-head">
-                        <h2>Chất lượng hàng tồn kho</h2>
-                        <span>Sắp hết: {{ alert_stock_count }} mặt hàng</span>
+                <div class="ranking-section">
+                    <h3 class="ranking-title">Thông tin xếp hạng</h3>
+                    <div class="ranking-grid">
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Dòng tiền thuần</span><b class="ranking-card-value {% if ranking_cashflow.net_cashflow < 0 %}text-orange{% else %}text-red{% endif %}">{% if ranking_cashflow.net_cashflow != None %}{{ ranking_cashflow.net_cashflow|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.net_cashflow != None %}Tiền thực vào - ra{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tiền thực tế còn lại sau khi trừ tất cả khoản đã chi.">?</span></div><small>Tiền thật trong kỳ</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Ngày tiền vào nhiều nhất</span><b class="ranking-card-value text-red">{% if ranking_cashflow.best_inflow_day %}{{ ranking_cashflow.best_inflow_day.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.best_inflow_day %}{{ ranking_cashflow.best_inflow_day.date|date:"d/m/Y" }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Ngày thu được nhiều tiền thanh toán nhất trong kỳ.">?</span></div><small>Ngày thu được nhiều nhất</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tiền chờ thu</span><b class="ranking-card-value text-orange">{% if ranking_cashflow.receivable %}{{ ranking_cashflow.receivable.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.receivable %}{{ ranking_cashflow.receivable.count }} đơn{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tiền đã bán nhưng chưa thu về từ khách hàng.">?</span></div><small>Khách chưa trả</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tiền chờ chi</span><b class="ranking-card-value text-orange">{% if ranking_cashflow.payable %}{{ ranking_cashflow.payable.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.payable %}{{ ranking_cashflow.payable.count }} khoản{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tiền đang nợ nhà cung cấp hoặc chi phí chưa thanh toán.">?</span></div><small>Bạn chưa trả NCC/chi phí</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Xu hướng dòng tiền</span><b class="ranking-card-value {% if ranking_cashflow.trend.direction == 'up' %}text-green{% elif ranking_cashflow.trend.direction == 'down' %}text-orange{% endif %}">{% if ranking_cashflow.trend.pct != None %}{% if ranking_cashflow.trend.direction == 'up' %}Tăng{% elif ranking_cashflow.trend.direction == 'down' %}Giảm{% else %}Ổn định{% endif %} {{ ranking_cashflow.trend.pct }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">So với kỳ trước</strong><span class="ranking-tooltip" data-tip="Dòng tiền kỳ này tốt hơn hay xấu hơn kỳ trước.">?</span></div><small>Biến động dòng tiền</small></article>
+                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tỷ lệ thu hồi công nợ</span><b class="ranking-card-value {% if ranking_cashflow.collection_rate >= 80 %}text-green{% else %}text-orange{% endif %}">{% if ranking_cashflow.collection_rate != None %}{{ ranking_cashflow.collection_rate }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.collection_rate != None %}Đã thu / doanh thu{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tỷ lệ doanh thu trong kỳ đã chuyển thành tiền thực thu.">?</span></div><small>Khả năng thu tiền</small></article>
                     </div>
-                    <div class="analytics-inventory-quality">
-                        <article>
-                            <span>Số ngày tồn kho trung bình <span class="metric-info" data-tooltip="Ước tính với tốc độ bán hiện tại, hàng trong kho đủ bán thêm bao nhiêu ngày. Công thức: giá trị tồn kho chia cho giá vốn bán trung bình mỗi ngày trong kỳ.">?</span></span>
-                            <strong>{% if inventory_days == None %}Chưa đủ dữ liệu{% else %}{{ inventory_days }} ngày{% endif %}</strong>
-                            <small>Với tốc độ bán hiện tại, hàng trong kho đủ bán thêm khoảng này.</small>
-                        </article>
-                        <article>
-                            <span>Giá vốn bán/ngày</span>
-                            <strong>{{ daily_cogs|vnd }}</strong>
-                            <small>Tính từ giá vốn các sản phẩm đã bán trong {{ report_days }} ngày.</small>
-                        </article>
-                        <article>
-                            <span>Tiền đang nằm trong kho</span>
-                            <strong>{{ inventory_value|vnd }}</strong>
-                            <small>Ước tính theo đơn giá nhập gần nhất của từng sản phẩm.</small>
-                        </article>
-                    </div>
-                    <table class="analytics-mini-table analytics-stock-table">
-                        <thead><tr><th>Hàng chậm luân chuyển</th><th>Số lượng tồn</th><th>Giá trị tồn</th><th>Đủ bán thêm</th></tr></thead>
-                        <tbody>
-                            {% for product in slow_inventory_rows %}
-                            <tr>
-                                <td>{{ product.name|truncatechars:24 }}{% if product.category %}<small>{{ product.category }}</small>{% endif %}</td>
-                                <td>{{ product.stock_quantity }} sp</td>
-                                <td><b>{{ product.stock_value|vnd }}</b></td>
-                                <td>{% if product.days_cover == None %}Chưa bán trong kỳ{% else %}{{ product.days_cover }} ngày{% endif %}</td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="4">Chưa có dữ liệu.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </section>
+                </div>
             </div>
         </main>
-
-        <aside class="analytics-rank">
-            <h2>Thông tin xếp hạng</h2>
-            <div class="analytics-rank-card">
-                <article>
-                    <span>Sản phẩm bán chạy nhất</span>
-                    <b>{% if top_product %}{{ top_product.units }} đơn{% else %}0 đơn{% endif %}</b>
-                    <strong>{% if top_product %}{{ top_product.product__name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
-                </article>
-                <article>
-                    <span>Danh mục biên lợi nhuận gộp cao</span>
-                    <b>{% if profit_by_category %}{{ profit_by_category.0.margin }}%{% else %}0%{% endif %}</b>
-                    <strong>{% if profit_by_category %}{{ profit_by_category.0.name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
-                </article>
-                <article>
-                    <span>Sản phẩm tồn kho nhiều nhất</span>
-                    <b>{% if slow_product %}{{ slow_product.stock_quantity }} sp{% else %}0 sp{% endif %}</b>
-                    <strong>{% if slow_product %}{{ slow_product.name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
-                </article>
-                <article>
-                    <span>Dòng tiền thuần</span>
-                    <b class="rank-pill">Ổn định</b>
-                    <strong>{{ net_cash_flow|vnd }}</strong>
-                </article>
-                <article>
-                    <span>Lợi nhuận thuần</span>
-                    <b>Kế toán</b>
-                    <strong>{{ net_profit|vnd }}</strong>
-                </article>
-                <article>
-                    <span>Đối tác cung cấp lớn nhất</span>
-                    <b>{% if biggest_supplier %}{{ biggest_supplier.total|vnd }}{% else %}0 đ{% endif %}</b>
-                    <strong>{% if biggest_supplier %}{{ biggest_supplier.supplier_name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
-                </article>
-            </div>
-        </aside>
     </section>
 </div>
 <script>
@@ -1817,15 +1894,19 @@
     
     function initMainTabs(root = document) {
         const tabs = Array.from(root.querySelectorAll('[data-main-tab]'));
-        const panes = Array.from(root.querySelectorAll('[data-main-pane]'));
         
         tabs.forEach(tab => {
+            if (tab.dataset.mainReady === '1') return;
+            tab.dataset.mainReady = '1';
             tab.addEventListener('click', () => {
                 const target = tab.dataset.mainTab;
+                const scope = tab.closest('.analytics-content') || document;
+                const currentTabs = Array.from(scope.querySelectorAll('[data-main-tab]'));
+                const currentPanes = Array.from(scope.querySelectorAll('[data-main-pane]'));
                 
-                tabs.forEach(t => t.classList.toggle('is-active', t === tab));
+                currentTabs.forEach(t => t.classList.toggle('is-active', t.dataset.mainTab === target));
                 
-                panes.forEach(pane => {
+                currentPanes.forEach(pane => {
                     const active = pane.dataset.mainPane === target;
                     pane.hidden = !active;
                     pane.classList.toggle('is-active', active);
@@ -2123,7 +2204,7 @@
         });
     }
 
-    const EXPENSE_COLORS = ['#9F1111', '#C56B14', '#E9B949', '#168A45', '#0C447C', '#6D3A9C', '#854F0B'];
+    const EXPENSE_COLORS = ['#c0392b', '#ef8745', '#f4c879', '#d8b990', '#8f4a33', '#d45d4c', '#b97745'];
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -2134,13 +2215,24 @@
 
     function pieChartStyle(parts, colors) {
         let cursor = 0;
-        const stops = parts.length ? parts.map((part, index) => {
-            const start = cursor;
-            cursor += part.share || 0;
-            const color = colors[index % colors.length];
-            return `${color} ${start}% ${cursor}%`;
-        }).join(', ') : '#e5e7eb 0% 100%';
-        return `background-image: conic-gradient(${stops}) !important;`;
+
+        const validParts = (parts || [])
+            .map(part => ({
+                ...part,
+                share: Number(part.share || 0),
+            }))
+            .filter(part => part.share > 0);
+
+        const stops = validParts.length
+            ? validParts.map((part, index) => {
+                const start = cursor;
+                cursor += part.share;
+                const color = colors[index % colors.length];
+                return `${color} ${start}% ${cursor}%`;
+            }).join(', ')
+            : '#e5e7eb 0% 100%';
+
+        return `background: conic-gradient(${stops});`;
     }
 
     function expenseDonutStyle(parts) {
@@ -2205,48 +2297,89 @@
         }
         const width = Math.max(640, data.length * 104 + 130);
         const height = 350;
-        const margin = { left: 64, right: 28, top: 46, bottom: 62 };
+        const margin = { left: 64, right: 28, top: 34, bottom: 62 };
         const chartW = width - margin.left - margin.right;
         const chartH = height - margin.top - margin.bottom;
         const maxValue = Math.max(...data.map(item => item.total || 0), 1);
         const y = value => margin.top + chartH - (value / maxValue) * chartH;
         const groupW = Math.min(104, chartW / Math.max(1, data.length));
-        const barW = Math.max(24, Math.min(54, groupW * .46));
+        const barW = Math.max(30, Math.min(70, groupW * .72));
         const usedW = data.length * groupW;
         const startX = margin.left + Math.max(0, (chartW - usedW) / 2);
         const svg = svgNode('svg', { viewBox: `0 0 ${width} ${height}`, width, height });
         [0, .25, .5, .75, 1].forEach(step => {
             const value = maxValue * step;
             const yy = y(value);
-            svg.appendChild(svgNode('line', { x1: margin.left, x2: width - margin.right, y1: yy, y2: yy, stroke: 'rgba(148,163,184,.22)', 'stroke-width': 1 }));
-            svg.appendChild(svgNode('text', { x: margin.left - 10, y: yy + 4, 'text-anchor': 'end', 'font-size': 10, fill: '#6b7280' })).textContent = fmt(value);
+            svg.appendChild(svgNode('line', { x1: margin.left, x2: width - margin.right, y1: yy, y2: yy, stroke: 'rgba(159,82,43,.16)', 'stroke-width': 1 }));
+            svg.appendChild(svgNode('text', { x: margin.left - 10, y: yy + 4, 'text-anchor': 'end', 'font-size': 10, fill: '#9a6a43' })).textContent = fmt(value);
         });
         data.forEach((item, index) => {
             const gx = startX + index * groupW;
             const cx = gx + groupW / 2;
-            const barH = item.total ? Math.max(3, y(0) - y(item.total)) : 0;
             const x = cx - barW / 2;
-            const rectY = y(0) - barH;
-            const fill = '#B91C1C';
-            const rect = svgNode('rect', { x, y: rectY, width: barW, height: barH, rx: 5, fill: fill, class: 'expense-chart-hit' });
-            rect.addEventListener('mouseenter', event => expenseTooltip(chart, event, item));
-            rect.addEventListener('mousemove', event => expenseTooltip(chart, event, item));
-            rect.addEventListener('mouseleave', () => hideExpenseTooltip(chart));
-            svg.appendChild(rect);
-            const valueText = svgNode('text', { x: cx, y: rectY - 9, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: fill });
+            let cursor = 0;
+            (item.breakdown || []).forEach((part, partIndex) => {
+                const next = cursor + (part.amount || 0);
+                const segmentY = y(next);
+                const segmentH = Math.max(2, y(cursor) - segmentY);
+                const rect = svgNode('rect', {
+                    x,
+                    y: segmentY,
+                    width: barW,
+                    height: segmentH,
+                    rx: partIndex === 0 ? 0 : 2,
+                    fill: EXPENSE_COLORS[partIndex % EXPENSE_COLORS.length],
+                    class: 'expense-chart-hit',
+                });
+                rect.addEventListener('mouseenter', event => expenseTooltip(chart, event, item));
+                rect.addEventListener('mousemove', event => expenseTooltip(chart, event, item));
+                rect.addEventListener('mouseleave', () => hideExpenseTooltip(chart));
+                svg.appendChild(rect);
+                cursor = next;
+            });
+            const rectY = y(item.total || 0);
+            const valueText = svgNode('text', { x: cx, y: rectY - 9, 'text-anchor': 'middle', 'font-size': 10, 'font-weight': 800, fill: '#9a4f25' });
             valueText.textContent = fmt(item.total);
             svg.appendChild(valueText);
-            const label = svgNode('text', { x: cx, y: height - 28, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: '#6b7280' });
+            const label = svgNode('text', { x: cx, y: height - 28, 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 700, fill: '#9a6a43' });
             label.textContent = item.label;
             svg.appendChild(label);
         });
         canvas.appendChild(svg);
     }
 
+    function renderExpenseLegend(data) {
+        const legend = document.querySelector('[data-expense-legend]');
+        if (!legend) return;
+        const labels = [];
+        data.forEach(item => (item.breakdown || []).forEach(part => {
+            if (!labels.includes(part.label)) labels.push(part.label);
+        }));
+        legend.innerHTML = labels.map((label, index) => `
+            <span><i style="background:${EXPENSE_COLORS[index % EXPENSE_COLORS.length]}"></i>${escapeHtml(label)}</span>
+        `).join('');
+    }
+
+    function initExpenseDonuts() {
+        document.querySelectorAll('[data-expense-donut]').forEach(donut => {
+            let cursor = 0;
+            const stops = Array.from(donut.querySelectorAll('i')).map(item => {
+                const share = Number(item.dataset.share || 0);
+                const color = EXPENSE_COLORS[(Number(item.dataset.colorIndex || 1) - 1) % EXPENSE_COLORS.length];
+                const stop = `${color} ${cursor}% ${cursor + share}%`;
+                cursor += share;
+                return stop;
+            });
+            donut.style.backgroundImage = `conic-gradient(${stops.length ? stops.join(', ') : '#ead4a2 0% 100%'})`;
+        });
+    }
+
     function initExpenseCharts(root = document) {
         const expenseNode = document.getElementById('expense-chart-points');
         let data = [];
         try { data = JSON.parse(expenseNode?.textContent || '[]'); } catch (error) { data = []; }
+        renderExpenseLegend(data);
+        initExpenseDonuts();
         root.querySelectorAll('[data-expense-chart]').forEach(chart => renderExpenseChart(chart, data));
     }
 
@@ -2487,15 +2620,15 @@
             overlay.addEventListener('click', () => renderLayeredDetail(chart, data, item, isAllView));
             svg.appendChild(overlay);
             const bars = profitOnly ? [
-                [item.gross_profit, cx - barW - 2, item.gross_profit >= 0 ? '#E8F5E2' : '#F8D9D9', item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg],
-                [item.net_profit, cx + 2, '#D7E7F8', item.net_profit >= 0 ? LAYERED_COLORS.netPos : LAYERED_COLORS.netNeg],
+                [item.gross_profit, cx - barW - 2, LAYERED_COLORS.grossPos],
+                [item.net_profit, cx + 2, LAYERED_COLORS.netPos],
             ] : [
-                [item.revenue, cx - barW - 2, '#DBEAFE', LAYERED_COLORS.revenue],
-                [item.gross_profit, cx + 2, item.gross_profit >= 0 ? '#E8F5E2' : '#F8D9D9', item.gross_profit >= 0 ? LAYERED_COLORS.grossPos : LAYERED_COLORS.grossNeg],
+                [item.revenue, cx - barW - 2, LAYERED_COLORS.revenue],
+                [item.gross_profit, cx + 2, LAYERED_COLORS.grossPos],
             ];
-            bars.forEach(([value, x, light, dark]) => {
+            bars.forEach(([value, x, color]) => {
                 const by = y(Math.max(value, 0));
-                svg.appendChild(svgNode('rect', { x, y: value >= 0 ? by : zeroY, width: barW, height: Math.max(2, Math.abs(y(value) - zeroY)), rx: 3, fill: valueColor(value, maxAbsValue, light, dark) }));
+                svg.appendChild(svgNode('rect', { x, y: value >= 0 ? by : zeroY, width: barW, height: Math.max(2, Math.abs(y(value) - zeroY)), rx: 3, fill: color }));
             });
             if (isAllView && !profitOnly) netPoints.push([cx, y(item.net_profit)]);
             const label = svgNode('text', {

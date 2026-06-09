@@ -73,16 +73,11 @@
 }
 
 .sidebar-restore-toggle {
-    position: fixed;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 45;
-    width: 38px;
-    height: 72px;
+    width: 42px;
+    height: 42px;
     background: var(--red);
-    border-radius: 0 10px 10px 0;
-    box-shadow: 8px 0 22px rgba(139, 16, 16, 0.18);
+    border-radius: 8px;
+    box-shadow: none;
 }
 
 .sidebar-restore-toggle:hover {
@@ -226,4 +221,19 @@ body.sidebar-collapsed .main-content {
 .sidebar-overlay.show {
     opacity: 1;
     visibility: visible;
+}
+
+.page-title-with-sidebar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.page-title-with-sidebar .page-title-text {
+    min-width: 0;
+}
+
+.page-title-with-sidebar .sidebar-restore-toggle {
+    flex: 0 0 auto;
 }

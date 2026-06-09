@@ -47,7 +47,7 @@
                 </a>
                 <a href="/report/" class="quick-start-item {% if has_viewed_report %}is-done{% endif %}">
                     <b>3</b>
-                    <span><strong>Xem báo cáo</strong><small>Theo dõi tồn kho, lợi nhuận và dòng tiền.</small><em>Xem báo cáo</em></span>
+                    <span><strong>Xem thêm chỉ số</strong><small>Theo dõi doanh thu, lợi nhuận, chi phí và dòng tiền.</small><em>Xem chỉ số</em></span>
                     <i data-lucide="{% if has_viewed_report %}check-circle-2{% else %}arrow-right{% endif %}"></i>
                 </a>
             </div>
@@ -199,14 +199,16 @@
 
         <div class="dashboard-grid">
             <section class="chart-panel">
-                <div class="panel-heading"><div><h2>Biểu đồ xu hướng</h2><p>Dữ liệu tài chính trong khoảng {{ date_range_label }}</p></div><div class="chart-tabs" id="chartTabs"><button type="button" class="active" data-chart-metric="income">Doanh thu ghi nhận</button><button type="button" data-chart-metric="expense">Tiền ra</button><button type="button" data-chart-metric="profit">Dòng tiền thuần</button></div></div>
+                <div class="panel-heading"><div><h2>Biểu đồ xu hướng</h2><p>Dữ liệu tài chính trong khoảng {{ date_range_label }}</p></div><div class="chart-tabs" id="chartTabs"><button type="button" class="active" data-chart-metric="revenue_profit">Doanh thu và lợi nhuận</button><button type="button" data-chart-metric="cash_net">Dòng tiền thuần</button></div></div>
+                <div class="dashboard-chart-legend" id="chartLegend" aria-label="Chú thích biểu đồ"></div>
                 <div class="chart-box" aria-label="Biểu đồ dữ liệu tài chính">
-                    <svg viewBox="0 0 760 430" role="img"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#b21919" stop-opacity="0.35"/><stop offset="100%" stop-color="#b21919" stop-opacity="0"/></linearGradient></defs><g class="grid-lines"><line x1="70" y1="50" x2="730" y2="50"/><line x1="70" y1="135" x2="730" y2="135"/><line x1="70" y1="220" x2="730" y2="220"/><line x1="70" y1="305" x2="730" y2="305"/><line x1="70" y1="390" x2="730" y2="390"/></g><g class="chart-labels" id="chartLabels"></g><path class="area-line-fill" id="chartArea"></path><path class="area-line" id="chartLine"></path><text class="chart-empty" id="chartEmpty" x="380" y="220" text-anchor="middle">Chưa có dữ liệu trong khoảng này</text></svg>
+                    <svg viewBox="0 0 760 430" role="img"><defs><linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#b21919" stop-opacity="0.18"/><stop offset="100%" stop-color="#b21919" stop-opacity="0"/></linearGradient></defs><g class="grid-lines"><line x1="70" y1="50" x2="730" y2="50"/><line x1="70" y1="135" x2="730" y2="135"/><line x1="70" y1="220" x2="730" y2="220"/><line x1="70" y1="305" x2="730" y2="305"/><line x1="70" y1="390" x2="730" y2="390"/></g><g class="chart-labels" id="chartLabels"></g><g class="chart-bars" id="chartBars"></g><path class="area-line-fill" id="chartArea"></path><path class="area-line" id="chartLine"></path><g class="chart-points" id="chartPoints"></g><g class="chart-hit-areas" id="chartHitAreas"></g><text class="chart-empty" id="chartEmpty" x="380" y="220" text-anchor="middle">Chưa có dữ liệu trong khoảng này</text></svg>
+                    <div class="dashboard-chart-tooltip" id="chartTooltip" hidden></div>
                 </div>
             </section>
             <aside class="dashboard-side">
                 <section class="side-panel quick-stats"><h2>Thống kê nhanh</h2><div><span>Doanh thu trung bình/ngày</span><strong>{{ avg_income_per_day|vnd }}</strong></div><div><span>Chi phí lãi/lỗ trung bình/ngày</span><strong>{{ avg_expense_per_day|vnd }}</strong></div><div><span>Tiền ra trung bình/ngày</span><strong>{{ avg_cash_out_per_day|vnd }}</strong></div><div><span>Biên lợi nhuận gộp</span><strong>{{ gross_margin }}%</strong></div><div><span>Số lượng giao dịch</span><strong>{{ total_transactions }} đơn</strong></div></section>
-                <section class="insight-card"><h2>Phân tích chuyên sâu</h2><p>Xem chi tiết doanh thu, chi phí, lợi nhuận và khác biệt giữa dòng tiền với lãi/lỗ.</p><a href="/report/?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}">Xem phân tích <i data-lucide="chevron-right"></i></a></section>
+                <section class="insight-card"><h2>Xem thêm chỉ số</h2><p>Xem chi tiết doanh thu, chi phí, lợi nhuận và khác biệt giữa dòng tiền với lãi/lỗ.</p><a href="/report/?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}">Xem chỉ số <i data-lucide="chevron-right"></i></a></section>
             </aside>
         </div>
     </section>
@@ -219,29 +221,148 @@
 (function () {
     const data = JSON.parse(document.getElementById('dashboard-chart-data').textContent);
     const labels = document.getElementById('chartLabels');
+    const bars = document.getElementById('chartBars');
     const line = document.getElementById('chartLine');
     const area = document.getElementById('chartArea');
+    const pointsLayer = document.getElementById('chartPoints');
+    const hitAreas = document.getElementById('chartHitAreas');
     const empty = document.getElementById('chartEmpty');
+    const legend = document.getElementById('chartLegend');
+    const tooltip = document.getElementById('chartTooltip');
     const tabs = document.querySelectorAll('[data-chart-metric]');
     const left = 70, right = 730, top = 50, bottom = 390;
     const width = right - left, height = bottom - top;
+    const svgNs = 'http://www.w3.org/2000/svg';
     function formatMoney(value) { const abs = Math.abs(value); if (abs >= 1000000) return `${(value / 1000000).toFixed(abs >= 10000000 ? 0 : 1)}M`; if (abs >= 1000) return `${(value / 1000).toFixed(0)}K`; return `${Math.round(value)}`; }
+    function formatVnd(value) { return `${Math.round(value || 0).toLocaleString('vi-VN')} đ`; }
     function pointPath(points) { if (!points.length) return ''; if (points.length === 1) return `M${points[0].x} ${points[0].y}`; return points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' '); }
+    function svgNode(name, attrs = {}) { const node = document.createElementNS(svgNs, name); Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value))); return node; }
+    function hideTooltip() {
+        if (tooltip) tooltip.hidden = true;
+    }
+    function showTooltip(event, item, value) {
+        if (!tooltip) return;
+        tooltip.innerHTML = `<strong>${item.label}</strong><span>Dòng tiền thuần: ${formatVnd(value)}</span>`;
+        tooltip.hidden = false;
+        const box = tooltip.getBoundingClientRect();
+        tooltip.style.left = `${Math.max(12, Math.min(window.innerWidth - box.width - 12, event.clientX + 14))}px`;
+        tooltip.style.top = `${Math.max(12, Math.min(window.innerHeight - box.height - 12, event.clientY + 14))}px`;
+    }
+    function setLegend(metric) {
+        legend.innerHTML = metric === 'revenue_profit'
+            ? '<span><i class="legend-profit"></i>Lợi nhuận gộp</span><span><i class="legend-revenue"></i>Doanh thu thuần</span>'
+            : '<span><i class="legend-cash"></i>Dòng tiền thuần</span>';
+    }
+    function renderAxis(maxValue, minValue, range, yFor) {
+        const zeroInRange = minValue <= 0 && maxValue >= 0;
+        for (let i = 0; i <= 4; i += 1) {
+            const value = maxValue - ((range / 4) * i);
+            if (zeroInRange && Math.abs(value) < 0.0001) continue;
+            const text = svgNode('text', { x: 24, y: top + (height / 4) * i + 4 });
+            text.textContent = formatMoney(value);
+            labels.appendChild(text);
+        }
+        if (zeroInRange) {
+            const zeroY = yFor(0);
+            labels.appendChild(svgNode('line', { x1: left, x2: right, y1: zeroY, y2: zeroY, class: 'chart-zero-line' }));
+            const zeroText = svgNode('text', { x: 24, y: zeroY + 4, class: 'chart-zero-label' });
+            zeroText.textContent = '0';
+            labels.appendChild(zeroText);
+        }
+    }
+    function renderXLabels() {
+        const step = Math.max(1, Math.ceil(data.length / 6));
+        data.forEach((item, index) => {
+            if (index % step !== 0 && index !== data.length - 1) return;
+            const text = svgNode('text', { x: (data.length <= 1 ? left : left + (width * index) / (data.length - 1)) - 14, y: 420 });
+            text.textContent = item.label;
+            labels.appendChild(text);
+        });
+    }
     function draw(metric) {
         labels.innerHTML = '';
-        const values = data.map(item => Number(item[metric]) || 0);
+        bars.innerHTML = '';
+        pointsLayer.innerHTML = '';
+        hitAreas.innerHTML = '';
+        hideTooltip();
+        line.classList.toggle('area-line--cash', metric === 'cash_net');
+        line.classList.toggle('area-line--revenue', metric === 'revenue_profit');
+        area.classList.toggle('area-line-fill--cash', metric === 'cash_net');
+        setLegend(metric);
+        const values = metric === 'revenue_profit'
+            ? data.flatMap(item => [Number(item.income) || 0, Number(item.gross_profit) || 0])
+            : data.map(item => Number(item.profit) || 0);
         const maxValue = Math.max(...values, 0), minValue = Math.min(...values, 0);
         const hasData = values.some(value => value !== 0), range = maxValue === minValue ? 1 : maxValue - minValue;
-        for (let i = 0; i <= 4; i += 1) { const value = maxValue - ((range / 4) * i); const text = document.createElementNS('http://www.w3.org/2000/svg', 'text'); text.setAttribute('x', '24'); text.setAttribute('y', String(top + (height / 4) * i + 4)); text.textContent = formatMoney(value); labels.appendChild(text); }
-        const step = Math.max(1, Math.ceil(data.length / 6));
-        data.forEach((item, index) => { if (index % step !== 0 && index !== data.length - 1) return; const text = document.createElementNS('http://www.w3.org/2000/svg', 'text'); const x = data.length <= 1 ? left : left + (width * index) / (data.length - 1); text.setAttribute('x', String(x - 14)); text.setAttribute('y', '420'); text.textContent = item.label; labels.appendChild(text); });
+        const yFor = value => bottom - ((value - minValue) / range) * height;
+        renderAxis(maxValue, minValue, range, yFor);
+        renderXLabels();
         if (!hasData || data.length === 0) { line.setAttribute('d', ''); area.setAttribute('d', ''); empty.style.display = 'block'; return; }
         empty.style.display = 'none';
-        const points = values.map((value, index) => { const x = data.length <= 1 ? (left + right) / 2 : left + (width * index) / (data.length - 1); const y = bottom - ((value - minValue) / range) * height; return { x: Number(x.toFixed(2)), y: Number(y.toFixed(2)) }; });
-        const d = pointPath(points); line.setAttribute('d', d); area.setAttribute('d', `${d} L${points[points.length - 1].x} ${bottom} L${points[0].x} ${bottom} Z`);
+        if (metric === 'revenue_profit') {
+            const groupW = width / Math.max(data.length, 1);
+            const barW = Math.max(12, Math.min(36, groupW * 0.34));
+            const zeroY = yFor(0);
+            data.forEach((item, index) => {
+                const revenue = Number(item.income) || 0;
+                const grossProfit = Number(item.gross_profit) || 0;
+                const cx = data.length <= 1 ? (left + right) / 2 : left + (width * index) / (data.length - 1);
+                const profitY = yFor(grossProfit);
+                const rect = svgNode('rect', {
+                    x: cx - barW / 2,
+                    y: grossProfit >= 0 ? profitY : zeroY,
+                    width: barW,
+                    height: Math.max(2, Math.abs(profitY - zeroY)),
+                    rx: 4,
+                    class: 'chart-profit-bar',
+                });
+                bars.appendChild(rect);
+                if (data.length <= 8 && grossProfit !== 0) {
+                    const valueLabel = svgNode('text', { x: cx, y: Math.min(profitY, zeroY) - 8, class: 'chart-value-label chart-value-label--profit', 'text-anchor': 'middle' });
+                    valueLabel.textContent = formatMoney(grossProfit);
+                    bars.appendChild(valueLabel);
+                }
+            });
+            const revenuePoints = data.map((item, index) => {
+                const x = data.length <= 1 ? (left + right) / 2 : left + (width * index) / (data.length - 1);
+                return { x: Number(x.toFixed(2)), y: Number(yFor(Number(item.income) || 0).toFixed(2)), value: Number(item.income) || 0 };
+            });
+            const d = pointPath(revenuePoints);
+            line.setAttribute('d', d);
+            area.setAttribute('d', '');
+            revenuePoints.forEach(point => {
+                if (data.length <= 8 && point.value !== 0) {
+                    const valueLabel = svgNode('text', { x: point.x, y: point.y - 12, class: 'chart-value-label chart-value-label--revenue', 'text-anchor': 'middle' });
+                    valueLabel.textContent = formatMoney(point.value);
+                    pointsLayer.appendChild(valueLabel);
+                }
+            });
+            return;
+        }
+        const cashPoints = data.map((item, index) => {
+            const value = Number(item.profit) || 0;
+            const x = data.length <= 1 ? (left + right) / 2 : left + (width * index) / (data.length - 1);
+            return { x: Number(x.toFixed(2)), y: Number(yFor(value).toFixed(2)), value };
+        });
+        const d = pointPath(cashPoints);
+        line.setAttribute('d', d);
+        area.setAttribute('d', `${d} L${cashPoints[cashPoints.length - 1].x} ${bottom} L${cashPoints[0].x} ${bottom} Z`);
+        cashPoints.forEach((point, index) => {
+            const hit = svgNode('rect', {
+                x: point.x - Math.max(18, width / Math.max(data.length, 1) / 2),
+                y: top,
+                width: Math.max(36, width / Math.max(data.length, 1)),
+                height,
+                class: 'chart-hit-area',
+            });
+            hit.addEventListener('mouseenter', event => showTooltip(event, data[index], point.value));
+            hit.addEventListener('mousemove', event => showTooltip(event, data[index], point.value));
+            hit.addEventListener('mouseleave', hideTooltip);
+            hitAreas.appendChild(hit);
+        });
     }
     tabs.forEach(tab => tab.addEventListener('click', () => { tabs.forEach(item => item.classList.remove('active')); tab.classList.add('active'); draw(tab.dataset.chartMetric); }));
-    draw('income');
+    draw('revenue_profit');
 })();
 </script>
 {% endblock %}

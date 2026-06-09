@@ -168,6 +168,7 @@ class OpeningStock(TimeStampedModel):
     )
     quantity = models.PositiveIntegerField()
     estimated_unit_cost = models.DecimalField(max_digits=12, decimal_places=0, default=0)
+    stock_date = models.DateField(blank=True, null=True)
     note = models.TextField(blank=True)
 
     class Meta:

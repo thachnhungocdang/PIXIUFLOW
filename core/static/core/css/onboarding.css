@@ -554,7 +554,7 @@
 }
 
 .setup-products-table {
-    min-width: 1280px;
+    min-width: 1420px;
 }
 
 .setup-products-table th:nth-child(1),
@@ -586,17 +586,31 @@
 
 .setup-products-table th:nth-child(7),
 .setup-products-table td:nth-child(7) {
-    width: 15%;
+    width: 10%;
 }
 
 .setup-products-table th:nth-child(8),
 .setup-products-table td:nth-child(8) {
-    width: 11%;
+    width: 13%;
 }
 
 .setup-products-table th:nth-child(9),
 .setup-products-table td:nth-child(9) {
+    width: 10%;
+}
+
+.setup-products-table th:nth-child(10),
+.setup-products-table td:nth-child(10) {
     width: 4%;
+}
+
+.setup-field-note {
+    display: block;
+    margin-top: 5px;
+    color: #8a5a1f;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.25;
 }
 
 .setup-row-actions {

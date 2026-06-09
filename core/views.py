@@ -1,11 +1,11 @@
-﻿from datetime import datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 import json
 from urllib.parse import quote, urlencode
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F, Sum, Count, Q
+from django.db.models import F, Sum, Count, Q, Max
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
@@ -395,10 +395,10 @@ def setup_products_view(request):
     rows = []
     errors = []
     user_products = for_user(Product, request.user).filter(is_active=True).order_by('name')
-    user_opening_stocks = for_user(OpeningStock, request.user)
     user_sales = for_user(Sale, request.user)
     user_purchases = for_user(Purchase, request.user)
     user_expenses = for_user(Expense, request.user)
+    user_opening_stocks = for_user(OpeningStock, request.user)
     has_transactions = user_sales.exists() or user_purchases.exists() or user_expenses.exists()
     has_opening_stock = user_opening_stocks.exists()
 
@@ -413,12 +413,13 @@ def setup_products_view(request):
         sell_prices = request.POST.getlist('price_sell[]')
         unit_costs = request.POST.getlist('estimated_unit_cost[]')
         quantities = request.POST.getlist('quantity[]')
+        stock_dates = request.POST.getlist('stock_date[]')
         alert_thresholds = request.POST.getlist('alert_threshold[]')
         confirmations = request.POST.getlist('confirm_opening_change[]')
         delete_opening_flags = request.POST.getlist('delete_opening_stock[]')
         max_rows = max(
             len(product_ids), len(names), len(categories), len(units), len(sell_prices),
-            len(unit_costs), len(quantities), len(alert_thresholds), len(confirmations),
+            len(unit_costs), len(quantities), len(stock_dates), len(alert_thresholds), len(confirmations),
             len(delete_opening_flags), 0
         )
 
@@ -431,6 +432,7 @@ def setup_products_view(request):
                 'price_sell': sell_prices[index].strip() if index < len(sell_prices) else '',
                 'estimated_unit_cost': unit_costs[index].strip() if index < len(unit_costs) else '',
                 'quantity': quantities[index].strip() if index < len(quantities) else '',
+                'stock_date': stock_dates[index].strip() if index < len(stock_dates) else '',
                 'alert_threshold': alert_thresholds[index].strip() if index < len(alert_thresholds) else '',
                 'confirm_opening_change': confirmations[index] if index < len(confirmations) else '0',
                 'delete_opening_stock': delete_opening_flags[index] if index < len(delete_opening_flags) else '0',
@@ -444,6 +446,7 @@ def setup_products_view(request):
                     'price_sell': '',
                     'estimated_unit_cost': '',
                     'quantity': '',
+                    'stock_date': '',
                     'alert_threshold': '',
                     'confirm_opening_change': '0',
                     'delete_opening_stock': '0',
@@ -516,6 +519,17 @@ def setup_products_view(request):
                 errors.append(f"{row_label}: Giá vốn ước tính phải lớn hơn 0.")
                 continue
 
+            stock_date_value = None
+            if row['stock_date']:
+                try:
+                    stock_date_value = datetime.strptime(row['stock_date'], '%Y-%m-%d').date()
+                except ValueError:
+                    errors.append(f"{row_label}: Ngày nhập kho ban đầu không hợp lệ.")
+                    continue
+                if stock_date_value > timezone.now().date():
+                    errors.append(f"{row_label}: Ngày nhập kho ban đầu không được ở tương lai.")
+                    continue
+
             try:
                 alert_threshold = int(row['alert_threshold'] or '10')
             except ValueError:
@@ -530,9 +544,11 @@ def setup_products_view(request):
                 existing_opening_stocks[0].estimated_unit_cost
                 if existing_opening_stocks else Decimal('0')
             )
+            current_stock_date = existing_opening_stocks[0].stock_date if existing_opening_stocks else None
             opening_changed = (
                 quantity != current_quantity
                 or ((quantity > 0 or current_quantity > 0) and estimated_unit_cost != current_cost)
+                or stock_date_value != current_stock_date
             )
             if has_transactions and opening_changed and row['confirm_opening_change'] != '1':
                 errors.append(
@@ -545,6 +561,7 @@ def setup_products_view(request):
             row['price_sell_value'] = price_sell
             row['quantity_value'] = quantity
             row['estimated_unit_cost_value'] = estimated_unit_cost
+            row['stock_date_value'] = stock_date_value
             row['alert_threshold_value'] = alert_threshold
             row['existing_opening_stocks'] = existing_opening_stocks
             row['delete_opening_stock_value'] = False
@@ -591,6 +608,7 @@ def setup_products_view(request):
                         opening_stock = existing_opening_stocks[0]
                         opening_stock.quantity = row['quantity_value']
                         opening_stock.estimated_unit_cost = row['estimated_unit_cost_value']
+                        opening_stock.stock_date = row['stock_date_value']
                         opening_stock.save()
                         for extra_stock in existing_opening_stocks[1:]:
                             extra_stock.delete()
@@ -600,6 +618,7 @@ def setup_products_view(request):
                             product=product,
                             quantity=row['quantity_value'],
                             estimated_unit_cost=row['estimated_unit_cost_value'],
+                            stock_date=row['stock_date_value'],
                             note='Hàng ban đầu khai báo khi thiết lập sản phẩm.',
                         )
 
@@ -616,6 +635,7 @@ def setup_products_view(request):
                 'price_sell': product.price_sell,
                 'quantity': opening_stock.quantity,
                 'estimated_unit_cost': opening_stock.estimated_unit_cost,
+                'stock_date': opening_stock.stock_date.isoformat() if opening_stock.stock_date else '',
                 'alert_threshold': product.alert_threshold,
                 'has_product_transactions': has_transactions,
                 'has_opening_stock': True,
@@ -633,6 +653,7 @@ def setup_products_view(request):
                 'price_sell': '',
                 'quantity': '',
                 'estimated_unit_cost': '',
+                'stock_date': '',
                 'alert_threshold': '',
                 'has_product_transactions': False,
                 'has_opening_stock': False,
@@ -953,8 +974,6 @@ def inventory_view(request):
         'product_rows': product_rows,
         'product_details': product_details,
         'total_products': active_products.count(),
-        'total_stock': total_stock,
-        'inventory_value': inventory_value,
         'alert_count': alert_count,
         'products_missing_stock': products_missing_stock,
         'products_missing_stock_count': products_missing_stock.count(),
@@ -3490,17 +3509,23 @@ def dashboard_view(request):
         item['date']: item['total'] or Decimal('0')
         for item in expenses_in_range.values('date').annotate(total=Sum('amount'))
     }
+    daily_cogs = {
+        item['date']: item['total'] or Decimal('0')
+        for item in sales_in_range.values('date').annotate(total=Sum('cogs_amount'))
+    }
 
     chart_data = []
     cursor = start_date
     while cursor <= end_date:
         income = daily_income.get(cursor, Decimal('0'))
+        gross_profit_day = income - daily_cogs.get(cursor, Decimal('0'))
         cash_in = cash_summary['income_by_date'].get(cursor, Decimal('0'))
         cash_out = cash_summary['purchase_by_date'].get(cursor, Decimal('0')) + cash_summary['expense_by_date'].get(cursor, Decimal('0'))
         cash_net = cash_in - cash_out
         chart_data.append({
             'label': cursor.strftime('%d/%m'),
             'income': float(income),
+            'gross_profit': float(gross_profit_day),
             'expense': float(cash_out),
             'profit': float(cash_net),
         })
@@ -3655,7 +3680,6 @@ def report_view(request):
     user_sales = for_user(Sale, request.user)
     user_purchases = for_user(Purchase, request.user)
     user_expenses = for_user(Expense, request.user)
-    user_opening_stocks = for_user(OpeningStock, request.user)
 
     purchases = user_purchases
     sales = user_sales
@@ -3719,6 +3743,37 @@ def report_view(request):
     report_days = max(1, (report_end_date - report_effective_start).days + 1)
     previous_report_end = report_effective_start - timedelta(days=1)
     previous_report_start = previous_report_end - timedelta(days=report_days - 1)
+
+    def report_percent_change(current, previous):
+        if previous == 0:
+            return None
+        return round(((float(current) - float(previous)) / abs(float(previous))) * 100, 1)
+
+    def report_period_bounds(anchor_date, granularity):
+        if granularity == 'day':
+            start = anchor_date
+            end = anchor_date
+            previous_end = start - timedelta(days=1)
+            previous_start = previous_end
+        elif granularity == 'year':
+            start = datetime(anchor_date.year, 1, 1).date()
+            end = datetime(anchor_date.year, 12, 31).date()
+            previous_start = datetime(anchor_date.year - 1, 1, 1).date()
+            previous_end = datetime(anchor_date.year - 1, 12, 31).date()
+        else:
+            start = month_start(anchor_date)
+            next_start = add_months(start, 1)
+            end = next_start - timedelta(days=1)
+            previous_start = add_months(start, -1)
+            previous_end = start - timedelta(days=1)
+        return start, end, previous_start, previous_end
+
+    def report_period_label(value, granularity):
+        if granularity == 'day':
+            return value.strftime('%d/%m/%Y')
+        if granularity == 'year':
+            return f"Năm {value.year}"
+        return value.strftime('T%m/%Y')
 
     expense_recognized_total = Decimal('0')
     expense_recognized_by_type = {}
@@ -3811,19 +3866,6 @@ def report_view(request):
         round(((top_revenue_category['revenue'] or Decimal('0')) / recognized_revenue) * 100, 1)
         if top_revenue_category and recognized_revenue else 0
     )
-
-    opening_stock_declared = user_opening_stocks.aggregate(total=Sum('quantity'))['total'] or 0
-    purchase_stock_declared = user_purchases.aggregate(total=Sum('quantity'))['total'] or 0
-    period_purchase_stock = purchases.aggregate(total=Sum('quantity'))['total'] or 0
-    opening_stock_current = 0
-    purchase_stock_current = 0
-    for product in user_products.filter(is_active=True):
-        product_opening = product.opening_stocks.aggregate(total=Sum('quantity'))['total'] or 0
-        product_sold = product.sales.aggregate(total=Sum('quantity'))['total'] or 0
-        product_opening_left = max(product_opening - product_sold, 0)
-        product_opening_left = min(product_opening_left, product.stock_quantity)
-        opening_stock_current += product_opening_left
-        purchase_stock_current += max(product.stock_quantity - product_opening_left, 0)
 
     chart_sales = sales
     if revenue_category_filter:
@@ -4541,8 +4583,10 @@ def report_view(request):
     expense_breakdown = []
     expense_labels = dict(Expense.EXPENSE_TYPE_CHOICES)
     total_outflow = accounting_outflow
+    expense_depreciation_total = expense_recognized_by_type.get(Expense.EXPENSE_TYPE_EQUIPMENT, Decimal('0'))
     if cogs:
         expense_breakdown.append({
+            'key': 'cogs',
             'name': 'Giá vốn hàng bán',
             'total': cogs,
             'share': round((cogs / total_outflow * 100), 1) if total_outflow else 0,
@@ -4550,6 +4594,7 @@ def report_view(request):
         })
     for expense_type, total in sorted(expense_recognized_by_type.items(), key=lambda item: item[1], reverse=True):
         expense_breakdown.append({
+            'key': expense_type,
             'name': expense_labels.get(expense_type, expense_type),
             'total': total,
             'share': round((total / total_outflow * 100), 1) if total_outflow else 0,
@@ -4634,6 +4679,148 @@ def report_view(request):
             'total': float(total),
             'breakdown': breakdown,
         })
+
+    expense_period_start, expense_period_end, expense_previous_start, expense_previous_end = report_period_bounds(report_end_date, expense_granularity)
+    expense_period_label = report_period_label(expense_period_start, expense_granularity)
+    expense_previous_label = report_period_label(expense_previous_start, expense_granularity)
+    expense_period_days = max(1, (expense_period_end - expense_period_start).days + 1)
+    expense_period_cogs = cogs_summary(expense_period_start, expense_period_end, request.user)['total']
+    expense_period_summary = recognized_expense_summary(expense_period_start, expense_period_end, request.user)
+    expense_period_total = expense_period_cogs + expense_period_summary['total']
+    expense_period_revenue = user_sales.filter(date__gte=expense_period_start, date__lte=expense_period_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    expense_period_gross_profit = expense_period_revenue - expense_period_cogs
+    expense_period_gross_margin_pct = round(float(expense_period_gross_profit / expense_period_revenue * 100), 1) if expense_period_revenue else None
+    expense_per_day = expense_period_total / Decimal(expense_period_days) if expense_period_days else Decimal('0')
+    expense_to_revenue_pct = round(float(expense_period_total / expense_period_revenue * 100), 1) if expense_period_revenue else None
+    expense_depreciation_total = expense_period_summary['by_type'].get(Expense.EXPENSE_TYPE_EQUIPMENT, Decimal('0'))
+    previous_cogs = cogs_summary(expense_previous_start, expense_previous_end, request.user)['total']
+    previous_expense_summary = recognized_expense_summary(expense_previous_start, expense_previous_end, request.user)
+    expense_total_change = report_percent_change(expense_period_total, previous_cogs + previous_expense_summary['total'])
+    previous_expense_by_key = {'cogs': previous_cogs, **previous_expense_summary['by_type']}
+    current_expense_by_key = {'cogs': expense_period_cogs, **expense_period_summary['by_type']}
+    comparison_keys = sorted(
+        set(current_expense_by_key.keys()) | set(previous_expense_by_key.keys()),
+        key=lambda item: current_expense_by_key.get(item, Decimal('0')),
+        reverse=True,
+    )
+    comparison_max = max(
+        [current_expense_by_key.get(key, Decimal('0')) for key in comparison_keys]
+        + [previous_expense_by_key.get(key, Decimal('0')) for key in comparison_keys]
+        + [Decimal('1')]
+    )
+    expense_comparison_rows = []
+    for key in comparison_keys:
+        current_total = current_expense_by_key.get(key, Decimal('0'))
+        previous_total = previous_expense_by_key.get(key, Decimal('0'))
+        if not current_total and not previous_total:
+            continue
+        row_change = report_percent_change(current_total, previous_total)
+        expense_comparison_rows.append({
+            'name': 'Giá vốn hàng bán' if key == 'cogs' else expense_labels.get(key, key),
+            'current_total': current_total,
+            'previous_total': previous_total,
+            'current_width': round(float(current_total / comparison_max * 100), 1) if comparison_max else 0,
+            'previous_width': round(float(previous_total / comparison_max * 100), 1) if comparison_max else 0,
+            'change': row_change,
+            'badge_label': 'Phân bổ' if key == Expense.EXPENSE_TYPE_EQUIPMENT else (
+                'Mới' if previous_total == 0 and current_total else (
+                    f"{'+' if row_change and row_change > 0 else ''}{row_change}%" if row_change is not None else '--'
+                )
+            ),
+            'badge_tone': 'neutral' if key == Expense.EXPENSE_TYPE_EQUIPMENT else ('bad' if row_change and row_change > 0 else 'good'),
+        })
+
+    expense_period_breakdown = []
+    if expense_period_cogs:
+        expense_period_breakdown.append({
+            'key': 'cogs',
+            'name': 'Giá vốn hàng bán',
+            'total': expense_period_cogs,
+            'share': round((expense_period_cogs / expense_period_total * 100), 1) if expense_period_total else 0,
+        })
+    for expense_type, total in sorted(expense_period_summary['by_type'].items(), key=lambda item: item[1], reverse=True):
+        expense_period_breakdown.append({
+            'key': expense_type,
+            'name': expense_labels.get(expense_type, expense_type),
+            'total': total,
+            'share': round((total / expense_period_total * 100), 1) if expense_period_total else 0,
+        })
+
+    expense_mix_rows = []
+    for index, item in enumerate(expense_period_breakdown):
+        expense_mix_rows.append({
+            **item,
+            'color_index': index + 1,
+            'gauge_width': max(2, item['share']) if item['share'] else 0,
+        })
+
+    if expense_to_revenue_pct is None:
+        expense_to_revenue_note = "Cần có doanh thu trong kỳ này để tính chi phí/doanh thu."
+    elif expense_to_revenue_pct < 75:
+        expense_to_revenue_note = f"Tốt vì {expense_to_revenue_pct}% < 75%; cửa hàng còn dư địa để trả chi phí khác và tạo lợi nhuận."
+    else:
+        expense_to_revenue_note = f"Xấu vì {expense_to_revenue_pct}% >= 75%; nên rà nhóm chi lớn nhất, giảm chi không bắt buộc hoặc tăng doanh thu kỳ tới."
+
+    expense_palette = ['#c0392b', '#ef8745', '#f4c879', '#d8b990', '#8f4a33', '#d45d4c', '#b97745']
+    expense_donut_cursor = 0
+    expense_donut_stops = []
+    for index, item in enumerate(expense_mix_rows):
+        start = expense_donut_cursor
+        expense_donut_cursor += float(item['share'] or 0)
+        color = expense_palette[index % len(expense_palette)]
+        expense_donut_stops.append(f"{color} {start}% {expense_donut_cursor}%")
+    expense_donut_style = f"background-image: conic-gradient({', '.join(expense_donut_stops)})" if expense_donut_stops else ""
+
+    expense_insight = None
+    if expense_chart_points:
+        latest_period = expense_chart_points[-1]
+        top_part = max(latest_period.get('breakdown') or [], key=lambda item: item.get('share') or 0, default=None)
+        if top_part and top_part.get('share', 0) >= 50:
+            expense_insight = f"{latest_period['label']}: {top_part['label']} chiếm {top_part['share']}% - cao bất thường. Kiểm tra đơn hoặc thiết bị liên quan."
+        elif len(expense_chart_points) >= 2:
+            previous_total = Decimal(str(expense_chart_points[-2].get('total') or 0))
+            latest_total = Decimal(str(latest_period.get('total') or 0))
+            latest_change = report_percent_change(latest_total, previous_total)
+            if latest_change and latest_change > 20:
+                expense_insight = f"{latest_period['label']}: tổng chi phí tăng {latest_change}% so với kỳ trước. Nên xem nhóm chi lớn nhất trong tooltip."
+        if not expense_insight:
+            expense_insight = "Cơ cấu chi phí kỳ này chưa có điểm tăng bất thường rõ rệt."
+
+    equipment_depreciation_rows = []
+    for expense in all_expenses.filter(expense_type=Expense.EXPENSE_TYPE_EQUIPMENT).order_by('-date', '-created_at'):
+        if not expense.estimated_lifetime_months:
+            continue
+        amount = Decimal(expense.amount or 0)
+        depreciation_start = month_start(expense.date)
+        depreciation_end = add_months(depreciation_start, expense.estimated_lifetime_months - 1)
+        overlap_start = max(depreciation_start, month_start(expense_period_start))
+        overlap_end = min(depreciation_end, month_start(expense_period_end))
+        recognized_months = month_count(overlap_start, overlap_end)
+        if recognized_months <= 0 and depreciation_end < month_start(expense_period_start):
+            continue
+        monthly_amount = amount / Decimal(expense.estimated_lifetime_months)
+        allocated_months = month_count(depreciation_start, min(depreciation_end, month_start(expense_period_end)))
+        allocated_total = min(monthly_amount * allocated_months, amount)
+        remaining = max(amount - allocated_total, Decimal('0'))
+        months_left = max(expense.estimated_lifetime_months - allocated_months, 0)
+        note_title = (expense.note or '').strip().splitlines()[0] if expense.note else ''
+        equipment_depreciation_rows.append({
+            'name': note_title or f"Thiết bị #{expense.id}",
+            'date': expense.date,
+            'amount': amount,
+            'monthly_amount': monthly_amount,
+            'recognized_amount': monthly_amount * recognized_months,
+            'allocated_total': allocated_total,
+            'remaining': remaining,
+            'months_left': months_left,
+            'progress_pct': round(float(allocated_total / amount * 100), 1) if amount else 0,
+            'lifetime_months': expense.estimated_lifetime_months,
+        })
+
+    expense_period_caption = expense_period_label
+    expense_period_day_note = (
+        f"Tính theo {expense_period_days} ngày của {expense_period_label}; kỳ trước là {expense_previous_label}."
+    )
 
     category_option_tree = []
     category_nodes = {}
@@ -4942,7 +5129,6 @@ def report_view(request):
         .order_by('-units')
         .first()
     )
-    slow_product = user_products.filter(stock_quantity__gt=0).order_by('-stock_quantity').first()
     biggest_supplier = (
         purchases.exclude(supplier_name='')
         .values('supplier_name')
@@ -4950,36 +5136,6 @@ def report_view(request):
         .order_by('-total')
         .first()
     )
-    total_stock = user_products.filter(is_active=True).aggregate(total=Sum('stock_quantity'))['total'] or 0
-    alert_stock_count = user_products.filter(stock_quantity__gt=0, stock_quantity__lte=F('alert_threshold')).count()
-    inventory_value = sum(
-        (product.price_buy_latest or Decimal('0')) * product.stock_quantity
-        for product in user_products.filter(is_active=True)
-    )
-    daily_cogs = estimated_cogs / Decimal(report_days) if report_days else Decimal('0')
-    inventory_days = round(float(inventory_value / daily_cogs), 1) if daily_cogs else None
-    slow_inventory_rows = []
-    for product in user_products.filter(is_active=True, stock_quantity__gt=0).order_by('-stock_quantity'):
-        sold_qty = sales.filter(product=product).aggregate(total=Sum('quantity'))['total'] or 0
-        avg_daily_sales = Decimal(sold_qty) / Decimal(report_days) if report_days else Decimal('0')
-        days_cover = None if avg_daily_sales <= 0 else round(float(Decimal(product.stock_quantity) / avg_daily_sales), 1)
-        stock_value = (product.price_buy_latest or Decimal('0')) * product.stock_quantity
-        if days_cover is None or days_cover > 30:
-            slow_inventory_rows.append({
-                'name': product.name,
-                'category': product.category,
-                'stock_quantity': product.stock_quantity,
-                'stock_value': stock_value,
-                'days_cover': days_cover,
-                'sold_qty': sold_qty,
-            })
-    slow_inventory_rows = sorted(
-        slow_inventory_rows,
-        key=lambda item: (item['days_cover'] is None, item['days_cover'] or 0, item['stock_value']),
-        reverse=True,
-    )[:5]
-    inventory_watch = slow_inventory_rows[:3]
-
     chart_points = []
     chart_values = [*chart_income, *chart_profit]
     max_chart_value = max([*chart_values, 0]) if chart_values else 0
@@ -5053,6 +5209,133 @@ def report_view(request):
             'profit_height': profit_metrics['height'],
             'profit_negative': profit_metrics['negative'],
         })
+
+    top_customer = (
+        sales.values('customer_name')
+        .annotate(amount=Sum('total_amount'))
+        .order_by('-amount')
+        .first()
+    )
+    best_revenue_day = (
+        sales.values('date')
+        .annotate(amount=Sum('total_amount'))
+        .order_by('-amount')
+        .first()
+    )
+    paid_sales_count = sales.exclude(payment_method=Sale.PAYMENT_METHOD_DEBT).count()
+    ranking_revenue = {
+        'best_product': {
+            'name': top_product['product__name'],
+            'orders': top_product['units'],
+        } if top_product else None,
+        'top_customer': {
+            'name': (top_customer.get('customer_name') or 'Khách lẻ'),
+            'amount': top_customer['amount'],
+        } if top_customer else None,
+        'top_category': {
+            'name': top_revenue_category['product__category'],
+            'amount': top_revenue_category['revenue'],
+        } if top_revenue_category else None,
+        'best_day': best_revenue_day,
+        'paid_ratio': {
+            'pct': round(paid_sales_count / revenue_order_count * 100, 1),
+            'paid': paid_sales_count,
+            'total': revenue_order_count,
+        } if revenue_order_count else None,
+        'unpaid_revenue': {
+            'amount': revenue_uncollected,
+            'count': revenue_uncollected_order_count,
+        } if revenue_uncollected_order_count else None,
+    }
+
+    worst_profit_product = min(product_margin_rows_all, key=lambda item: item['profit'], default=None)
+    best_profit_category = max(
+        (item for item in profit_node_map.values() if item['revenue'] > 0),
+        key=lambda item: item['margin'],
+        default=None,
+    )
+    best_profit_period = (
+        max(chart_points, key=lambda item: item['net_profit'], default=None)
+        if recognized_revenue or operating_expense else None
+    )
+    
+   
+    ranking_profit = {
+    'best_product': top_contrib_product,
+    'worst_product': worst_profit_product if worst_profit_product and worst_profit_product['profit'] < 0 else None,
+    'worst_margin': worst_margin_row,
+    'best_category_margin': best_profit_category,
+    'avg_margin': average_margin if recognized_revenue else None,
+    'profit_after_depreciation': net_profit if recognized_revenue or operating_expense else None,
+    'best_period': {
+        'label': best_profit_period['period_label'],
+        'profit': best_profit_period['net_profit'],
+    } if best_profit_period else None,
+    }
+
+    top_expense_group = max(expense_period_breakdown, key=lambda item: item['total'], default=None)
+    fastest_expense_group = max(
+        (row for row in expense_comparison_rows if row['change'] is not None),
+        key=lambda item: item['change'],
+        default=None,
+    )
+    unpaid_purchase_qs = purchases.filter(payment_method=Purchase.PAYMENT_METHOD_DEBT, payment_date__isnull=True)
+    unpaid_expense_qs = expenses.filter(payment_method=Expense.PAYMENT_METHOD_DEBT, payment_date__isnull=True)
+    unpaid_expense_amount = (
+        (unpaid_purchase_qs.aggregate(total=Sum('total_amount'))['total'] or Decimal('0'))
+        + (unpaid_expense_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0'))
+    )
+    unpaid_expense_count = unpaid_purchase_qs.count() + unpaid_expense_qs.count()
+    fixed_expense_total = sum(
+        (
+            expense_period_summary['by_type'].get(key, Decimal('0'))
+            for key in ('rent', 'salary', Expense.EXPENSE_TYPE_EQUIPMENT)
+        ),
+        Decimal('0'),
+    )
+    active_depreciation_rows = [row for row in equipment_depreciation_rows if row['months_left'] > 0]
+    ranking_expense = {
+        'top_group': top_expense_group,
+        'fastest_growing_group': fastest_expense_group,
+        'top_supplier': {
+            'name': biggest_supplier['supplier_name'],
+            'amount': biggest_supplier['total'],
+        } if biggest_supplier else None,
+        'unpaid_expense': {
+            'amount': unpaid_expense_amount,
+            'count': unpaid_expense_count,
+        } if unpaid_expense_count else None,
+        'fixed_ratio': round(float(fixed_expense_total / expense_period_total * 100), 1) if expense_period_total else None,
+        'active_depreciation': {
+            'monthly': sum((row['monthly_amount'] for row in active_depreciation_rows), Decimal('0')),
+            'count': len(active_depreciation_rows),
+        } if active_depreciation_rows else None,
+    }
+
+    paid_sales_by_day = (
+        user_sales.filter(payment_date__gte=report_start_date, payment_date__lte=report_end_date)
+        .values('payment_date')
+        .annotate(amount=Sum('total_amount'))
+        .order_by('-amount')
+        .first()
+    )
+    previous_cash_flow = cash_flow_summary(previous_report_start, previous_report_end, request.user)['net']
+    cash_trend_pct = report_percent_change(net_cash_flow, previous_cash_flow)
+    ranking_cashflow = {
+        'net_cashflow': net_cash_flow if cash_income or cash_outflow else None,
+        'best_inflow_day': {
+            'date': paid_sales_by_day['payment_date'],
+            'amount': paid_sales_by_day['amount'],
+        } if paid_sales_by_day else None,
+        'receivable': ranking_revenue['unpaid_revenue'],
+        'payable': ranking_expense['unpaid_expense'],
+        'trend': {
+            'direction': 'stable' if cash_trend_pct is None or abs(cash_trend_pct) < 0.1 else ('up' if cash_trend_pct > 0 else 'down'),
+            'pct': abs(cash_trend_pct) if cash_trend_pct is not None else None,
+        },
+        'collection_rate': revenue_collection_rate if recognized_revenue else None,
+    }
+
     category_filter_options = sorted(category_filter_paths)
     period_end_for_presets = today
     preset_1w_start = period_end_for_presets - timedelta(days=6)
@@ -5170,6 +5453,24 @@ def report_view(request):
         'revenue_roots': revenue_roots,
         'expense_breakdown': expense_breakdown,
         'expense_chart_points': expense_chart_points,
+        'expense_period_label': expense_period_label,
+        'expense_previous_label': expense_previous_label,
+        'expense_period_total': expense_period_total,
+        'expense_period_revenue': expense_period_revenue,
+        'expense_period_gross_margin_pct': expense_period_gross_margin_pct,
+        'expense_period_days': expense_period_days,
+        'expense_period_day_note': expense_period_day_note,
+        'expense_total_change': expense_total_change,
+        'expense_per_day': expense_per_day,
+        'expense_depreciation_total': expense_depreciation_total,
+        'expense_to_revenue_pct': expense_to_revenue_pct,
+        'expense_to_revenue_note': expense_to_revenue_note,
+        'expense_comparison_rows': expense_comparison_rows,
+        'expense_mix_rows': expense_mix_rows,
+        'expense_donut_style': expense_donut_style,
+        'expense_insight': expense_insight,
+        'equipment_depreciation_rows': equipment_depreciation_rows,
+        'expense_period_caption': expense_period_caption,
         'profit_margin_rows': profit_margin_rows,
         'profit_chart_rows': profit_chart_rows,
         'margin_kpis': margin_kpis,
@@ -5192,23 +5493,12 @@ def report_view(request):
         'profit_roots': profit_roots,
         'profit_tree_roots': profit_tree_roots,
         'product_profit_rows': product_profit_rows,
-        'top_product': top_product,
-        'slow_product': slow_product,
-        'biggest_supplier': biggest_supplier,
-        'total_stock': total_stock,
-        'alert_stock_count': alert_stock_count,
-        'inventory_value': inventory_value,
-        'inventory_watch': inventory_watch,
-        'inventory_days': inventory_days,
-        'daily_cogs': daily_cogs,
-        'slow_inventory_rows': slow_inventory_rows,
         'report_days': report_days,
-        'opening_stock_declared': opening_stock_declared,
-        'purchase_stock_declared': purchase_stock_declared,
-        'period_purchase_stock': period_purchase_stock,
-        'opening_stock_current': opening_stock_current,
-        'purchase_stock_current': purchase_stock_current,
         'total_outflow': total_outflow,
+        'ranking_revenue': ranking_revenue,
+        'ranking_profit': ranking_profit,
+        'ranking_expense': ranking_expense,
+        'ranking_cashflow': ranking_cashflow,
     })
 
 

@@ -65,7 +65,7 @@
 
 .analytics-content {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 330px;
+    grid-template-columns: minmax(0, 1fr);
     gap: 28px;
     width: 100%;
     max-width: none;
@@ -1023,15 +1023,15 @@
     width: 100%;
     min-width: 0;
     border-radius: 10px;
-    border: 1px solid #d9dfe9;
-    background: #ffffff;
+    border: 0;
+    background: rgba(255, 255, 255, 0.34);
     padding: 14px 16px 16px;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.03);
+    box-shadow: none;
 }
 
 .analytics-cashflow-card .analytics-combo-chart {
-    background: transparent;
-    padding: 0;
+    background: rgba(255, 255, 255, 0.34);
+    padding: 8px;
 }
 
 .cash-chart-legend {
@@ -1125,9 +1125,9 @@
 .cash-chart-table-panel {
     max-height: 360px;
     overflow: auto;
-    border: 1px solid #d9dfe9;
-    border-radius: 10px;
-    background: #ffffff;
+    border: 1px solid rgba(234, 212, 162, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.72);
 }
 
 .cash-chart-table-panel[hidden] {
@@ -1318,7 +1318,7 @@
 .cashflow-kpi-section {
     display: grid;
     gap: 16px;
-    background: #fffdf8;
+    background: var(--cream);
 }
 
 .cashflow-section-title {
@@ -1332,8 +1332,8 @@
     width: 32px;
     height: 32px;
     border-radius: 999px;
-    background: #fbecd9;
-    color: #9f1111;
+    background: #fff0bf;
+    color: var(--red);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1343,8 +1343,9 @@
 
 .cashflow-section-title h2 {
     margin: 0;
-    color: #171717;
+    color: var(--red);
     font-size: 21px;
+    font-weight: 900;
     line-height: 1.15;
 }
 
@@ -1364,7 +1365,7 @@
 
 .cashflow-section-title p {
     margin: 4px 0 0;
-    color: #4b5563;
+    color: #667085;
     font-size: 15px;
     font-weight: 700;
 }
@@ -1432,14 +1433,14 @@
 .cashflow-kpi-card {
     min-width: 0;
     min-height: 112px;
-    border: 1px solid #d9dfe9;
-    border-radius: 10px;
-    background: #ffffff;
+    border: 1px solid rgba(234, 212, 162, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.56);
     padding: 16px 18px;
     display: grid;
     align-content: start;
     gap: 6px;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.03);
+    box-shadow: none;
 }
 
 .cashflow-kpi-card.is-income {
@@ -1455,7 +1456,7 @@
 }
 
 .cashflow-kpi-card span {
-    color: #444;
+    color: #667085;
     font-size: 14px;
     font-weight: 900;
     letter-spacing: .02em;
@@ -1481,7 +1482,7 @@
 }
 
 .cashflow-kpi-card strong {
-    color: #171717;
+    color: #172033;
     font-size: clamp(23px, 2vw, 30px);
     font-weight: 900;
     line-height: 1.05;
@@ -1489,7 +1490,7 @@
 }
 
 .cashflow-kpi-card small {
-    color: #4b5563;
+    color: #667085;
     font-size: 13px;
     font-weight: 700;
 }
@@ -1631,6 +1632,430 @@
     padding: 12px 14px;
 }
 
+.analytics-expense-card {
+    --expense-red: #c0392b;
+    --expense-cream: var(--cream);
+    --expense-line: #f7a848;
+    --expense-text: var(--red);
+    background: var(--expense-cream);
+    border-color: var(--expense-line);
+    color: var(--expense-text);
+}
+
+.analytics-expense-card .analytics-card-head {
+    margin-bottom: 14px;
+}
+
+.analytics-expense-card .analytics-card-head h2 {
+    color: var(--expense-text);
+}
+
+.analytics-expense-card .analytics-card-head span,
+.expense-flow-meta {
+    color: #b1774e;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.expense-flow-layout {
+    display: grid;
+    gap: 16px;
+}
+
+.expense-flow-meta {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.expense-kpi-bar,
+.expense-ratio-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.expense-kpi-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.expense-kpi-bar article,
+.expense-ratio-grid article,
+.expense-flow-block {
+    border: 1px solid var(--expense-line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.48);
+}
+
+.expense-kpi-bar article {
+    min-height: 112px;
+    padding: 16px;
+}
+
+.expense-kpi-bar article:nth-child(1) {
+    border-left: 5px solid #a32d2d;
+}
+
+.expense-kpi-bar article:nth-child(2) {
+    border-left: 5px solid #d97706;
+}
+
+.expense-kpi-bar article:nth-child(3) {
+    border-left: 5px solid #2b7bdc;
+}
+
+.expense-kpi-bar span,
+.expense-ratio-grid span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #9b5a2c;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.expense-kpi-bar svg {
+    width: 14px;
+    height: 14px;
+    color: var(--expense-red);
+}
+
+.expense-kpi-bar strong {
+    display: block;
+    margin: 8px 0 4px;
+    color: #3d2417;
+    font-size: clamp(24px, 2vw, 31px);
+    font-weight: 950;
+    line-height: 1.02;
+}
+
+.expense-kpi-bar small,
+.expense-ratio-grid small {
+    color: #b1774e;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.expense-kpi-bar .is-bad {
+    color: #c0392b;
+}
+
+.expense-kpi-bar .is-good {
+    color: #1f8a4c;
+}
+
+.expense-flow-block {
+    padding: 20px 22px;
+}
+
+.expense-flow-block h3,
+.expense-flow-heading h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px;
+    color: #8a4a22;
+    font-size: 18px;
+    font-weight: 950;
+}
+
+.expense-flow-block h3 svg,
+.expense-flow-heading h3 svg {
+    width: 17px;
+    height: 17px;
+    color: var(--expense-red);
+}
+
+.expense-ratio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.expense-ratio-grid article {
+    min-height: 142px;
+    padding: 18px;
+}
+
+.expense-ratio-grid strong {
+    display: block;
+    margin: 12px 0 12px;
+    color: #3d2417;
+    font-size: 31px;
+    font-weight: 950;
+}
+
+.expense-ratio-grid i[style*="--gauge"],
+.expense-compare-list i,
+.expense-depreciation-table td i,
+.expense-gauge-list b {
+    display: block;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #eadcc8;
+}
+
+.expense-ratio-grid i[style*="--gauge"] {
+    width: 100%;
+    height: 4px;
+    margin-bottom: 12px;
+}
+
+.expense-ratio-grid i[style*="--gauge"]::before,
+.expense-compare-list i::before,
+.expense-depreciation-table td i::before,
+.expense-gauge-list b::before {
+    content: "";
+    display: block;
+    width: min(var(--gauge, var(--bar, 0%)), 100%);
+    height: 100%;
+    border-radius: inherit;
+    background: var(--expense-red);
+}
+
+.expense-flow-block > p,
+.expense-insight-box {
+    margin: 16px 0 0;
+    border-left: 3px solid var(--expense-red);
+    border-radius: 6px;
+    background: #fff2dc;
+    color: #8a4a22;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 850;
+}
+
+.expense-flow-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.expense-flow-heading h3 {
+    margin: 0;
+}
+
+.expense-flow-heading span,
+.expense-flow-heading a {
+    color: #b1774e;
+    font-size: 13px;
+    font-weight: 850;
+    text-decoration: none;
+}
+
+.expense-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin: 0 0 10px;
+    color: #9b5a2c;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.expense-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.expense-chart-legend i,
+.expense-gauge-list span i {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 10px;
+    border-radius: 2px;
+}
+
+.analytics-expense-card .analytics-expense-timeline {
+    background: rgba(255, 255, 255, 0.24);
+    padding: 8px 0 0;
+}
+
+.expense-compare-list {
+    display: grid;
+    gap: 14px;
+}
+
+.expense-compare-list article {
+    display: grid;
+    grid-template-columns: minmax(130px, 190px) minmax(0, 1fr) minmax(115px, auto) 72px;
+    align-items: center;
+    gap: 12px;
+}
+
+.expense-compare-list span {
+    color: #6f371a;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.expense-compare-list article > div {
+    display: grid;
+    gap: 6px;
+}
+
+.expense-compare-list i {
+    height: 5px;
+}
+
+.expense-compare-list i::before {
+    background: #ead1b3;
+}
+
+.expense-compare-list .is-current {
+    height: 6px;
+}
+
+.expense-compare-list .is-current::before {
+    background: var(--expense-red);
+}
+
+.expense-compare-list small {
+    color: #a36a43;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: right;
+}
+
+.expense-compare-list b {
+    width: fit-content;
+    justify-self: end;
+    border-radius: 5px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-weight: 950;
+}
+
+.expense-compare-list .is-bad {
+    background: #ffe2dc;
+    color: #c0392b;
+}
+
+.expense-compare-list .is-good {
+    background: #eaf6e7;
+    color: #277540;
+}
+
+.expense-compare-list .is-neutral {
+    background: #e8f1df;
+    color: #4f7d2d;
+}
+
+.expense-depreciation-table {
+    overflow-x: auto;
+}
+
+.expense-depreciation-table table {
+    width: 100%;
+    min-width: 620px;
+    border-collapse: collapse;
+}
+
+.expense-depreciation-table th,
+.expense-depreciation-table td {
+    border-bottom: 1px solid #e7d2b2;
+    padding: 12px 0;
+    color: #6f371a;
+    font-size: 13px;
+    font-weight: 850;
+    text-align: left;
+    vertical-align: top;
+}
+
+.expense-depreciation-table th:last-child,
+.expense-depreciation-table td:last-child {
+    text-align: right;
+}
+
+.expense-depreciation-table td strong,
+.expense-depreciation-table td small,
+.expense-depreciation-table td b {
+    display: block;
+}
+
+.expense-depreciation-table td small {
+    color: #a36a43;
+    font-size: 12px;
+}
+
+.expense-depreciation-table td b {
+    color: #1f8a4c;
+}
+
+.expense-depreciation-table td i {
+    width: min(220px, 100%);
+    height: 6px;
+    margin-top: 7px;
+}
+
+.expense-mix-layout {
+    display: grid;
+    grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+    align-items: center;
+    gap: 34px;
+}
+
+.expense-donut {
+    width: min(220px, 100%);
+    aspect-ratio: 1;
+    justify-self: center;
+    border-radius: 50%;
+    position: relative;
+    background: conic-gradient(#c0392b 0% 100%);
+}
+
+.expense-donut::after {
+    content: "";
+    position: absolute;
+    inset: 28%;
+    border-radius: inherit;
+    background: var(--expense-cream);
+}
+
+.expense-donut i {
+    display: none;
+}
+
+.expense-gauge-list {
+    display: grid;
+    gap: 14px;
+}
+
+.expense-gauge-list article {
+    display: grid;
+    grid-template-columns: minmax(130px, 1fr) 54px;
+    gap: 6px 12px;
+    align-items: center;
+}
+
+.expense-gauge-list span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #6f371a;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.expense-gauge-list strong {
+    color: #3d2417;
+    font-size: 14px;
+    font-weight: 950;
+    text-align: right;
+}
+
+.expense-gauge-list b {
+    grid-column: 1 / -1;
+    height: 7px;
+}
+
+.expense-color-1 { background: #c0392b; }
+.expense-color-2 { background: #ef8745; }
+.expense-color-3 { background: #f4c879; }
+.expense-color-4 { background: #d8b990; }
+.expense-color-5 { background: #8f4a33; }
+.expense-color-6 { background: #d45d4c; }
+.expense-color-7 { background: #b97745; }
+
 .expense-chart-canvas {
     min-height: 330px;
     overflow-x: auto;
@@ -1718,9 +2143,10 @@
     width: 132px;
     height: 132px;
     border-radius: 50%;
-    background-color: #e5e7eb;
+    background: #e5e7eb;
     background-repeat: no-repeat;
     box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .08);
+    overflow: hidden;
 }
 
 .expense-tooltip-donut::before {
@@ -1895,7 +2321,7 @@
 }
 
 .analytics-profit-summary-card .profit-summary-kpis {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .profit-summary-kpis article {
@@ -2070,6 +2496,22 @@
     border: 1px solid rgba(234, 212, 162, 0.95);
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.56);
+}
+
+.margin-kpi-row article:nth-child(4n + 1) {
+    border-left: 5px solid #5caa2d;
+}
+
+.margin-kpi-row article:nth-child(4n + 2) {
+    border-left: 5px solid #a32d2d;
+}
+
+.margin-kpi-row article:nth-child(4n + 3) {
+    border-left: 5px solid #2b7bdc;
+}
+
+.margin-kpi-row article:nth-child(4n) {
+    border-left: 5px solid #d97706;
 }
 
 .margin-kpi-row span,
@@ -3021,74 +3463,6 @@
     background: transparent;
 }
 
-.analytics-stock-kpis {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    margin-bottom: 22px;
-}
-
-.analytics-stock-kpis article {
-    background: #fff0bf;
-    border-radius: 9px;
-    padding: 18px;
-    text-align: center;
-}
-
-.analytics-stock-kpis span,
-.analytics-stock-kpis strong {
-    display: block;
-}
-
-.analytics-stock-kpis span {
-    color: #9aa2af;
-    text-transform: uppercase;
-    font-weight: 800;
-}
-
-.analytics-stock-kpis strong {
-    margin-top: 8px;
-    font-size: 26px;
-    font-weight: 900;
-}
-
-.analytics-inventory-quality {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-    margin-bottom: 22px;
-}
-
-.analytics-inventory-quality article {
-    background: #fff0bf;
-    border: 1px solid rgba(247, 168, 72, 0.45);
-    border-radius: 9px;
-    padding: 18px;
-}
-
-.analytics-inventory-quality span,
-.analytics-inventory-quality small {
-    display: block;
-    color: #667085;
-    font-weight: 800;
-}
-
-.analytics-inventory-quality strong {
-    display: block;
-    margin: 8px 0 4px;
-    color: var(--red);
-    font-size: 24px;
-    font-weight: 900;
-}
-
-.analytics-stock-table td small {
-    display: block;
-    margin-top: 3px;
-    color: #667085;
-    font-size: 12px;
-    font-weight: 700;
-}
-
 .analytics-margin-help {
     width: 15px;
     height: 15px;
@@ -3174,6 +3548,132 @@
     font-weight: 800;
 }
 
+/* Ranking section shared by all analysis tabs. */
+.ranking-section {
+    margin-top: 24px;
+    border: 1px solid #e8d5a0;
+    border-radius: 12px;
+    background: #fdf8e8;
+    padding: 24px;
+}
+
+.ranking-title {
+    margin: 0 0 16px;
+    color: #8b1a1a;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+}
+
+.ranking-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.ranking-card {
+    min-width: 0;
+    border: 1px solid #e8d5a0;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 16px 18px;
+}
+
+.ranking-card-header,
+.ranking-card-body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ranking-card-header {
+    margin-bottom: 8px;
+}
+
+.ranking-card-label {
+    color: #7c7c7c;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .04em;
+    line-height: 1.35;
+    text-transform: uppercase;
+}
+
+.ranking-card-value {
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 950;
+    text-align: right;
+}
+
+.ranking-card-value.text-red {
+    color: #8b1a1a;
+}
+
+.ranking-card-value.text-green {
+    color: #2e7d32;
+}
+
+.ranking-card-value.text-orange {
+    color: #e65100;
+}
+
+.ranking-card-main {
+    min-width: 0;
+    color: #2c2c2c;
+    font-size: 17px;
+    font-weight: 850;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.ranking-card > small {
+    display: block;
+    margin-top: 7px;
+    color: #8a8a8a;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ranking-tooltip {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #aaa;
+    border-radius: 50%;
+    color: #888;
+    cursor: help;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.ranking-tooltip:hover::after,
+.ranking-tooltip:focus::after {
+    content: attr(data-tip);
+    position: absolute;
+    right: 0;
+    bottom: 125%;
+    z-index: 30;
+    width: 220px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+    color: #444;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: left;
+    white-space: normal;
+}
+
 @media (max-width: 1100px) {
     .analytics-revenue-grid,
     .analytics-expense-grid,
@@ -3237,6 +3737,19 @@
 
     .cashflow-grid--three .cashflow-kpi-card--wide {
         grid-column: span 2;
+    }
+
+    .expense-kpi-bar,
+    .expense-ratio-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .expense-mix-layout {
+        grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+    }
+
+    .ranking-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -3336,6 +3849,35 @@
     .cashflow-kpi-card {
         padding: 16px;
     }
+
+    .expense-flow-block {
+        padding: 16px;
+    }
+
+    .expense-flow-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .expense-compare-list article,
+    .expense-mix-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .expense-compare-list small,
+    .expense-compare-list b {
+        justify-self: start;
+        text-align: left;
+    }
+
+    .ranking-section {
+        padding: 18px;
+    }
+
+    .ranking-grid {
+        grid-template-columns: 1fr;
+    }
+
 }
 
 
