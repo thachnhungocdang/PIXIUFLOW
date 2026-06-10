@@ -70,10 +70,13 @@
                     <i data-lucide="settings"></i>
                     <span>Cài đặt</span>
                 </a>
-                <a href="#" class="menu-item">
-                    <i data-lucide="log-out"></i>
-                    <span>Đăng xuất</span>
-                </a>
+                <form method="post" action="{% url 'logout' %}" class="logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="menu-item logout-button">
+                        <i data-lucide="log-out"></i>
+                        <span>Đăng xuất</span>
+                    </button>
+                </form>
             </div>
         </aside>
 

@@ -5255,22 +5255,23 @@ def report_view(request):
         default=None,
     )
     best_profit_period = (
-        max(chart_points, key=lambda item: item['net_profit'], default=None)
-        if recognized_revenue or operating_expense else None
+        max(profit_time_chart_points, key=lambda item: item['net_profit'], default=None)
+        if (recognized_revenue or operating_expense) and profit_time_chart_points else None
     )
+
     
    
     ranking_profit = {
-    'best_product': top_contrib_product,
-    'worst_product': worst_profit_product if worst_profit_product and worst_profit_product['profit'] < 0 else None,
-    'worst_margin': worst_margin_row,
-    'best_category_margin': best_profit_category,
-    'avg_margin': average_margin if recognized_revenue else None,
-    'profit_after_depreciation': net_profit if recognized_revenue or operating_expense else None,
-    'best_period': {
-        'label': best_profit_period['period_label'],
-        'profit': best_profit_period['net_profit'],
-    } if best_profit_period else None,
+        'best_product': top_contrib_product,
+        'worst_product': worst_profit_product if worst_profit_product and worst_profit_product['profit'] < 0 else None,
+        'worst_margin': worst_margin_row,
+        'best_category_margin': best_profit_category,
+        'avg_margin': average_margin if recognized_revenue else None,
+        'profit_after_depreciation': net_profit if recognized_revenue or operating_expense else None,
+        'best_period': {
+            'label': best_profit_period['label'],   # <-- dùng 'label' thay vì 'period_label'
+            'profit': best_profit_period['net_profit'],
+        } if best_profit_period else None,
     }
 
     top_expense_group = max(expense_period_breakdown, key=lambda item: item['total'], default=None)

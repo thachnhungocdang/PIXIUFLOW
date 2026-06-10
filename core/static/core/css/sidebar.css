@@ -2,7 +2,22 @@
     display: flex;
     min-height: 100vh;
 }
+.logout-form {
+    margin: 0;
+}
 
+.logout-button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+
+.logout-button.menu-item {
+    justify-content: flex-start;
+}
 .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
