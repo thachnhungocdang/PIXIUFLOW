@@ -5,7 +5,7 @@ from urllib.parse import quote, urlencode
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import F, Sum, Count, Q, Max
+from django.db.models import F, Sum, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
@@ -17,7 +17,6 @@ from .forms import AccountPasswordChangeForm, ProductForm, PurchaseForm, SaleFor
 from .utils import generate_product_sku
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
-from django.shortcuts import render, redirect
 
 UNCATEGORIZED_CATEGORY_LABEL = '\u0043\u0048\u01af\u0041 \u0043\u00d3 \u0044\u0041\u004e\u0048 \u004d\u1ee4\u0043 \u0043\u1ea4\u0050 1'
 PAYMENT_WARNING_DAYS = 7
@@ -3796,7 +3795,6 @@ def report_view(request):
         return value.strftime('T%m/%Y')
 
     expense_recognized_total = Decimal('0')
-    expense_recognized_by_type = {}
     expense_recognized_by_month = {}
     depreciation_end_limit = month_start(report_end_date)
 
@@ -3829,9 +3827,7 @@ def report_view(request):
             expense_recognized_by_month[key] = expense_recognized_by_month.get(key, Decimal('0')) + amount
 
         expense_recognized_total += recognized_amount
-        expense_recognized_by_type[expense.expense_type] = expense_recognized_by_type.get(expense.expense_type, Decimal('0')) + recognized_amount
 
-    total_purchase = purchases.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     total_income = sales.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     recognized_revenue = total_income
     previous_report_income = user_sales.filter(date__gte=previous_report_start, date__lte=previous_report_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
@@ -3846,21 +3842,13 @@ def report_view(request):
     cogs_data = cogs_summary(report_start_date, report_end_date, request.user)
     cogs = cogs_data['total']
     cogs_by_month = cogs_data['by_month']
-    total_expense = expense_recognized_total
-    operating_expense = total_expense
-    accounting_outflow = cogs + operating_expense
-    total_recognized_cost = accounting_outflow
+    operating_expense = expense_recognized_total
     cash_outflow = cash_summary['outflow']
     net_cash_flow = cash_summary['net']
-    estimated_cogs = cogs
     gross_profit = recognized_revenue - cogs
-    gross_margin_pct = round(float(gross_profit / recognized_revenue * 100), 1) if recognized_revenue else 0
     profit = gross_profit - operating_expense
     net_profit = profit
     expense_labels = dict(Expense.EXPENSE_TYPE_CHOICES)
-    gross_margin_rate = (gross_profit / recognized_revenue) if recognized_revenue and gross_profit > 0 else Decimal('0')
-    break_even_revenue = (operating_expense / gross_margin_rate) if gross_margin_rate else None
-    break_even_gap = max((break_even_revenue or Decimal('0')) - recognized_revenue, Decimal('0')) if break_even_revenue else Decimal('0')
     revenue_order_count = sales.count()
     revenue_orders_per_day = round(revenue_order_count / report_days, 1) if report_days else 0
     revenue_avg_order_value = (recognized_revenue / Decimal(revenue_order_count)) if revenue_order_count else Decimal('0')
@@ -3881,10 +3869,6 @@ def report_view(request):
         .annotate(revenue=Sum('total_amount'))
         .order_by('-revenue')
         .first()
-    )
-    top_revenue_category_share = (
-        round(((top_revenue_category['revenue'] or Decimal('0')) / recognized_revenue) * 100, 1)
-        if top_revenue_category and recognized_revenue else 0
     )
 
     chart_sales = sales
@@ -3928,10 +3912,6 @@ def report_view(request):
         month_map[m]['income'] - month_map[m]['purchase']
         for m in chart_labels
     ]
-    chart_net_profit = [
-        month_map[m]['income'] - month_map[m]['purchase'] - month_map[m]['expense']
-        for m in chart_labels
-    ]
     chart_profit = chart_gross_profit
     revenue_trend_rows = []
     previous_trend_revenue = None
@@ -3956,22 +3936,6 @@ def report_view(request):
         })
         previous_trend_revenue = period_revenue
         previous_trend_gross_profit = period_gross_profit
-
-    chart_points_json = json.dumps([
-        {
-            'label': label,
-            'revenue': float(month_map.get(label, {}).get('income', 0)),
-            'cogs': float(cogs_by_month.get(label, 0)),
-            'gross_profit': float(month_map.get(label, {}).get('income', 0)) - float(cogs_by_month.get(label, 0)),
-            'operating_expense': float(expense_recognized_by_month.get(label, 0)),
-            'net_profit': (
-                float(month_map.get(label, {}).get('income', 0))
-                - float(cogs_by_month.get(label, 0))
-                - float(expense_recognized_by_month.get(label, 0))
-            ),
-        }
-        for label in chart_labels
-    ])
 
     def revenue_period_key(value):
         if revenue_granularity == 'day':
@@ -4258,7 +4222,6 @@ def report_view(request):
                 'equipment': cash_month_map[label]['equipment_count'],
             },
         })
-    cash_chart_points_json = json.dumps(cash_chart_points)
     cash_chart_rows = []
     running_cash_balance = Decimal('0')
     for label in cash_chart_labels:
@@ -4281,22 +4244,9 @@ def report_view(request):
     cash_runway_days = round((cash_income / cash_burn_per_day), 1) if cash_burn_per_day > 0 else None
     cash_income_per_day = cash_income / Decimal(report_days) if report_days else Decimal('0')
     cash_conversion_rate = round((cash_income / recognized_revenue) * 100, 1) if recognized_revenue else 0
-    operating_cash_ratio = round((cash_income / cash_outflow), 2) if cash_outflow else None
-    cash_flow_margin = round((net_cash_flow / recognized_revenue) * 100, 1) if recognized_revenue else 0
     cash_purchase_share = round((cash_purchase / cash_outflow) * 100, 1) if cash_outflow else 0
     cash_opex_share = round((cash_expense / cash_outflow) * 100, 1) if cash_outflow else 0
     cash_out_revenue_ratio = round((cash_outflow / recognized_revenue), 2) if recognized_revenue else 0
-
-    fixed_expense_types = {Expense.EXPENSE_TYPE_EQUIPMENT, 'rent', 'salary'}
-    cash_fixed_expense = Decimal('0')
-    for expense in user_expenses.exclude(payment_method=Expense.PAYMENT_METHOD_DEBT):
-        cash_date = expense.payment_date or expense.date
-        if cash_date < report_start_date or cash_date > report_end_date:
-            continue
-        if expense.expense_type in fixed_expense_types:
-            cash_fixed_expense += expense.amount or Decimal('0')
-    cash_variable_expense = max(cash_expense - cash_fixed_expense, Decimal('0'))
-    cash_fixed_expense_share = round((cash_fixed_expense / cash_expense) * 100, 1) if cash_expense else 0
 
     payable_purchase_debt = user_purchases.filter(payment_method=Purchase.PAYMENT_METHOD_DEBT).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     payable_expense_debt = user_expenses.filter(payment_method=Expense.PAYMENT_METHOD_DEBT).aggregate(total=Sum('amount'))['total'] or Decimal('0')
@@ -4330,22 +4280,6 @@ def report_view(request):
     if due_candidates:
         due_date, due_amount, due_label = sorted(due_candidates, key=lambda item: item[0])[0]
         next_payable_item = {'date': due_date, 'amount': due_amount, 'label': due_label}
-
-    recent_cashflow_days = []
-    for offset in range(4, -1, -1):
-        day = report_end_date - timedelta(days=offset)
-        cash_in_day = cash_summary['income_by_date'].get(day, Decimal('0'))
-        cash_out_day = cash_summary['purchase_by_date'].get(day, Decimal('0')) + cash_summary['expense_by_date'].get(day, Decimal('0'))
-        net_day = cash_in_day - cash_out_day
-        recent_cashflow_days.append({'label': day.strftime('%d/%m'), 'net': net_day, 'height': min(100, max(18, int(abs(net_day) / max(abs(net_cash_flow), Decimal('1')) * 100)))})
-    recent_negative_streak = 0
-    for day in reversed(recent_cashflow_days):
-        if day['net'] < 0:
-            recent_negative_streak += 1
-        else:
-            break
-    cash_forecast_7d = net_cash_flow - (cash_burn_per_day * Decimal('7')) - upcoming_payable
-    cash_forecast_need = max(-cash_forecast_7d, Decimal('0'))
 
     def category_parts(path):
         return [part.strip() for part in (path or '').split('/') if part.strip()]
@@ -4600,26 +4534,7 @@ def report_view(request):
         },
     })
 
-    expense_breakdown = []
     expense_labels = dict(Expense.EXPENSE_TYPE_CHOICES)
-    total_outflow = accounting_outflow
-    expense_depreciation_total = expense_recognized_by_type.get(Expense.EXPENSE_TYPE_EQUIPMENT, Decimal('0'))
-    if cogs:
-        expense_breakdown.append({
-            'key': 'cogs',
-            'name': 'Giá vốn hàng bán',
-            'total': cogs,
-            'share': round((cogs / total_outflow * 100), 1) if total_outflow else 0,
-            'previous_total': Decimal('0'),
-        })
-    for expense_type, total in sorted(expense_recognized_by_type.items(), key=lambda item: item[1], reverse=True):
-        expense_breakdown.append({
-            'key': expense_type,
-            'name': expense_labels.get(expense_type, expense_type),
-            'total': total,
-            'share': round((total / total_outflow * 100), 1) if total_outflow else 0,
-            'previous_total': Decimal('0'),
-        })
 
     def expense_period_key(value):
         if expense_granularity == 'day':
@@ -4708,11 +4623,8 @@ def report_view(request):
     expense_period_summary = recognized_expense_summary(expense_period_start, expense_period_end, request.user)
     expense_period_total = expense_period_cogs + expense_period_summary['total']
     expense_period_revenue = user_sales.filter(date__gte=expense_period_start, date__lte=expense_period_end).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-    expense_period_gross_profit = expense_period_revenue - expense_period_cogs
-    expense_period_gross_margin_pct = round(float(expense_period_gross_profit / expense_period_revenue * 100), 1) if expense_period_revenue else None
     expense_per_day = expense_period_total / Decimal(expense_period_days) if expense_period_days else Decimal('0')
     expense_to_revenue_pct = round(float(expense_period_total / expense_period_revenue * 100), 1) if expense_period_revenue else None
-    expense_depreciation_total = expense_period_summary['by_type'].get(Expense.EXPENSE_TYPE_EQUIPMENT, Decimal('0'))
     previous_cogs = cogs_summary(expense_previous_start, expense_previous_end, request.user)['total']
     previous_expense_summary = recognized_expense_summary(expense_previous_start, expense_previous_end, request.user)
     expense_previous_total = previous_cogs + previous_expense_summary['total']
@@ -4898,7 +4810,6 @@ def report_view(request):
             'lifetime_months': expense.estimated_lifetime_months,
         })
 
-    expense_period_caption = expense_period_label
     expense_period_day_note = f"Tính theo {expense_period_days} ngày · {expense_period_label}"
 
     category_option_tree = []
@@ -4964,7 +4875,6 @@ def report_view(request):
         return node
 
     profit_roots = []
-    product_profit_rows = []
     for sale in sales.select_related('product'):
         parts = sale_category_parts(sale)
         if profit_category_filter and not ' / '.join(parts).startswith(profit_category_filter):
@@ -4983,19 +4893,6 @@ def report_view(request):
             node['cogs'] += cost
             node['quantity'] += sale.quantity or 0
             node['profit'] += row_profit
-        product_profit_rows.append({
-            'name': sale_product_name(sale),
-            'path': f"{' / '.join(parts[:4])} / {sale_product_name(sale)}",
-            'level': min(len(parts[:4]) + 1, 5),
-            'quantity': sale.quantity or 0,
-            'revenue': revenue,
-            'cogs': cost,
-            'avg_price': (revenue / Decimal(sale.quantity)) if sale.quantity else Decimal('0'),
-            'avg_cost': (cost / Decimal(sale.quantity)) if sale.quantity else Decimal('0'),
-            'profit': row_profit,
-            'profit_per_unit': (row_profit / Decimal(sale.quantity)) if sale.quantity else Decimal('0'),
-            'margin': round((row_profit / revenue * 100), 1) if revenue else 0,
-        })
     for node in profit_node_map.values():
         node['margin'] = round((node['profit'] / node['revenue'] * 100), 1) if node['revenue'] else 0
         if node['quantity']:
@@ -5208,95 +5105,8 @@ def report_view(request):
         .order_by('-units')
         .first()
     )
-    biggest_supplier = (
-        purchases.exclude(supplier_name='')
-        .values('supplier_name')
-        .annotate(total=Sum('total_amount'))
-        .order_by('-total')
-        .first()
-    )
-    chart_points = []
-    chart_values = [*chart_income, *chart_profit]
-    max_chart_value = max([*chart_values, 0]) if chart_values else 0
-    min_chart_value = min([*chart_profit, 0]) if chart_profit else 0
-    chart_range = max_chart_value - min_chart_value
-    if chart_range == 0 and max_chart_value:
-        chart_range = max_chart_value
-    chart_plot_height = 220
-    chart_zero_y = round(((max_chart_value - 0) / chart_range) * chart_plot_height) if chart_range else chart_plot_height
-    chart_axis_labels = []
-    if chart_range:
-        step = chart_range / 4
-        chart_axis_labels = [round(max_chart_value - step * index) for index in range(5)]
-    else:
-        chart_axis_labels = [0, 0, 0, 0, 0]
-    def chart_bar_metrics(value):
-        if not value or not chart_range:
-            return {
-                'top': chart_zero_y,
-                'bottom': chart_plot_height - chart_zero_y,
-                'height': 0,
-                'negative': False,
-            }
-        y = round(((max_chart_value - value) / chart_range) * chart_plot_height)
-        if value >= 0:
-            return {
-                'top': y,
-                'bottom': chart_plot_height - chart_zero_y,
-                'height': max(4, chart_zero_y - y),
-                'negative': False,
-            }
-        return {
-            'top': chart_zero_y,
-            'bottom': chart_plot_height - y,
-            'height': max(4, y - chart_zero_y),
-            'negative': True,
-        }
-
-    for index, label in enumerate(chart_labels):
-        income_value = chart_income[index]
-        profit_value = chart_profit[index] if index < len(chart_profit) else 0
-        net_profit_value = chart_net_profit[index] if index < len(chart_net_profit) else 0
-        cogs_value = chart_purchase[index] if index < len(chart_purchase) else 0
-        income_metrics = chart_bar_metrics(income_value)
-        profit_metrics = chart_bar_metrics(profit_value)
-        waterfall_max = max(abs(income_value), abs(cogs_value), abs(profit_value), 1)
-        revenue_width = round(abs(income_value) / waterfall_max * 100, 2)
-        cogs_width = round(abs(cogs_value) / waterfall_max * 100, 2)
-        profit_width = round(abs(profit_value) / waterfall_max * 100, 2)
-        cogs_offset = max(0, min(100, profit_width))
-        chart_points.append({
-            'label': label[-2:],
-            'period': label,
-            'period_label': f"T{label[-2:]}/{label[:4]}",
-            'income': income_value,
-            'revenue': income_value,
-            'cogs': cogs_value,
-            'gross_profit': chart_gross_profit[index] if index < len(chart_gross_profit) else 0,
-            'operating_expense': chart_expense[index] if index < len(chart_expense) else 0,
-            'profit': profit_value,
-            'net_profit': net_profit_value,
-            'revenue_width': revenue_width,
-            'cogs_width': cogs_width,
-            'profit_width': profit_width,
-            'cogs_offset': cogs_offset,
-            'income_top': income_metrics['top'],
-            'income_bottom': income_metrics['bottom'],
-            'income_height': income_metrics['height'],
-            'profit_top': profit_metrics['top'],
-            'profit_bottom': profit_metrics['bottom'],
-            'profit_height': profit_metrics['height'],
-            'profit_negative': profit_metrics['negative'],
-        })
-
     top_customer = (
         sales.values('customer_name')
-        .annotate(amount=Sum('total_amount'))
-        .order_by('-amount')
-        .first()
-    )
-    best_revenue_day = (
-        sales.values('date')
         .annotate(amount=Sum('total_amount'))
         .order_by('-amount')
         .first()
@@ -5315,19 +5125,13 @@ def report_view(request):
             'name': top_revenue_category['product__category'],
             'amount': top_revenue_category['revenue'],
         } if top_revenue_category else None,
-        'best_day': best_revenue_day,
         'paid_ratio': {
             'pct': round(paid_sales_count / revenue_order_count * 100, 1),
             'paid': paid_sales_count,
             'total': revenue_order_count,
         } if revenue_order_count else None,
-        'unpaid_revenue': {
-            'amount': revenue_uncollected,
-            'count': revenue_uncollected_order_count,
-        } if revenue_uncollected_order_count else None,
     }
 
-    worst_profit_product = min(product_margin_rows_all, key=lambda item: item['profit'], default=None)
     best_profit_category = max(
         (item for item in profit_node_map.values() if item['revenue'] > 0),
         key=lambda item: item['margin'],
@@ -5342,81 +5146,14 @@ def report_view(request):
    
     ranking_profit = {
         'best_product': top_contrib_product,
-        'worst_product': worst_profit_product if worst_profit_product and worst_profit_product['profit'] < 0 else None,
         'worst_margin': worst_margin_row,
         'best_category_margin': best_profit_category,
-        'avg_margin': average_margin if recognized_revenue else None,
-        'profit_after_depreciation': net_profit if recognized_revenue or operating_expense else None,
         'best_period': {
             'label': best_profit_period['label'],   # <-- dùng 'label' thay vì 'period_label'
             'profit': best_profit_period['net_profit'],
         } if best_profit_period else None,
     }
 
-    top_expense_group = max(expense_period_breakdown, key=lambda item: item['total'], default=None)
-    fastest_expense_group = max(
-        (row for row in expense_comparison_rows if row['change'] is not None),
-        key=lambda item: item['change'],
-        default=None,
-    )
-    unpaid_purchase_qs = purchases.filter(payment_method=Purchase.PAYMENT_METHOD_DEBT, payment_date__isnull=True)
-    unpaid_expense_qs = expenses.filter(payment_method=Expense.PAYMENT_METHOD_DEBT, payment_date__isnull=True)
-    unpaid_expense_amount = (
-        (unpaid_purchase_qs.aggregate(total=Sum('total_amount'))['total'] or Decimal('0'))
-        + (unpaid_expense_qs.aggregate(total=Sum('amount'))['total'] or Decimal('0'))
-    )
-    unpaid_expense_count = unpaid_purchase_qs.count() + unpaid_expense_qs.count()
-    fixed_expense_total = sum(
-        (
-            expense_period_summary['by_type'].get(key, Decimal('0'))
-            for key in ('rent', 'salary', Expense.EXPENSE_TYPE_EQUIPMENT)
-        ),
-        Decimal('0'),
-    )
-    active_depreciation_rows = [row for row in equipment_depreciation_rows if row['months_left'] > 0]
-    ranking_expense = {
-        'top_group': top_expense_group,
-        'fastest_growing_group': fastest_expense_group,
-        'top_supplier': {
-            'name': biggest_supplier['supplier_name'],
-            'amount': biggest_supplier['total'],
-        } if biggest_supplier else None,
-        'unpaid_expense': {
-            'amount': unpaid_expense_amount,
-            'count': unpaid_expense_count,
-        } if unpaid_expense_count else None,
-        'fixed_ratio': round(float(fixed_expense_total / expense_period_total * 100), 1) if expense_period_total else None,
-        'active_depreciation': {
-            'monthly': sum((row['monthly_amount'] for row in active_depreciation_rows), Decimal('0')),
-            'count': len(active_depreciation_rows),
-        } if active_depreciation_rows else None,
-    }
-
-    paid_sales_by_day = (
-        user_sales.filter(payment_date__gte=report_start_date, payment_date__lte=report_end_date)
-        .values('payment_date')
-        .annotate(amount=Sum('total_amount'))
-        .order_by('-amount')
-        .first()
-    )
-    previous_cash_flow = cash_flow_summary(previous_report_start, previous_report_end, request.user)['net']
-    cash_trend_pct = report_percent_change(net_cash_flow, previous_cash_flow)
-    ranking_cashflow = {
-        'net_cashflow': net_cash_flow if cash_income or cash_outflow else None,
-        'best_inflow_day': {
-            'date': paid_sales_by_day['payment_date'],
-            'amount': paid_sales_by_day['amount'],
-        } if paid_sales_by_day else None,
-        'receivable': ranking_revenue['unpaid_revenue'],
-        'payable': ranking_expense['unpaid_expense'],
-        'trend': {
-            'direction': 'stable' if cash_trend_pct is None or abs(cash_trend_pct) < 0.1 else ('up' if cash_trend_pct > 0 else 'down'),
-            'pct': abs(cash_trend_pct) if cash_trend_pct is not None else None,
-        },
-        'collection_rate': revenue_collection_rate if recognized_revenue else None,
-    }
-
-    category_filter_options = sorted(category_filter_paths)
     period_end_for_presets = today
     preset_1w_start = period_end_for_presets - timedelta(days=6)
     preset_1m_start = add_months(period_end_for_presets, -1)
@@ -5446,7 +5183,6 @@ def report_view(request):
         'preset_12m_start': preset_12m_start,
         'period_end_for_presets': period_end_for_presets,
         'preserved_filter_query': preserved_filter_query,
-        'total_purchase': total_purchase,
         'total_income': total_income,
         'recognized_revenue': recognized_revenue,
         'revenue_total_growth': revenue_total_growth,
@@ -5460,14 +5196,10 @@ def report_view(request):
         'revenue_uncollected_order_count': revenue_uncollected_order_count,
         'revenue_collection_rate': revenue_collection_rate,
         'top_revenue_product': top_revenue_product,
-        'top_revenue_category': top_revenue_category,
-        'top_revenue_category_share': top_revenue_category_share,
         'revenue_chart_points_json': revenue_chart_points_json,
         'revenue_time_rows': revenue_time_rows,
-        'total_expense': total_expense,
         'operating_expense': operating_expense,
         'cogs': cogs,
-        'total_recognized_cost': total_recognized_cost,
         'cash_expense': cash_expense,
         'cash_purchase': cash_purchase,
         'cash_income': cash_income,
@@ -5479,72 +5211,31 @@ def report_view(request):
         'cash_runway_days': cash_runway_days,
         'cash_income_per_day': cash_income_per_day,
         'cash_conversion_rate': cash_conversion_rate,
-        'operating_cash_ratio': operating_cash_ratio,
-        'cash_flow_margin': cash_flow_margin,
         'cash_purchase_share': cash_purchase_share,
         'cash_opex_share': cash_opex_share,
         'cash_out_revenue_ratio': cash_out_revenue_ratio,
-        'cash_fixed_expense': cash_fixed_expense,
-        'cash_variable_expense': cash_variable_expense,
-        'cash_fixed_expense_share': cash_fixed_expense_share,
         'payable_debt': payable_debt,
         'upcoming_payable': upcoming_payable,
         'next_payable_item': next_payable_item,
-        'recent_cashflow_days': recent_cashflow_days,
-        'recent_negative_streak': recent_negative_streak,
-        'cash_forecast_7d': cash_forecast_7d,
-        'cash_forecast_need': cash_forecast_need,
-        'accounting_outflow': accounting_outflow,
-        'estimated_cogs': estimated_cogs,
         'gross_profit': gross_profit,
-        'gross_margin_pct': gross_margin_pct,
-        'break_even_revenue': break_even_revenue,
-        'break_even_gap': break_even_gap,
         'profit': profit,
         'net_profit': net_profit,
-        'purchases': purchases,
-        'sales': sales,
-        'expenses': expenses,
-        'chart_labels': chart_labels,
-        'chart_income': chart_income,
-        'chart_purchase': chart_purchase,
-        'chart_expense': chart_expense,
-        'chart_gross_profit': chart_gross_profit,
-        'chart_profit': chart_profit,
-        'chart_points_json': chart_points_json,
         'profit_time_chart_points_json': profit_time_chart_points_json,
-        'cash_chart_labels': cash_chart_labels,
-        'cash_chart_in': cash_chart_in,
-        'cash_chart_out': cash_chart_out,
-        'cash_chart_net': cash_chart_net,
         'cash_chart_points': cash_chart_points,
-        'cash_chart_points_json': cash_chart_points_json,
         'cash_chart_rows': cash_chart_rows,
-        'chart_points': chart_points,
-        'chart_axis_labels': chart_axis_labels,
-        'chart_zero_y': chart_zero_y,
-        'chart_has_negative': min_chart_value < 0,
         'revenue_by_category': revenue_by_category,
-        'revenue_trend_rows': revenue_trend_rows,
-        'revenue_contribution_rows': revenue_contribution_rows,
         'revenue_contribution_chart_rows': revenue_contribution_chart_rows,
         'revenue_contribution_data_json': revenue_contribution_data_json,
         'revenue_insight_cards': revenue_insight_cards,
         'revenue_roots': revenue_roots,
-        'expense_breakdown': expense_breakdown,
         'expense_chart_points': expense_chart_points,
         'expense_period_label': expense_period_label,
         'expense_previous_label': expense_previous_label,
         'expense_period_total': expense_period_total,
-        'expense_period_revenue': expense_period_revenue,
-        'expense_period_gross_margin_pct': expense_period_gross_margin_pct,
-        'expense_period_days': expense_period_days,
         'expense_period_day_note': expense_period_day_note,
         'expense_total_change': expense_total_change,
         'expense_total_change_display': expense_total_change_display,
         'expense_per_day': expense_per_day,
-        'expense_depreciation_total': expense_depreciation_total,
-        'expense_to_revenue_pct': expense_to_revenue_pct,
         'expense_to_revenue_display': expense_to_revenue_display,
         'expense_to_revenue_note': expense_to_revenue_note,
         'expense_to_revenue_tone': expense_to_revenue_tone,
@@ -5552,12 +5243,9 @@ def report_view(request):
         'expense_comparison_rows': expense_comparison_rows,
         'expense_insight': expense_insight,
         'equipment_depreciation_rows': equipment_depreciation_rows,
-        'expense_period_caption': expense_period_caption,
-        'profit_margin_rows': profit_margin_rows,
         'profit_chart_rows': profit_chart_rows,
         'margin_kpis': margin_kpis,
         'margin_insight_cards': margin_insight_cards,
-        'profit_contribution_rows': profit_contribution_rows,
         'contribution_chart_rows': contribution_chart_rows,
         'contribution_kpis': contribution_kpis,
         'contribution_insight_cards': contribution_insight_cards,
@@ -5570,17 +5258,11 @@ def report_view(request):
         'revenue_rank': revenue_rank,
         'cash_granularity': cash_granularity,
         'expense_granularity': expense_granularity,
-        'category_filter_options': category_filter_options,
         'category_option_tree': category_option_tree,
-        'profit_roots': profit_roots,
         'profit_tree_roots': profit_tree_roots,
-        'product_profit_rows': product_profit_rows,
         'report_days': report_days,
-        'total_outflow': total_outflow,
         'ranking_revenue': ranking_revenue,
         'ranking_profit': ranking_profit,
-        'ranking_expense': ranking_expense,
-        'ranking_cashflow': ranking_cashflow,
     })
 
 
