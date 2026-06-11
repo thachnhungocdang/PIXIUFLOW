@@ -1,0 +1,106 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Cài đặt tài khoản - Pixiu Flow{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/css/settings.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <header class="settings-header">
+        <div>
+            <h1>Cài đặt tài khoản</h1>
+            <p>Xem thông tin đăng nhập và thay đổi mật khẩu an toàn.</p>
+        </div>
+    </header>
+
+    <div class="settings-grid">
+        <section class="settings-card">
+            <div class="settings-card-heading">
+                <span class="settings-icon"><i data-lucide="user-round"></i></span>
+                <div>
+                    <h2>Thông tin đăng nhập</h2>
+                    <p>Thông tin dùng để đăng nhập vào Pixiu Flow.</p>
+                </div>
+            </div>
+
+            <div class="account-detail">
+                <span>Tên đăng nhập</span>
+                <strong>{{ request.user.username }}</strong>
+            </div>
+            {% if request.user.email %}
+            <div class="account-detail">
+                <span>Email</span>
+                <strong>{{ request.user.email }}</strong>
+            </div>
+            {% endif %}
+            <div class="security-note">
+                <i data-lucide="shield-check"></i>
+                <p>Mật khẩu được mã hóa một chiều nên không thể xem lại. Bạn có thể tạo mật khẩu mới ở biểu mẫu bên cạnh.</p>
+            </div>
+        </section>
+
+        <section class="settings-card">
+            <div class="settings-card-heading">
+                <span class="settings-icon"><i data-lucide="key-round"></i></span>
+                <div>
+                    <h2>Đổi mật khẩu</h2>
+                    <p>Xác nhận mật khẩu hiện tại trước khi đặt mật khẩu mới.</p>
+                </div>
+            </div>
+
+            {% if password_changed %}
+            <div class="settings-success" role="status">
+                <i data-lucide="circle-check"></i>
+                Mật khẩu đã được cập nhật thành công.
+            </div>
+            {% endif %}
+
+            {% if password_form.non_field_errors %}
+            <div class="settings-errors">{{ password_form.non_field_errors }}</div>
+            {% endif %}
+
+            <form method="post" class="password-form">
+                {% csrf_token %}
+                {% for field in password_form %}
+                <div class="settings-field">
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <div class="password-input-wrap">
+                        {{ field }}
+                        <button type="button" class="password-visibility" aria-label="Hiển thị mật khẩu">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                    {% if field.help_text %}
+                    <div class="settings-help">{{ field.help_text|safe }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                    <small class="settings-field-error">{{ error }}</small>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="settings-submit">
+                    <i data-lucide="save"></i>
+                    Cập nhật mật khẩu
+                </button>
+            </form>
+        </section>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.password-visibility').forEach(button => {
+        button.addEventListener('click', () => {
+            const input = button.closest('.password-input-wrap')?.querySelector('input');
+            if (!input) return;
+            const shouldShow = input.type === 'password';
+            input.type = shouldShow ? 'text' : 'password';
+            button.setAttribute('aria-label', shouldShow ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu');
+            button.innerHTML = `<i data-lucide="${shouldShow ? 'eye-off' : 'eye'}"></i>`;
+            lucide.createIcons();
+        });
+    });
+</script>
+{% endblock %}

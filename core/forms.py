@@ -1,5 +1,34 @@
 from django import forms
+from django.contrib.auth.forms import PasswordChangeForm
+
 from .models import Product, Purchase, Sale, Expense
+
+
+class AccountPasswordChangeForm(PasswordChangeForm):
+    old_password = forms.CharField(
+        label="Mật khẩu hiện tại",
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'current-password',
+            'placeholder': 'Nhập mật khẩu hiện tại',
+        }),
+    )
+    new_password1 = forms.CharField(
+        label="Mật khẩu mới",
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'new-password',
+            'placeholder': 'Nhập mật khẩu mới',
+        }),
+    )
+    new_password2 = forms.CharField(
+        label="Xác nhận mật khẩu mới",
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'new-password',
+            'placeholder': 'Nhập lại mật khẩu mới',
+        }),
+    )
 
 
 class ProductForm(forms.ModelForm):

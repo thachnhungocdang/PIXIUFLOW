@@ -10,10 +10,10 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, update_session_auth_hash
 from django.contrib.auth.models import User
 from .models import Product, Purchase, Sale, Expense, OpeningStock, Category
-from .forms import ProductForm, PurchaseForm, SaleForm, ExpenseForm
+from .forms import AccountPasswordChangeForm, ProductForm, PurchaseForm, SaleForm, ExpenseForm
 from .utils import generate_product_sku
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
@@ -71,6 +71,25 @@ def save_business_profile_from_request(request):
     business_name = (request.POST.get('biz_name') or '').strip()
     if business_name:
         request.session['business_name'] = business_name
+
+
+@login_required
+def account_settings_view(request):
+    password_changed = False
+    if request.method == 'POST':
+        form = AccountPasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            password_changed = True
+            form = AccountPasswordChangeForm(request.user)
+    else:
+        form = AccountPasswordChangeForm(request.user)
+
+    return render(request, 'core/account_settings.html', {
+        'password_form': form,
+        'password_changed': password_changed,
+    })
 
 
 def month_start_date(value):

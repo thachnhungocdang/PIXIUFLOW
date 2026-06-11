@@ -10,6 +10,7 @@ urlpatterns = [
     path('setup/products/', views.setup_products_view, name='setup_products'),
 
     path('dashboard/', views.dashboard_view, name='dashboard'),
+    path('settings/', views.account_settings_view, name='account_settings'),
 
     path('transactions/create/', views.transaction_create_view, name='transaction_create'),
     path('transactions/bulk-create/', views.bulk_transaction_create_view, name='bulk_transaction_create'),

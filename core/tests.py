@@ -228,3 +228,37 @@ class ExpenseComparisonTests(TestCase):
         self.assertIn("Các nhóm chi phí mới phát sinh kỳ này", insight)
         self.assertIn("Tiền điện (400.000 đ)", insight)
         self.assertIn("Tiền nước (300.000 đ)", insight)
+
+
+class AccountSettingsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="settings-owner",
+            email="owner@example.com",
+            password="CurrentPass123!",
+        )
+        self.client.force_login(self.user)
+
+    def test_settings_page_shows_username_without_exposing_password(self):
+        response = self.client.get(reverse("account_settings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "settings-owner")
+        self.assertContains(response, "Mật khẩu được mã hóa một chiều")
+        self.assertNotContains(response, "CurrentPass123!")
+
+    def test_user_can_change_password_and_remain_logged_in(self):
+        response = self.client.post(reverse("account_settings"), {
+            "old_password": "CurrentPass123!",
+            "new_password1": "NewSecurePass456!",
+            "new_password2": "NewSecurePass456!",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Mật khẩu đã được cập nhật thành công")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewSecurePass456!"))
+        self.assertEqual(
+            self.client.get(reverse("account_settings")).status_code,
+            200,
+        )
