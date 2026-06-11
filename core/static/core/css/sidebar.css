@@ -2,7 +2,9 @@
     display: flex;
     min-height: 100vh;
 }
+
 .logout-form {
+    width: 100%;
     margin: 0;
 }
 
@@ -18,6 +20,7 @@
 .logout-button.menu-item {
     justify-content: flex-start;
 }
+
 .sidebar {
     position: fixed;
     inset: 0 auto 0 0;

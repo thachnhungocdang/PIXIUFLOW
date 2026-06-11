@@ -114,12 +114,14 @@
 }
 
 .password-form,
+.profile-form,
 .settings-field {
     display: grid;
     gap: 8px;
 }
 
-.password-form {
+.password-form,
+.profile-form {
     gap: 18px;
 }
 
@@ -127,6 +129,23 @@
     color: #53301e;
     font-size: 14px;
     font-weight: 800;
+}
+
+.settings-field > input {
+    width: 100%;
+    height: 50px;
+    border: 1px solid #ddc9aa;
+    border-radius: 8px;
+    background: #fffdf8;
+    padding: 0 14px;
+    color: #241b16;
+    font: inherit;
+    outline: none;
+}
+
+.settings-field > input:focus {
+    border-color: #c98d22;
+    box-shadow: 0 0 0 3px rgba(255, 187, 0, .16);
 }
 
 .password-input-wrap {

@@ -66,6 +66,9 @@ def save_business_profile_from_request(request):
     owner_name = (request.POST.get('owner_name') or '').strip()
     if owner_name and owner_name != 'Tên chủ doanh nghiệp':
         request.session['owner_name'] = owner_name
+        if request.user.is_authenticated and request.user.first_name != owner_name:
+            request.user.first_name = owner_name
+            request.user.save(update_fields=['first_name'])
 
     business_name = (request.POST.get('biz_name') or '').strip()
     if business_name:
@@ -75,19 +78,32 @@ def save_business_profile_from_request(request):
 @login_required
 def account_settings_view(request):
     password_changed = False
+    profile_updated = False
+    profile_error = ''
     if request.method == 'POST':
-        form = AccountPasswordChangeForm(request.user, request.POST)
-        if form.is_valid():
-            user = form.save()
-            update_session_auth_hash(request, user)
-            password_changed = True
+        if request.POST.get('action') == 'update_profile':
+            owner_name = (request.POST.get('owner_name') or '').strip()
+            if owner_name and owner_name != 'Tên chủ doanh nghiệp':
+                save_business_profile_from_request(request)
+                profile_updated = True
+            else:
+                profile_error = 'Vui lòng nhập tên chủ doanh nghiệp.'
             form = AccountPasswordChangeForm(request.user)
+        else:
+            form = AccountPasswordChangeForm(request.user, request.POST)
+            if form.is_valid():
+                user = form.save()
+                update_session_auth_hash(request, user)
+                password_changed = True
+                form = AccountPasswordChangeForm(request.user)
     else:
         form = AccountPasswordChangeForm(request.user)
 
     return render(request, 'core/account_settings.html', {
         'password_form': form,
         'password_changed': password_changed,
+        'profile_updated': profile_updated,
+        'profile_error': profile_error,
     })
 
 
