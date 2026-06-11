@@ -50,7 +50,6 @@
                             <th><span class="opening-th-content">Giá vốn ước tính * <button type="button" class="opening-column-help" aria-label="Giải thích cột Giá vốn ước tính" data-tooltip="Chi phí ước tính cho 1 đơn vị hàng đã có sẵn. Dùng để tính giá trị tồn kho và lợi nhuận ban đầu."><span aria-hidden="true">?</span></button></span></th>
                             <th><span class="opening-th-content">Tồn kho ban đầu * <button type="button" class="opening-column-help" aria-label="Giải thích cột Tồn kho ban đầu" data-tooltip="Số lượng hàng bạn đã có trước khi bắt đầu dùng Pixiu Flow. Màn này chỉ lưu khi số lượng lớn hơn 0."><span aria-hidden="true">?</span></button></span></th>
                             <th><span class="opening-th-content">Ngưỡng cảnh báo <button type="button" class="opening-column-help" aria-label="Giải thích cột Ngưỡng cảnh báo" data-tooltip="Khi tồn kho bằng hoặc thấp hơn số này, hệ thống sẽ cảnh báo sắp hết hàng."><span aria-hidden="true">?</span></button></span></th>
-                            <th><span class="opening-th-content">Ngay nhap kho <button type="button" class="opening-column-help" aria-label="Giai thich cot ngay nhap kho" data-tooltip="Khong bat buoc. Neu ban uoc luong duoc ngay lo hang co san nay duoc nhap, hay nhap de bao cao ton kho sau nay hieu tuoi hang chinh xac hon. Neu bo trong, he thong dung ngay ban khai bao ton kho."><span aria-hidden="true">?</span></button></span></th>
                             <th></th>
                         </tr>
                     </thead>
@@ -85,7 +84,6 @@
                             <td><input type="text" name="price_sell[]" value="{% if form_submitted %}{{ row.price_sell }}{% endif %}" inputmode="numeric" class="opening-money" placeholder="15.000" autocomplete="off"></td>
                             <td><input type="text" name="estimated_unit_cost[]" value="{% if form_submitted %}{{ row.estimated_unit_cost }}{% endif %}" inputmode="numeric" class="opening-money setup-cost-input" placeholder="5.000" autocomplete="off"></td>
                             <td><input type="number" name="quantity[]" value="{% if form_submitted %}{{ row.quantity }}{% endif %}" min="1" step="1" class="setup-quantity-input" placeholder="Ví dụ: 40" autocomplete="off"></td>
-                            <td><input type="date" name="stock_date[]" value="{% if form_submitted %}{{ row.stock_date }}{% endif %}" autocomplete="off"><small class="setup-field-note">Tùy chọn nhập ngày nhập kho ước lượng để giúp tính toán tồn kho chính xác hơn</small></td>
                             <td><input type="number" name="alert_threshold[]" value="{% if form_submitted %}{{ row.alert_threshold }}{% endif %}" min="0" step="1" placeholder="10" autocomplete="off"></td>
                             <td class="setup-row-actions">
                                 {% if row.has_opening_stock %}
@@ -141,7 +139,6 @@
         <td><input type="text" name="price_sell[]" inputmode="numeric" class="opening-money" placeholder="15.000" autocomplete="off"></td>
         <td><input type="text" name="estimated_unit_cost[]" inputmode="numeric" class="opening-money setup-cost-input" placeholder="5.000" autocomplete="off"></td>
         <td><input type="number" name="quantity[]" min="1" step="1" class="setup-quantity-input" placeholder="Ví dụ: 40" autocomplete="off"></td>
-        <td><input type="date" name="stock_date[]" autocomplete="off"><small class="setup-field-note">Neu biet ngay nhap lo hang co san, hay nhap.</small></td>
         <td><input type="number" name="alert_threshold[]" min="0" step="1" placeholder="10" autocomplete="off"></td>
         <td class="setup-row-actions"><button type="button" class="opening-remove" title="Xóa dòng" aria-label="Xóa dòng"><i data-lucide="trash-2"></i></button></td>
     </tr>

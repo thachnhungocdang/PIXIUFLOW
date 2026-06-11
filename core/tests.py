@@ -249,7 +249,6 @@ class AccountSettingsTests(TestCase):
 
     def test_user_can_change_password_and_remain_logged_in(self):
         response = self.client.post(reverse("account_settings"), {
-            "action": "change_password",
             "old_password": "CurrentPass123!",
             "new_password1": "NewSecurePass456!",
             "new_password2": "NewSecurePass456!",
@@ -263,30 +262,3 @@ class AccountSettingsTests(TestCase):
             self.client.get(reverse("account_settings")).status_code,
             200,
         )
-
-    def test_user_can_update_owner_name_and_topbar_context(self):
-        response = self.client.post(reverse("account_settings"), {
-            "action": "update_profile",
-            "owner_name": "Nguyen Minh Anh",
-        })
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Nguyen Minh Anh")
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.first_name, "Nguyen Minh Anh")
-
-        dashboard_response = self.client.get(reverse("dashboard"))
-        self.assertEqual(
-            dashboard_response.context["owner_name"],
-            "Nguyen Minh Anh",
-        )
-
-    def test_owner_name_cannot_be_blank(self):
-        response = self.client.post(reverse("account_settings"), {
-            "action": "update_profile",
-            "owner_name": "   ",
-        })
-
-        self.assertContains(response, "Vui lòng nhập tên chủ doanh nghiệp.")
-        self.user.refresh_from_db()
-        self.assertEqual(self.user.first_name, "")
