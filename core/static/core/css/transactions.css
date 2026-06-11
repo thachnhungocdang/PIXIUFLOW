@@ -491,79 +491,23 @@
 .expense-other-row {
     display: grid;
     width: 100%;
-    grid-template-columns: 34px minmax(240px, 0.9fr) minmax(220px, 0.75fr) minmax(420px, 1.6fr) 40px;
+    grid-template-columns: 34px minmax(210px, 1fr) minmax(170px, 0.78fr) minmax(210px, 0.9fr) minmax(260px, 1.2fr) 40px;
     gap: 12px;
     align-items: center;
 }
 
 .expense-other-head.has-equipment-lifetime,
 .expense-other-row.has-equipment-lifetime {
-    grid-template-columns: 34px minmax(220px, 0.95fr) minmax(260px, 1fr) minmax(200px, 0.8fr) minmax(220px, 0.85fr) 40px;
-}
-
-.expense-other-head:not(.has-equipment-lifetime) .equipment-head-lifetime,
-.expense-other-row:not(.has-equipment-lifetime) .equipment-lifetime-field,
-.expense-other-row:not(.has-equipment-lifetime) .equipment-note-row {
-    display: none;
-}
-
-.expense-other-head > span:nth-child(1),
-.expense-other-row .sale-item-index {
-    grid-column: 1;
-    grid-row: 1;
-}
-
-.expense-other-head > span:nth-child(2),
-.expense-other-row .other-expense-type {
-    grid-column: 2;
-    grid-row: 1;
-}
-
-.expense-other-head #expenseNoteHead,
-.expense-other-row .other-expense-note {
-    grid-column: 4;
-    grid-row: 1;
-}
-
-.expense-other-head .expense-amount-head,
-.expense-other-row .other-expense-amount {
-    grid-column: 3;
-    grid-row: 1;
-}
-
-.expense-other-head .equipment-head-lifetime,
-.expense-other-row .equipment-lifetime-field {
-    grid-column: 5;
-    grid-row: 1;
-}
-
-.expense-other-row .sale-remove-row {
-    grid-column: 6;
-    grid-row: 1;
-}
-
-.expense-other-head:not(.has-equipment-lifetime) > span:last-child,
-.expense-other-row:not(.has-equipment-lifetime) .sale-remove-row {
-    grid-column: 5;
-}
-
-.expense-other-head.has-equipment-lifetime > span:last-child {
-    grid-column: 6;
-}
-
-.expense-other-head.has-equipment-lifetime #expenseNoteHead,
-.expense-other-row.has-equipment-lifetime .other-expense-note {
-    grid-column: 3;
-}
-
-.expense-other-head.has-equipment-lifetime .expense-amount-head,
-.expense-other-row.has-equipment-lifetime .other-expense-amount {
-    grid-column: 4;
+    grid-template-columns: 34px minmax(210px, 1fr) minmax(170px, 0.78fr) minmax(210px, 0.9fr) minmax(260px, 1.2fr) 40px;
 }
 
 .expense-other-row.has-equipment-lifetime .equipment-note-row {
     grid-column: 2 / 6;
     grid-row: 2;
+}
+
+.expense-other-row:not(.has-equipment-lifetime) .equipment-note-row {
+    display: none;
 }
 
 .expense-purchase-head,
@@ -627,7 +571,6 @@
 }
 
 .equipment-lifetime-field .equipment-lifetime-input {
-    padding-right: 42px;
     text-align: right;
 }
 
@@ -639,20 +582,52 @@
     margin-top: 2px;
 }
 
-.equipment-lifetime-field span {
-    position: absolute;
-    right: 10px;
-    width: 22px;
-    height: 22px;
+.equipment-head-lifetime b {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    border: 1px solid #f3c766;
     border-radius: 50%;
     background: #fff3d2;
     color: #8a1111;
-    display: inline-flex;
     align-items: center;
     justify-content: center;
+    font-size: 12px;
+    font-style: normal;
+    cursor: help;
+}
+
+.equipment-head-lifetime b::before {
+    content: "?";
+}
+
+.pixiu-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    z-index: 9999;
+    max-width: min(90vw, 680px);
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: #3a1a00;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     font-size: 13px;
-    font-weight: 900;
-    border: 1px solid #f3c766;
+    text-align: center;
+    transform: translateX(-50%);
+    animation: pixiu-toast-in 0.2s ease;
+}
+
+@keyframes pixiu-toast-in {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
 }
 
 .expense-other-grid textarea {

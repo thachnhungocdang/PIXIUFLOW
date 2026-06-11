@@ -150,8 +150,8 @@ class ExpenseForm(forms.ModelForm):
             'estimated_lifetime_months': forms.NumberInput(attrs={
                 'min': '1',
                 'step': '1',
-                'placeholder': 'Số tháng khấu hao',
-                'title': 'Số tháng dự kiến sử dụng thiết bị để phân bổ chi phí khấu hao.',
+                'placeholder': 'Thời gian sử dụng (tháng)',
+                'title': 'Số tháng dự kiến sử dụng hoặc hưởng lợi từ chi phí. Để trống nếu muốn tính toàn bộ vào kỳ phát sinh.',
             }),
             'payment_due_date': forms.DateInput(attrs={'type': 'date'}),
         }
@@ -162,9 +162,10 @@ class ExpenseForm(forms.ModelForm):
 
         if amount and amount <= 0:
             raise forms.ValidationError("Số tiền phải > 0")
-        if cleaned_data.get('expense_type') == Expense.EXPENSE_TYPE_EQUIPMENT:
-            lifetime = cleaned_data.get('estimated_lifetime_months')
-            if not lifetime or lifetime <= 0:
-                raise forms.ValidationError("Nhập estimated lifetime theo số tháng khi chọn Mua thiết bị.")
+        lifetime = cleaned_data.get('estimated_lifetime_months')
+        if lifetime is not None and lifetime <= 0:
+            raise forms.ValidationError("Thời gian sử dụng phải lớn hơn 0 tháng.")
+        if cleaned_data.get('expense_type') == Expense.EXPENSE_TYPE_EQUIPMENT and not lifetime:
+            raise forms.ValidationError("Nhập vòng đời của thiết bị theo số tháng.")
 
         return cleaned_data

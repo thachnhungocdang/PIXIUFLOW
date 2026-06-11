@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -15,6 +15,12 @@ class TimeStampedModel(models.Model):
 class Product(TimeStampedModel):
 
     name = models.CharField(max_length=255)
+    sku = models.CharField(
+        max_length=20,
+        blank=True,
+        db_index=True,
+        help_text="Mã sản phẩm tự động. Ví dụ: CF-001",
+    )
     category = models.CharField(max_length=100, blank=True)
     unit = models.CharField(max_length=50)
     alert_threshold = models.PositiveIntegerField(default=10)
@@ -28,11 +34,28 @@ class Product(TimeStampedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        
+        unique_together = [("user", "sku")]
         ordering = ['name']
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        should_generate_sku = not self.sku and self.user_id
+        if not should_generate_sku:
+            return super().save(*args, **kwargs)
+
+        from core.utils import generate_product_sku
+
+        for attempt in range(5):
+            self.sku = generate_product_sku(self.user, self.category or "SP")
+            try:
+                with transaction.atomic():
+                    return super().save(*args, **kwargs)
+            except IntegrityError:
+                self.sku = ""
+                if attempt == 4:
+                    raise
 
     @property
     def has_imported(self):
@@ -320,7 +343,12 @@ class Expense(TimeStampedModel):
     date = models.DateField()
     expense_type = models.CharField(max_length=50, choices=EXPENSE_TYPE_CHOICES)
     amount = models.DecimalField(max_digits=12, decimal_places=0)
-    estimated_lifetime_months = models.IntegerField(blank=True, null=True, help_text="Sử dụng cho Mua thiết bị để tính khấu hao")
+    estimated_lifetime_months = models.IntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Thời gian sử dụng (tháng)",
+        help_text="Số tháng dự kiến sử dụng hoặc hưởng lợi từ chi phí. Để trống = tính toàn bộ vào kỳ phát sinh.",
+    )
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default=PAYMENT_METHOD_CASH)
     payment_due_date = models.DateField(blank=True, null=True)
     payment_date = models.DateField(blank=True, null=True)
@@ -341,11 +369,10 @@ class Expense(TimeStampedModel):
 
         if self.payment_due_date and self.payment_due_date < timezone.now().date():
             raise ValidationError("Ngay can thanh toan khong duoc som hon hom nay.")
-        if self.expense_type == self.EXPENSE_TYPE_EQUIPMENT:
-            if not self.estimated_lifetime_months or self.estimated_lifetime_months <= 0:
-                raise ValidationError("Nhap estimated lifetime theo so thang khi chon Mua thiet bi.")
-        else:
-            self.estimated_lifetime_months = None
+        if self.estimated_lifetime_months is not None and self.estimated_lifetime_months <= 0:
+            raise ValidationError("Thời gian sử dụng phải lớn hơn 0 tháng.")
+        if self.expense_type == self.EXPENSE_TYPE_EQUIPMENT and not self.estimated_lifetime_months:
+            raise ValidationError("Nhập vòng đời của thiết bị theo số tháng.")
 
     def save(self, *args, **kwargs):
         self.full_clean()

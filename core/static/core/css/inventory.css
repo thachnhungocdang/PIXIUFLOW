@@ -543,12 +543,6 @@
     white-space: nowrap;
 }
 
-.lot-link {
-    color: #2563eb;
-    font-weight: 900;
-    text-decoration: none;
-}
-
 .danger {
     color: var(--red);
     font-weight: 900;
@@ -1458,6 +1452,22 @@
     cursor: pointer;
 }
 
+.product-sku-badge {
+    display: table;
+    margin-top: 5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #f5ead8;
+    color: #9a6a3a;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.product-sku-badge[hidden] {
+    display: none;
+}
+
 .price-free-label {
     background: #f2f4f7;
     color: #667085;
@@ -2113,17 +2123,6 @@
     background: #b42318;
     color: #ffffff;
 }
-.inventory-recent-lots {
-    margin-top: 22px;
-}
-
-.inventory-recent-lots h3 {
-    margin: 0 0 12px;
-    color: var(--red);
-    font-size: 20px;
-    font-weight: 900;
-}
-
 .inventory-right-panel {
     position: sticky;
     top: 18px;
@@ -2541,12 +2540,12 @@
     font-weight: 800;
 }
 
-.inventory-detail-lots {
+.inventory-detail-purchases {
     display: grid;
     gap: 8px;
 }
 
-.inventory-detail-lots div {
+.inventory-detail-purchases div {
     display: grid;
     grid-template-columns: 1fr auto auto;
     align-items: center;
@@ -2555,17 +2554,17 @@
     padding: 8px 0;
 }
 
-.inventory-detail-lots span {
+.inventory-detail-purchases span {
     color: #5d4b42;
     font-weight: 700;
 }
 
-.inventory-detail-lots strong {
+.inventory-detail-purchases strong {
     color: #172033;
     font-weight: 800;
 }
 
-.inventory-detail-lots b {
+.inventory-detail-purchases b {
     border-radius: 999px;
     background: #e7f0ff;
     color: #175cd3;

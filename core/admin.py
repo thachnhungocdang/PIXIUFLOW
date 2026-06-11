@@ -12,13 +12,13 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'category', 'unit',
+        'sku', 'name', 'category', 'unit',
         'stock_quantity', 'alert_threshold',
         'price_sell', 'price_buy_latest',
         'stock_status_label'
     ]
-    search_fields = ['name', 'category', 'supplier_name']
-    readonly_fields = ['stock_quantity', 'created_at', 'updated_at']
+    search_fields = ['sku', 'name', 'category', 'supplier_name']
+    readonly_fields = ['sku', 'stock_quantity', 'created_at', 'updated_at']
 
 
 @admin.register(Purchase)

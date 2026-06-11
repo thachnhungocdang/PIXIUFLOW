@@ -448,9 +448,9 @@
             <label>Số tiền</label>
             <input type="number" name="amount" required id="modal_exp_amount" min="1">
         </div>
-        <div class="form-group" id="modal_exp_lifetime_group" title="Số tháng dự kiến sử dụng thiết bị. Website sẽ phân bổ chi phí theo tháng để tính khấu hao thay vì trừ toàn bộ một lần.">
-            <label>Estimated lifetime (tháng)</label>
-            <input type="number" name="estimated_lifetime_months" id="modal_exp_lifetime" min="1" step="1">
+        <div class="form-group" id="modal_exp_lifetime_group" title="Số tháng dự kiến sử dụng hoặc hưởng lợi từ chi phí. Để trống nếu tính toàn bộ vào kỳ phát sinh.">
+            <label id="modal_exp_lifetime_label">Thời gian sử dụng (tháng) <span title="Nhập số tháng để hệ thống phân bổ đều chi phí theo từng tháng.">?</span></label>
+            <input type="number" name="estimated_lifetime_months" id="modal_exp_lifetime" min="1" step="1" placeholder="Sử dụng (tháng)">
         </div>
         <div class="form-group">
             <label>Ghi chú</label>
@@ -632,13 +632,16 @@
                 document.getElementById('modal_exp_amount').value = rawData.amount;
                 const lifetimeGroup = document.getElementById('modal_exp_lifetime_group');
                 const lifetimeInput = document.getElementById('modal_exp_lifetime');
+                const lifetimeLabel = document.getElementById('modal_exp_lifetime_label');
                 const typeSelect = document.getElementById('modal_exp_type');
                 function syncExpenseLifetime() {
                     const isEquipment = typeSelect.value === 'equipment';
-                    lifetimeGroup.hidden = !isEquipment;
-                    lifetimeInput.disabled = !isEquipment;
                     lifetimeInput.required = isEquipment;
-                    if (!isEquipment) lifetimeInput.value = '';
+                    lifetimeInput.placeholder = isEquipment ? 'Vòng đời (tháng)' : 'Sử dụng (tháng)';
+                    lifetimeLabel.firstChild.nodeValue = isEquipment ? 'Vòng đời (tháng) ' : 'Thời gian sử dụng (tháng) ';
+                    lifetimeGroup.title = isEquipment
+                        ? 'Số tháng dự kiến sử dụng thiết bị. Chi phí sẽ được chia đều theo tháng để tính khấu hao.'
+                        : 'Số tháng dự kiến sử dụng hoặc hưởng lợi từ chi phí. Để trống nếu tính toàn bộ vào kỳ phát sinh.';
                 }
                 lifetimeInput.value = rawData.estimated_lifetime_months || '';
                 typeSelect.addEventListener('change', syncExpenseLifetime);

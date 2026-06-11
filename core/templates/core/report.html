@@ -88,7 +88,7 @@
                         <small>{{ revenue_collection_rate }}% đã thanh toán</small>
                     </article>
                     <article class="revenue-kpi-card revenue-kpi-card--debt">
-                        <span>Công nợ chưa thu</span>
+                        <span>Khách nợ chưa thu</span>
                         <strong>{{ revenue_uncollected|vnd }}</strong>
                         <small>{{ revenue_uncollected_order_count }} đơn chờ thanh toán</small>
                     </article>
@@ -105,7 +105,7 @@
                     <article class="revenue-kpi-card">
                         <span>Sản phẩm bán chạy</span>
                         <strong>{% if top_revenue_product %}{{ top_revenue_product.product__name }}{% else %}Chưa có dữ liệu{% endif %}</strong>
-                        <small>{% if top_revenue_product %}{{ top_revenue_product.units }} {{ top_revenue_product.product__unit|default:'đơn vị' }} · {{ top_revenue_product.revenue|vnd }} DT{% endif %}</small>
+                        <small>{% if top_revenue_product %}{{ top_revenue_product.units }} {{ top_revenue_product.product__unit|default:'đơn vị' }} · {{ top_revenue_product.revenue|vnd }} doanh thu{% endif %}</small>
                     </article>
                 </div>
 
@@ -488,10 +488,8 @@
                         <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Sản phẩm bán chạy nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.best_product %}{{ ranking_revenue.best_product.orders }} đơn{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.best_product %}{{ ranking_revenue.best_product.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Sản phẩm có số lượng bán ra nhiều nhất trong kỳ bạn chọn.">?</span></div><small>Theo số lượng bán trong kỳ</small></article>
                         <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Khách hàng mua nhiều nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.top_customer %}{{ ranking_revenue.top_customer.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.top_customer %}{{ ranking_revenue.top_customer.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Khách hàng đem lại doanh thu cao nhất. Giao dịch không ghi tên được tính là Khách lẻ.">?</span></div><small>Theo doanh thu trong kỳ</small></article>
                         <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Danh mục doanh thu cao nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.top_category %}{{ ranking_revenue.top_category.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.top_category %}{{ ranking_revenue.top_category.name }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhóm sản phẩm đóng góp doanh thu nhiều nhất trong kỳ.">?</span></div><small>Theo nhóm sản phẩm</small></article>
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Ngày bán nhiều nhất</span><b class="ranking-card-value text-red">{% if ranking_revenue.best_day %}{{ ranking_revenue.best_day.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.best_day %}{{ ranking_revenue.best_day.date|date:"d/m/Y" }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Ngày có doanh thu cao nhất trong kỳ bạn đang xem.">?</span></div><small>Ngày có doanh thu cao nhất</small></article>
                         <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tỷ lệ khách trả ngay</span><b class="ranking-card-value {% if ranking_revenue.paid_ratio.pct >= 80 %}text-green{% else %}text-orange{% endif %}">{% if ranking_revenue.paid_ratio %}{{ ranking_revenue.paid_ratio.pct }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.paid_ratio %}{{ ranking_revenue.paid_ratio.paid }}/{{ ranking_revenue.paid_ratio.total }} đơn{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tỷ lệ khách thanh toán ngay khi mua. Càng cao thì dòng tiền càng khỏe.">?</span></div><small>Trong tổng số đơn</small></article>
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Doanh thu chưa thu được</span><b class="ranking-card-value text-orange">{% if ranking_revenue.unpaid_revenue %}{{ ranking_revenue.unpaid_revenue.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_revenue.unpaid_revenue %}{{ ranking_revenue.unpaid_revenue.count }} đơn{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tổng tiền khách đã mua nhưng chưa trả, cần theo dõi để tránh thất thoát.">?</span></div><small>Tiền khách vẫn còn nợ</small></article>
-                    </div>
+                            
                 </div>
             </section>
             </div>
@@ -1045,7 +1043,7 @@
                 <section class="analytics-card analytics-expense-card">
                 <div class="analytics-card-head">
                     <h2><i data-lucide="bar-chart-3"></i> Phân tích chi phí</h2>
-                    <span>Hover từng cột để xem phân bổ chi phí trong kỳ</span>
+                   
                 </div>
                 <form method="get" class="analytics-profit-controls analytics-local-controls">
                     <input type="hidden" name="start_date" value="{{ start_date|default:'' }}">
@@ -1069,65 +1067,39 @@
                 </form>
 
                 <div class="expense-flow-layout">
-                    <div class="expense-flow-meta">
-                        <span>Kỳ này: {{ expense_period_label }} · Gom theo {{ expense_granularity }}</span>
+                    {% if expense_alert %}
+                    <div class="expense-alert-banner" role="alert">
+                        <i data-lucide="triangle-alert"></i>
+                        <strong>{{ expense_alert }}</strong>
                     </div>
+                    {% endif %}
 
                     <div class="expense-kpi-bar">
                         <article>
                             <span><i data-lucide="receipt-text"></i> Tổng chi phí kỳ này</span>
                             <strong>{{ expense_period_total|vnd }}</strong>
+                            {% if expense_total_change != None %}
                             <small class="{% if expense_total_change and expense_total_change > 0 %}is-bad{% else %}is-good{% endif %}">
-                                {% if expense_total_change != None %}{% if expense_total_change > 0 %}+{% endif %}{{ expense_total_change }}% so {{ expense_previous_label }}{% else %}Chưa có dữ liệu {{ expense_previous_label }}{% endif %}
+                                {% if expense_total_change > 0 %}+{% endif %}{{ expense_total_change_display }}% so {{ expense_previous_label }}
                             </small>
+                            {% endif %}
                         </article>
                         <article>
                             <span><i data-lucide="timer"></i> Chi phí / ngày</span>
                             <strong>{{ expense_per_day|vnd }}</strong>
-                            <small>Tiền cần gánh mỗi ngày. {{ expense_period_day_note }}</small>
+                            <small>{{ expense_period_day_note }}</small>
                         </article>
-                        <article>
-                            <span><i data-lucide="archive"></i> Trong đó khấu hao</span>
-                            <strong>{{ expense_depreciation_total|vnd }}</strong>
-                            <small>Thiết bị phân bổ kỳ này</small>
+                        <article class="expense-ratio-card is-{{ expense_to_revenue_tone }}">
+                            <span><i data-lucide="percent"></i> Chi phí / Doanh thu</span>
+                            <strong>{{ expense_to_revenue_display }}</strong>
+                            <small>{{ expense_to_revenue_note }}</small>
                         </article>
                     </div>
 
                     <section class="expense-flow-block">
-                        <h3><i data-lucide="percent"></i> Tỉ lệ quan trọng</h3>
-                        <div class="expense-ratio-grid">
-                            <article>
-                                <span>Biên lợi nhuận gộp <span class="metric-info" data-tooltip="Doanh thu trừ giá vốn, rồi chia cho doanh thu. Đây là phần còn lại trước khi trả tiền mặt bằng, lương, điện nước và chi phí khác.">?</span></span>
-                                {% if expense_period_revenue %}
-                                    <strong>{{ expense_period_gross_margin_pct }}%</strong>
-                                    <i style="--gauge: {{ expense_period_gross_margin_pct }}%;"></i>
-                                    <small>{{ expense_period_label }}: Doanh thu - Giá vốn / Doanh thu</small>
-                                {% else %}
-                                    <strong>--</strong>
-                                    <i style="--gauge: 0%;"></i>
-                                    <small>{{ expense_period_label }} chưa có doanh thu để tính</small>
-                                {% endif %}
-                            </article>
-                            <article>
-                                <span>Chi phí / Doanh thu <span class="metric-info" data-tooltip="Cứ 100 đồng doanh thu thì cửa hàng đang dùng bao nhiêu đồng để trả giá vốn và chi phí vận hành. Nhỏ hơn 75% thường dễ thở hơn.">?</span></span>
-                                {% if expense_to_revenue_pct != None %}
-                                    <strong>{{ expense_to_revenue_pct }}%</strong>
-                                    <i style="--gauge: {{ expense_to_revenue_pct }}%;"></i>
-                                    <small>{{ expense_to_revenue_note }}</small>
-                                {% else %}
-                                    <strong>--</strong>
-                                    <i style="--gauge: 0%;"></i>
-                                    <small>{{ expense_to_revenue_note }}</small>
-                                {% endif %}
-                            </article>
-                        </div>
-                        <p>Ví dụ: Nếu doanh thu 5tr và chi phí 1,5tr thì chi phí/DT = 30% là lành mạnh. Nếu chi phí vượt doanh thu thì đang lỗ.</p>
-                    </section>
-
-                    <section class="expense-flow-block">
                         <div class="expense-flow-heading">
                             <h3><i data-lucide="layers-3"></i> Cơ cấu chi phí theo kỳ</h3>
-                            <span>Hover từng cột để xem chi tiết</span>
+                            <span>Di chuyển đến từng cột để xem chi tiết phân bổ chi phí</span>
                         </div>
                         <div class="expense-chart-legend" data-expense-legend></div>
                         <div class="analytics-expense-timeline" data-expense-chart>
@@ -1135,7 +1107,9 @@
                             <div class="expense-chart-tooltip" data-expense-chart-tooltip hidden></div>
                             {{ expense_chart_points|json_script:"expense-chart-points" }}
                         </div>
-                        <div class="expense-insight-box">{{ expense_insight }}</div>
+                        {% if expense_insight %}
+                        <div class="expense-insight-box tip-box">{{ expense_insight }}</div>
+                        {% endif %}
                     </section>
 
                     <section class="expense-flow-block">
@@ -1186,39 +1160,6 @@
                             </table>
                         </div>
                     </section>
-
-                    <section class="expense-flow-block">
-                        <h3><i data-lucide="pie-chart"></i> Phân bổ chi phí kỳ này</h3>
-                        <div class="expense-mix-layout">
-                            <div class="expense-donut" data-expense-donut style="{{ expense_donut_style }}">
-                                {% for item in expense_mix_rows %}
-                                <i data-share="{{ item.share }}" data-color-index="{{ item.color_index }}"></i>
-                                {% endfor %}
-                            </div>
-                            <div class="expense-gauge-list">
-                                {% for item in expense_mix_rows %}
-                                <article>
-                                    <span><i class="expense-color-{{ item.color_index }}"></i>{{ item.name|fix_mojibake }}</span>
-                                    <strong>{{ item.share }}%</strong>
-                                    <b style="--bar: {{ item.gauge_width }}%;"></b>
-                                </article>
-                                {% empty %}
-                                <p>Chưa có dữ liệu chi phí trong kỳ.</p>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </section>
-                </div>
-                <div class="ranking-section">
-                    <h3 class="ranking-title">Thông tin xếp hạng</h3>
-                    <div class="ranking-grid">
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Nhóm chi phí lớn nhất</span><b class="ranking-card-value text-orange">{% if ranking_expense.top_group %}{{ ranking_expense.top_group.total|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.top_group %}{{ ranking_expense.top_group.name|fix_mojibake }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhóm chi phí chiếm tỷ trọng cao nhất trong kỳ.">?</span></div><small>Tốn tiền nhiều nhất</small></article>
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Chi phí tăng nhiều nhất</span><b class="ranking-card-value text-orange">{% if ranking_expense.fastest_growing_group %}{% if ranking_expense.fastest_growing_group.change > 0 %}+{% endif %}{{ ranking_expense.fastest_growing_group.change }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.fastest_growing_group %}{{ ranking_expense.fastest_growing_group.name|fix_mojibake }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Nhóm chi phí có mức tăng lớn nhất so với kỳ trước.">?</span></div><small>So với kỳ trước</small></article>
-                        
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Chi phí chưa thanh toán</span><b class="ranking-card-value text-orange">{% if ranking_expense.unpaid_expense %}{{ ranking_expense.unpaid_expense.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.unpaid_expense %}{{ ranking_expense.unpaid_expense.count }} khoản{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tổng tiền còn nợ nhà cung cấp hoặc chi phí chưa thanh toán trong kỳ.">?</span></div><small>Còn nợ nhà cung cấp/chi phí</small></article>
-                        
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Thiết bị đang phân bổ</span><b class="ranking-card-value text-red">{% if ranking_expense.active_depreciation %}{{ ranking_expense.active_depreciation.monthly|vnd }}/tháng{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_expense.active_depreciation %}{{ ranking_expense.active_depreciation.count }} thiết bị{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tổng chi phí thiết bị đang được chia đều mỗi tháng theo vòng đời.">?</span></div><small>Chi phí thiết bị chia theo vòng đời</small></article>
-                    </div>
                 </div>
             </section>
             </div>
@@ -1228,7 +1169,7 @@
                     <div class="cashflow-section-title">
                         <b>1</b>
                         <div>
-                            <h2>Snapshot dòng tiền</h2>
+                            <h2>Tổng quan dòng tiền</h2>
                             <p>Đang có gì trong tay?</p>
                         </div>
                     </div>
@@ -1249,7 +1190,7 @@
                             <em>{% if net_cash_flow < 0 %}↓ Âm kỳ này{% else %}↑ Dương kỳ này{% endif %}</em>
                         </article>
                         <article class="cashflow-kpi-card cashflow-kpi-card--wide">
-                            <span>Cash burn / ngày</span>
+                            <span>Tiền ra trung bình/ngày</span>
                             <strong class="is-danger">{{ cash_burn_per_day|vnd }}</strong>
                             <small>Tốc độ đốt tiền trung bình/ngày</small>
                             <p>Với dòng tiền hiện tại, cửa hàng cần thu về ít nhất <b>{{ cash_burn_per_day|vnd }}/ngày</b> để không âm thêm.</p>
@@ -1354,7 +1295,7 @@
                             <em>{% if cash_conversion_rate >= 90 %}Tốt{% elif cash_conversion_rate >= 60 %}Ổn{% else %}Cần thu nợ{% endif %}</em>
                         </article>
                         <article class="cashflow-kpi-card">
-                            <span>Công nợ chưa thu</span>
+                            <span>Khách nợ chưa thu</span>
                             <strong>{{ revenue_uncollected|vnd }}</strong>
                             <small>{{ revenue_uncollected_order_count }} đơn pending</small>
                             <em>{% if revenue_uncollected %}Cần theo dõi{% else %}Sạch nợ{% endif %}</em>
@@ -1382,28 +1323,22 @@
                     </div>
                     <div class="cashflow-grid cashflow-grid--three">
                         <article class="cashflow-kpi-card">
-                            <span>Chi nhập hàng (COGS cash)</span>
+                            <span>Tiền chi nhập hàng </span>
                             <strong>{{ cash_purchase|vnd }}</strong>
                             <dl><dt>% tổng chi</dt><dd>{{ cash_purchase_share }}%</dd></dl>
                         </article>
                         <article class="cashflow-kpi-card">
-                            <span>Chi vận hành (OPEX cash)</span>
+                            <span>Tiền chi vận hành</span>
                             <strong class="is-danger">{{ cash_expense|vnd }}</strong>
                             <dl><dt>% tổng chi</dt><dd>{{ cash_opex_share }}%</dd></dl>
                         </article>
                         <article class="cashflow-kpi-card">
-                            <span>Chi / đồng doanh thu</span>
+                            <span>Tiền chi / doanh thu</span>
                             <strong class="is-danger">{{ cash_out_revenue_ratio }}đ</strong>
                             <small>Cứ thu 1đ, phải chi {{ cash_out_revenue_ratio }}đ</small>
                             <em>{% if cash_out_revenue_ratio > 1 %}Mất cân bằng nghiêm trọng{% else %}Đang kiểm soát{% endif %}</em>
                         </article>
-                        <article class="cashflow-kpi-card cashflow-kpi-card--wide">
-                            <span>Phân loại chi phí</span>
-                            <dl><dt>Cố định (mặt bằng, lương...)</dt><dd>{{ cash_fixed_expense|vnd }}</dd></dl>
-                            <dl><dt>Biến đổi (NCC, vận chuyển...)</dt><dd>{{ cash_variable_expense|vnd }}</dd></dl>
-                            <dl><dt>Tỷ lệ cố định/tổng</dt><dd>{{ cash_fixed_expense_share }}%</dd></dl>
-                            <p>{% if cash_fixed_expense_share >= 70 %}Chi phí cố định rất cao - khó cắt giảm ngắn hạn. Ưu tiên tăng doanh thu.{% else %}Cơ cấu chi phí còn linh hoạt để điều chỉnh khi doanh thu biến động.{% endif %}</p>
-                        </article>
+                        
                         <article class="cashflow-kpi-card cashflow-kpi-card--wide">
                             <span>Nợ nhà cung cấp chưa trả</span>
                             <strong>{{ payable_debt|vnd }}</strong>
@@ -1416,86 +1351,6 @@
                         </article>
                     </div>
                 </section>
-
-                <section class="analytics-card cashflow-kpi-section">
-                    <div class="cashflow-section-title">
-                        <b>5</b>
-                        <div>
-                            <h2>Xu hướng & dự báo</h2>
-                            <p>Dòng tiền đang đi về đâu? Kỳ tới trông như thế nào?</p>
-                        </div>
-                    </div>
-                    <div class="cashflow-grid cashflow-grid--two">
-                        <article class="cashflow-kpi-card">
-                            <span>Dòng tiền 5 ngày gần nhất</span>
-                            <div class="cashflow-spark">
-                                {% for day in recent_cashflow_days %}
-                                <i class="{% if day.net < 0 %}is-negative{% else %}is-positive{% endif %}" style="height: {{ day.height }}%;"></i>
-                                {% endfor %}
-                            </div>
-                            <small>{% if recent_negative_streak %}Dòng tiền âm liên tục {{ recent_negative_streak }} ngày{% else %}Không có chuỗi âm ở cuối kỳ{% endif %}</small>
-                            <em>{% if recent_negative_streak >= 3 %}Xu hướng xấu đi{% else %}Theo dõi tiếp{% endif %}</em>
-                        </article>
-                        <article class="cashflow-kpi-card">
-                            <span>Dự báo dòng tiền 7 ngày tới</span>
-                            <strong class="{% if cash_forecast_7d < 0 %}is-danger{% else %}is-good{% endif %}">{{ cash_forecast_7d|vnd }}</strong>
-                            <small>Dựa trên burn rate hiện tại + chi cố định đến hạn</small>
-                            <dl><dt>Chi cố định đến hạn</dt><dd>{{ upcoming_payable|vnd }}</dd></dl>
-                            <dl><dt>Burn rate dự kiến</dt><dd>{{ cash_burn_per_day|vnd }}</dd></dl>
-                            <p>{% if cash_forecast_need %}Cần thu về ít nhất <b>{{ cash_forecast_need|vnd }}</b> trong 7 ngày tới để không âm thêm.{% else %}Dự báo ngắn hạn chưa cần bù tiền thêm.{% endif %}</p>
-                        </article>
-                    </div>
-                </section>
-
-                <section class="analytics-card cashflow-kpi-section">
-                    <div class="cashflow-section-title">
-                        <b>6</b>
-                        <div>
-                            <h2>Chỉ số sức khỏe dòng tiền</h2>
-                            <p>Nhìn một chỗ, hiểu ngay cửa hàng đang ở đâu.</p>
-                        </div>
-                    </div>
-                    <div class="cashflow-grid cashflow-grid--four">
-                        <article class="cashflow-kpi-card cashflow-health-card">
-                            <span>Operating cash ratio</span>
-                            <strong class="{% if operating_cash_ratio != None and operating_cash_ratio >= 1 %}is-good{% else %}is-danger{% endif %}">{% if operating_cash_ratio == None %}--{% else %}{{ operating_cash_ratio }}{% endif %}</strong>
-                            <small>Thu / Chi - Ngưỡng an toàn: &gt;1</small>
-                            <em>{% if operating_cash_ratio != None and operating_cash_ratio >= 1 %}An toàn{% else %}Nguy hiểm{% endif %}</em>
-                        </article>
-                        <article class="cashflow-kpi-card cashflow-health-card">
-                            <span>Cash conversion</span>
-                            <strong class="is-good">{{ cash_conversion_rate }}%</strong>
-                            <small>Doanh thu → tiền mặt</small>
-                            <em>{% if cash_conversion_rate >= 90 %}Xuất sắc{% elif cash_conversion_rate >= 60 %}Ổn{% else %}Yếu{% endif %}</em>
-                        </article>
-                        <article class="cashflow-kpi-card cashflow-health-card">
-                            <span>Cash flow margin</span>
-                            <strong class="{% if cash_flow_margin < 0 %}is-danger{% else %}is-good{% endif %}">{{ cash_flow_margin }}%</strong>
-                            <small>Dòng tiền thuần / Doanh thu</small>
-                            <em>{% if cash_flow_margin < 0 %}Mất kiểm soát{% else %}Tích cực{% endif %}</em>
-                        </article>
-                        <article class="cashflow-kpi-card cashflow-health-card">
-                            <span>Runway</span>
-                            <strong class="is-warn">{% if cash_runway_days == None %}Đủ{% else %}~{{ cash_runway_days }} ngày{% endif %}</strong>
-                            <small>Còn bao lâu trước khi cạn tiền</small>
-                            <em>{% if cash_runway_days != None and cash_runway_days < 14 %}Cần hành động{% else %}Ổn{% endif %}</em>
-                        </article>
-                    </div>
-                </section>
-                <div class="ranking-section">
-                    <h3 class="ranking-title">Thông tin xếp hạng</h3>
-                    <div class="ranking-grid">
-                        
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Ngày tiền vào nhiều nhất</span><b class="ranking-card-value text-red">{% if ranking_cashflow.best_inflow_day %}{{ ranking_cashflow.best_inflow_day.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.best_inflow_day %}{{ ranking_cashflow.best_inflow_day.date|date:"d/m/Y" }}{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Ngày thu được nhiều tiền thanh toán nhất trong kỳ.">?</span></div><small>Ngày thu được nhiều nhất</small></article>
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tiền chờ thu</span><b class="ranking-card-value text-orange">{% if ranking_cashflow.receivable %}{{ ranking_cashflow.receivable.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.receivable %}{{ ranking_cashflow.receivable.count }} đơn{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tiền đã bán nhưng chưa thu về từ khách hàng.">?</span></div><small>Khách chưa trả</small></article>
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tiền chờ chi</span><b class="ranking-card-value text-orange">{% if ranking_cashflow.payable %}{{ ranking_cashflow.payable.amount|vnd }}{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.payable %}{{ ranking_cashflow.payable.count }} khoản{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tiền đang nợ nhà cung cấp hoặc chi phí chưa thanh toán.">?</span></div><small>Bạn chưa trả NCC/chi phí</small></article>
-
-                        <article class="ranking-card"><div class="ranking-card-header"><span class="ranking-card-label">Tỷ lệ thu hồi công nợ</span><b class="ranking-card-value {% if ranking_cashflow.collection_rate >= 80 %}text-green{% else %}text-orange{% endif %}">{% if ranking_cashflow.collection_rate != None %}{{ ranking_cashflow.collection_rate }}%{% else %}—{% endif %}</b></div><div class="ranking-card-body"><strong class="ranking-card-main">{% if ranking_cashflow.collection_rate != None %}Đã thu / doanh thu{% else %}Chưa có dữ liệu{% endif %}</strong><span class="ranking-tooltip" data-tip="Tỷ lệ doanh thu trong kỳ đã chuyển thành tiền thực thu.">?</span></div><small>Khả năng thu tiền</small></article>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </section>
 </div>
 <script>
 (function () {
@@ -2359,26 +2214,11 @@
         `).join('');
     }
 
-    function initExpenseDonuts() {
-        document.querySelectorAll('[data-expense-donut]').forEach(donut => {
-            let cursor = 0;
-            const stops = Array.from(donut.querySelectorAll('i')).map(item => {
-                const share = Number(item.dataset.share || 0);
-                const color = EXPENSE_COLORS[(Number(item.dataset.colorIndex || 1) - 1) % EXPENSE_COLORS.length];
-                const stop = `${color} ${cursor}% ${cursor + share}%`;
-                cursor += share;
-                return stop;
-            });
-            donut.style.backgroundImage = `conic-gradient(${stops.length ? stops.join(', ') : '#ead4a2 0% 100%'})`;
-        });
-    }
-
     function initExpenseCharts(root = document) {
         const expenseNode = document.getElementById('expense-chart-points');
         let data = [];
         try { data = JSON.parse(expenseNode?.textContent || '[]'); } catch (error) { data = []; }
         renderExpenseLegend(data);
-        initExpenseDonuts();
         root.querySelectorAll('[data-expense-chart]').forEach(chart => renderExpenseChart(chart, data));
     }
 

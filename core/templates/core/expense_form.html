@@ -53,7 +53,7 @@
                         Nhập nhiều cùng lúc
                         <i data-lucide="arrow-up-right"></i>
                     </a>
-                    <span>Mã GD: #EXP-1203</span>
+
                 </div>
 
                 {% if form.non_field_errors %}
@@ -186,9 +186,9 @@
                         <div class="expense-other-head">
                             <span>#</span>
                             <span>Nhóm chi phí</span>
-                            <span id="expenseNoteHead">Ghi chú</span>
                             <span class="expense-amount-head">Số tiền (VND)</span>
-                            <span class="equipment-head-lifetime" id="equipmentLifetimeHead">Vòng đời<b title="Số tháng dự kiến sử dụng thiết bị. Website sẽ chia đều chi phí mỗi tháng thay vì trừ hết một lần."></b></span>
+                            <span class="equipment-head-lifetime" id="equipmentLifetimeHead">Thời gian sử dụng (tháng)<b title="Số tháng dự kiến sử dụng hoặc hưởng lợi từ chi phí. Ví dụ: trả trước mặt bằng 3 tháng thì nhập 3 để chi phí được chia đều; để trống nếu tính toàn bộ vào kỳ phát sinh."></b></span>
+                            <span id="expenseNoteHead">Ghi chú</span>
                             <span></span>
                         </div>
                         <div class="expense-other-items" id="otherExpenseItems">
@@ -200,12 +200,11 @@
                                     <option value="{{ value }}" {% if row.expense_type == value %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
-                                <input type="text" name="expense_note[]" class="other-expense-note" value="{{ row.note|default:'' }}" placeholder="Ghi chú">
                                 <input type="text" name="expense_amount[]" class="other-expense-amount" inputmode="numeric" value="{{ row.amount|default:'' }}" placeholder="Số tiền">
-                                <label class="equipment-lifetime-field" title="Số tháng dự kiến sử dụng thiết bị. Website sẽ phân bổ chi phí theo tháng để tính khấu hao thay vì trừ toàn bộ một lần.">
-                                    <input type="number" name="expense_estimated_lifetime_months[]" class="equipment-lifetime-input" min="1" step="1" value="{{ row.estimated_lifetime_months|default:'' }}" placeholder="Vòng đời (tháng)">
-                                    <span>?</span>
+                                <label class="equipment-lifetime-field">
+                                    <input type="number" name="expense_estimated_lifetime_months[]" class="equipment-lifetime-input" min="1" step="1" value="{{ row.estimated_lifetime_months|default:'' }}" placeholder="Sử dụng (tháng)" aria-label="Thời gian sử dụng theo tháng">
                                 </label>
+                                <input type="text" name="expense_note[]" class="other-expense-note" value="{{ row.note|default:'' }}" placeholder="Ghi chú">
                                 <input type="text" name="expense_equipment_memo[]" class="equipment-note-row" value="{{ row.equipment_memo|default:'' }}" placeholder="Ghi chú thêm cho thiết bị (không bắt buộc)">
                                 <button type="button" class="sale-remove-row" aria-label="Xóa chi phí">
                                     <i data-lucide="trash-2"></i>
@@ -296,12 +295,11 @@
             <option value="{{ value }}">{{ label }}</option>
             {% endfor %}
         </select>
-        <input type="text" name="expense_note[]" class="other-expense-note" placeholder="Ghi chú">
         <input type="text" name="expense_amount[]" class="other-expense-amount" inputmode="numeric" placeholder="Số tiền">
-        <label class="equipment-lifetime-field" title="Số tháng dự kiến sử dụng thiết bị. Website sẽ phân bổ chi phí theo tháng để tính khấu hao thay vì trừ toàn bộ một lần.">
-            <input type="number" name="expense_estimated_lifetime_months[]" class="equipment-lifetime-input" min="1" step="1" placeholder="Vòng đời (tháng)">
-            <span>?</span>
+        <label class="equipment-lifetime-field">
+            <input type="number" name="expense_estimated_lifetime_months[]" class="equipment-lifetime-input" min="1" step="1" placeholder="Sử dụng (tháng)" aria-label="Thời gian sử dụng theo tháng">
         </label>
+        <input type="text" name="expense_note[]" class="other-expense-note" placeholder="Ghi chú">
         <input type="text" name="expense_equipment_memo[]" class="equipment-note-row" placeholder="Ghi chú thêm cho thiết bị (không bắt buộc)">
         <button type="button" class="sale-remove-row" aria-label="Xóa chi phí">
             <i data-lucide="trash-2"></i>
@@ -481,6 +479,14 @@
         return '';
     }
 
+    function showProductToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'pixiu-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        window.setTimeout(() => toast.remove(), 4000);
+    }
+
     // ── Debt field sync — dùng chung cho cả 2 section ──────────────────────
 
     function syncOneDebtField(paymentEl, debtFieldEl, dueDateEl, isActiveSection) {
@@ -543,12 +549,13 @@
     function updateOtherTotals() {
         let total = 0;
         const rows = otherItems.querySelectorAll('.expense-other-row');
-        const hasEquipment = Array.from(rows).some(row => row.querySelector('.other-expense-type')?.value === 'equipment');
         const allEquipment = rows.length > 0 && Array.from(rows).every(row => row.querySelector('.other-expense-type')?.value === 'equipment');
-        const head = document.querySelector('.expense-other-head');
         const noteHead = document.getElementById('expenseNoteHead');
-        if (head) head.classList.toggle('has-equipment-lifetime', hasEquipment);
-        if (noteHead) noteHead.textContent = allEquipment ? 'Tên thiết bị' : (hasEquipment ? 'Tên thiết bị / Ghi chú' : 'Ghi chú');
+        const lifetimeHead = document.getElementById('equipmentLifetimeHead');
+        if (noteHead) noteHead.textContent = allEquipment ? 'Tên thiết bị' : 'Ghi chú';
+        if (lifetimeHead) {
+            lifetimeHead.childNodes[0].nodeValue = allEquipment ? 'Vòng đời (tháng)' : 'Thời gian sử dụng (tháng)';
+        }
         rows.forEach((row, index) => {
             const indexEl = row.querySelector('.sale-item-index');
             if (indexEl) indexEl.textContent = index + 1;
@@ -618,14 +625,17 @@
             const isEquipment = type.value === 'equipment';
             row.classList.toggle('has-equipment-lifetime', isEquipment);
             lifetimeInput.required = isEquipment;
+            lifetimeInput.placeholder = isEquipment ? 'Vòng đời (tháng)' : 'Sử dụng (tháng)';
+            lifetimeInput.setAttribute('aria-label', isEquipment ? 'Vòng đời thiết bị theo tháng' : 'Thời gian sử dụng theo tháng');
             noteInput.placeholder = isEquipment ? 'Tên thiết bị' : 'Ghi chú';
             noteInput.title = isEquipment ? 'Nhập tên thiết bị để theo dõi ở tab Thiết bị.' : '';
             noteInput.required = isEquipment;
             if (equipmentMemo) {
                 equipmentMemo.disabled = !isEquipment;
-                if (!isEquipment) equipmentMemo.value = '';
+                if (!isEquipment) {
+                    equipmentMemo.value = '';
+                }
             }
-            if (!isEquipment) lifetimeInput.value = '';
         }
 
         amount.addEventListener('input', () => { formatMoneyInput(amount); updateTotals(); });
@@ -893,6 +903,7 @@
         nameInput.classList.remove('is-visible');
         nameInput.disabled = true;
         closeProductModal();
+        showProductToast(result.message);
         updateTotals();
     }
 

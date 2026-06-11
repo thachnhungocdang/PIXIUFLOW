@@ -1,78 +1,10 @@
-﻿@media (max-width: 1180px) {
-    .metric-grid,
-    .dashboard-grid,
-    .payment-alert-grid,
-    .analytics-content {
-        grid-template-columns: 1fr;
-    }
+/* ═══════════════════════════════════════════════════════════════════
+   responsive.css — Pixiu Flow
+   Unified media queries and responsive layouts
+   ═══════════════════════════════════════════════════════════════════ */
 
-    .payment-alert-head,
-    .payment-alert-item {
-        grid-template-columns: 1fr;
-    }
-
-    .payment-alert-head {
-        display: grid;
-    }
-
-    .payment-alert-actions,
-    .payment-warning-form {
-        justify-content: flex-start;
-    }
-
-    .analytics-topbar {
-        grid-template-columns: 1fr;
-        align-items: stretch;
-        padding: 18px 24px;
-    }
-
-    .analytics-filters {
-        flex-wrap: wrap;
-    }
-
-    .analytics-rank h2 {
-        margin-top: 0;
-    }
-
-    .chart-panel {
-        min-height: auto;
-    }
-
-    .dashboard-side {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .insight-card {
-        grid-column: 1 / -1;
-    }
-}
-
-@media (max-width: 900px) {
-    .history-summary {
-        grid-template-columns: 1fr;
-    }
-
-    .history-toolbar {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .history-primary-action {
-        width: 100%;
-    }
-
-    .history-actions-group {
-        flex-direction: column;
-        width: 100%;
-    }
-
-    .history-actions-group .history-primary-action {
-        width: 100%;
-    }
-}
-
-@media (max-width: 1360px) and (min-width: 1025px) {
+/* --- Tablet / Smaller Desktop (<= 1360px) --- */
+@media (max-width: 1360px) {
     .mobile-topbar {
         display: flex;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
@@ -96,6 +28,7 @@
         width: 100%;
     }
 
+    /* Transaction Layout Compact Override */
     .transaction-content {
         padding: 22px 28px 72px;
     }
@@ -153,7 +86,7 @@
 
     .expense-other-head,
     .expense-other-row {
-        grid-template-columns: 34px minmax(220px, 0.95fr) minmax(180px, 0.75fr) minmax(260px, 1.25fr) 32px;
+        grid-template-columns: 34px minmax(220px, 0.95fr) minmax(260px, 1.25fr) minmax(180px, 0.75fr) 32px;
         gap: 10px;
     }
 
@@ -174,7 +107,59 @@
     }
 }
 
+
+/* --- Small Tablet / Large Mobile (<= 1180px) --- */
 @media (max-width: 1180px) {
+    /* Dashboard & Analytics Layout */
+    .metric-grid,
+    .dashboard-grid,
+    .payment-alert-grid,
+    .analytics-content {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-alert-head,
+    .payment-alert-item {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-alert-head {
+        display: grid;
+    }
+
+    .payment-alert-actions,
+    .payment-warning-form {
+        justify-content: flex-start;
+    }
+
+    .analytics-topbar {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        padding: 18px 24px;
+    }
+
+    .analytics-filters {
+        flex-wrap: wrap;
+    }
+
+    .analytics-rank h2 {
+        margin-top: 0;
+    }
+
+    .chart-panel {
+        min-height: auto;
+    }
+
+    .dashboard-side {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .insight-card {
+        grid-column: 1 / -1;
+    }
+
+    /* Bulk Toolbar & Footer */
     .bulk-toolbar,
     .bulk-footer {
         grid-template-columns: 1fr;
@@ -196,9 +181,8 @@
     .bulk-footer div {
         min-width: 220px;
     }
-}
 
-@media (max-width: 1180px) {
+    /* Transactions Layout Normal Override */
     .transaction-layout {
         grid-template-columns: 1fr;
         max-width: none;
@@ -225,31 +209,34 @@
     }
 }
 
-@media (max-width: 1024px) {
-    .mobile-topbar {
-        display: flex;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+
+/* --- Mobile Breakpoint 1 (<= 900px) --- */
+@media (max-width: 900px) {
+    .history-summary {
+        grid-template-columns: 1fr;
     }
 
-    .sidebar-collapse-toggle {
-        display: none !important;
+    .history-toolbar {
+        align-items: stretch;
+        flex-direction: column;
     }
 
-    .sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
+    .history-primary-action {
+        width: 100%;
     }
 
-    .sidebar.sidebar-open {
-        transform: translateX(0);
+    .history-actions-group {
+        flex-direction: column;
+        width: 100%;
     }
 
-    .main-content {
-        margin-left: 0;
+    .history-actions-group .history-primary-action {
         width: 100%;
     }
 }
 
+
+/* --- Mobile Breakpoint 2 (<= 760px) --- */
 @media (max-width: 760px) {
     .dashboard-topbar,
     .dashboard-footer,
@@ -339,6 +326,7 @@
         display: none;
     }
 
+    /* Stack items vertically on very small screens */
     .expense-other-row .sale-item-index,
     .expense-other-row .other-expense-type,
     .expense-other-row .other-expense-note,
@@ -393,11 +381,9 @@
         padding-right: 18px;
     }
 
-    .bulk-content {
-        padding: 22px 18px 70px;
-    }
-
-    .product-create-content {
+    .bulk-content,
+    .product-create-content,
+    .analytics-content {
         padding: 22px 18px 70px;
     }
 
@@ -415,10 +401,6 @@
     .product-form-footer a,
     .product-form-footer button {
         width: 100%;
-    }
-
-    .analytics-content {
-        padding: 22px 18px 70px;
     }
 
     .analytics-card {

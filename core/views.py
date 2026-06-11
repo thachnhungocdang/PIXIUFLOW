@@ -14,17 +14,47 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.models import User
 from .models import Product, Purchase, Sale, Expense, OpeningStock, Category
 from .forms import ProductForm, PurchaseForm, SaleForm, ExpenseForm
+from .utils import generate_product_sku
 from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from django.shortcuts import render, redirect
 
 UNCATEGORIZED_CATEGORY_LABEL = '\u0043\u0048\u01af\u0041 \u0043\u00d3 \u0044\u0041\u004e\u0048 \u004d\u1ee4\u0043 \u0043\u1ea4\u0050 1'
 PAYMENT_WARNING_DAYS = 7
+EXPENSE_RATIO_ATTENTION_THRESHOLD = Decimal('75')
+EXPENSE_RATIO_LOSS_THRESHOLD = Decimal('100')
+EXPENSE_CATEGORY_DOMINANCE_THRESHOLD = Decimal('50')
+EXPENSE_SPIKE_MULTIPLIER = Decimal('3')
+EXPENSE_DELTA_HIGH_THRESHOLD = Decimal('50')
 
 def for_user(model, user):
     if not user or not user.is_authenticated:
         return model.objects.none()
     return model.objects.filter(user=user)
+
+
+def expenses_for_user(user):
+    expenses = for_user(Expense, user)
+    if not user or not user.is_authenticated:
+        return expenses
+
+    owner_ids = list(
+        Expense.objects.exclude(user__isnull=True)
+        .order_by()
+        .values_list('user_id', flat=True)
+        .distinct()[:2]
+    )
+    if owner_ids == [user.id]:
+        return Expense.objects.filter(Q(user=user) | Q(user__isnull=True))
+    return expenses
+
+
+@login_required
+def preview_product_sku(request):
+    category = request.GET.get("category", "").strip()
+    return JsonResponse({
+        "sku": generate_product_sku(request.user, category or "SP"),
+    })
 
 
 def set_user(instance, user):
@@ -68,10 +98,10 @@ def recognized_expense_summary(start_date=None, end_date=None, user=None):
     by_type = {}
     by_month = {}
 
-    expenses = for_user(Expense, user) if user is not None else Expense.objects.all()
+    expenses = expenses_for_user(user) if user is not None else Expense.objects.all()
     for expense in expenses:
         amount = Decimal(expense.amount or 0)
-        if expense.expense_type == Expense.EXPENSE_TYPE_EQUIPMENT and expense.estimated_lifetime_months:
+        if expense.estimated_lifetime_months:
             depreciation_start = month_start_date(expense.date)
             depreciation_end = add_months_date(depreciation_start, expense.estimated_lifetime_months - 1)
             overlap_start = max(depreciation_start, period_start_month or depreciation_start)
@@ -186,24 +216,21 @@ def cash_flow_summary(start_date=None, end_date=None, user=None):
 def purchase_payment_summary(purchases, today=None):
     today = today or timezone.now().date()
     purchase_list = list(purchases)
-    debt_lots = [
+    debt_purchases = [
         purchase for purchase in purchase_list
         if purchase.payment_method == Purchase.PAYMENT_METHOD_DEBT
     ]
-    if not debt_lots:
+    if not debt_purchases:
         latest = purchase_list[0] if purchase_list else None
         return {
             'key': latest.payment_method if latest else 'none',
             'label': 'Đã thanh toán' if latest else 'Chưa theo dõi',
-            'detail': '',
             'due_date': None,
-            'count': 0,
         }
 
-    debt_lots.sort(key=lambda purchase: purchase.payment_due_date or today)
-    due_lot = debt_lots[0]
-    due_date = due_lot.payment_due_date
-    total_debt = sum((purchase.total_amount or Decimal('0')) for purchase in debt_lots)
+    debt_purchases.sort(key=lambda purchase: purchase.payment_due_date or today)
+    due_purchase = debt_purchases[0]
+    due_date = due_purchase.payment_due_date
     if due_date and due_date < today:
         key = 'overdue'
         label = 'Quá hạn thanh toán'
@@ -217,9 +244,7 @@ def purchase_payment_summary(purchases, today=None):
     return {
         'key': key,
         'label': label,
-        'detail': f"{len(debt_lots)} lô - {total_debt:,.0f} VND".replace(',', '.'),
         'due_date': due_date,
-        'count': len(debt_lots),
     }
 
 
@@ -287,24 +312,24 @@ def build_payment_alerts(warning_days=None, limit=None, user=None):
             'due_date': sale.payment_due_date,
             'amount': sale.total_amount,
             'status': status,
-            'url': f"/transactions/history/?type=income&q=SP-{sale.product_id:03d}",
+            'url': f"/transactions/history/?type=income&q={quote(sale.product.sku)}",
         })
 
     purchase_payment_alerts = purchases.filter(
         payment_method=Purchase.PAYMENT_METHOD_DEBT
     ).filter(Q(payment_due_date__isnull=True) | Q(payment_due_date__lte=payment_warning_until))
-    for lot in purchase_payment_alerts.order_by('payment_due_date', '-created_at'):
-        status = transaction_payment_status(lot.payment_method, lot.payment_due_date, today)
+    for purchase in purchase_payment_alerts.order_by('payment_due_date', '-created_at'):
+        status = transaction_payment_status(purchase.payment_method, purchase.payment_due_date, today)
         supplier_alerts.append({
             'kind': 'purchase',
-            'id': lot.id,
-            'title': lot.supplier_name or 'Nhà cung cấp',
-            'detail': f"LOT-{lot.date.year}-{lot.id:03d} - {lot.product.name}",
-            'subtitle': f"{lot.product.name} - LOT-{lot.date.year}-{lot.id:03d}",
-            'due_date': lot.payment_due_date,
-            'amount': lot.total_amount,
+            'id': purchase.id,
+            'title': purchase.supplier_name or 'Nhà cung cấp',
+            'detail': purchase.product.name,
+            'subtitle': purchase.product.name,
+            'due_date': purchase.payment_due_date,
+            'amount': purchase.total_amount,
             'status': status,
-            'url': f"/transactions/history/?type=purchase&q=LOT-{lot.date.year}-{lot.id:03d}",
+            'url': f"/transactions/history/?type=purchase&q={quote(purchase.product.name)}",
         })
 
     expense_payment_alerts = expenses.filter(
@@ -413,13 +438,12 @@ def setup_products_view(request):
         sell_prices = request.POST.getlist('price_sell[]')
         unit_costs = request.POST.getlist('estimated_unit_cost[]')
         quantities = request.POST.getlist('quantity[]')
-        stock_dates = request.POST.getlist('stock_date[]')
         alert_thresholds = request.POST.getlist('alert_threshold[]')
         confirmations = request.POST.getlist('confirm_opening_change[]')
         delete_opening_flags = request.POST.getlist('delete_opening_stock[]')
         max_rows = max(
             len(product_ids), len(names), len(categories), len(units), len(sell_prices),
-            len(unit_costs), len(quantities), len(stock_dates), len(alert_thresholds), len(confirmations),
+            len(unit_costs), len(quantities), len(alert_thresholds), len(confirmations),
             len(delete_opening_flags), 0
         )
 
@@ -432,7 +456,6 @@ def setup_products_view(request):
                 'price_sell': sell_prices[index].strip() if index < len(sell_prices) else '',
                 'estimated_unit_cost': unit_costs[index].strip() if index < len(unit_costs) else '',
                 'quantity': quantities[index].strip() if index < len(quantities) else '',
-                'stock_date': stock_dates[index].strip() if index < len(stock_dates) else '',
                 'alert_threshold': alert_thresholds[index].strip() if index < len(alert_thresholds) else '',
                 'confirm_opening_change': confirmations[index] if index < len(confirmations) else '0',
                 'delete_opening_stock': delete_opening_flags[index] if index < len(delete_opening_flags) else '0',
@@ -446,7 +469,6 @@ def setup_products_view(request):
                     'price_sell': '',
                     'estimated_unit_cost': '',
                     'quantity': '',
-                    'stock_date': '',
                     'alert_threshold': '',
                     'confirm_opening_change': '0',
                     'delete_opening_stock': '0',
@@ -519,17 +541,6 @@ def setup_products_view(request):
                 errors.append(f"{row_label}: Giá vốn ước tính phải lớn hơn 0.")
                 continue
 
-            stock_date_value = None
-            if row['stock_date']:
-                try:
-                    stock_date_value = datetime.strptime(row['stock_date'], '%Y-%m-%d').date()
-                except ValueError:
-                    errors.append(f"{row_label}: Ngày nhập kho ban đầu không hợp lệ.")
-                    continue
-                if stock_date_value > timezone.now().date():
-                    errors.append(f"{row_label}: Ngày nhập kho ban đầu không được ở tương lai.")
-                    continue
-
             try:
                 alert_threshold = int(row['alert_threshold'] or '10')
             except ValueError:
@@ -544,11 +555,9 @@ def setup_products_view(request):
                 existing_opening_stocks[0].estimated_unit_cost
                 if existing_opening_stocks else Decimal('0')
             )
-            current_stock_date = existing_opening_stocks[0].stock_date if existing_opening_stocks else None
             opening_changed = (
                 quantity != current_quantity
                 or ((quantity > 0 or current_quantity > 0) and estimated_unit_cost != current_cost)
-                or stock_date_value != current_stock_date
             )
             if has_transactions and opening_changed and row['confirm_opening_change'] != '1':
                 errors.append(
@@ -561,7 +570,6 @@ def setup_products_view(request):
             row['price_sell_value'] = price_sell
             row['quantity_value'] = quantity
             row['estimated_unit_cost_value'] = estimated_unit_cost
-            row['stock_date_value'] = stock_date_value
             row['alert_threshold_value'] = alert_threshold
             row['existing_opening_stocks'] = existing_opening_stocks
             row['delete_opening_stock_value'] = False
@@ -608,7 +616,6 @@ def setup_products_view(request):
                         opening_stock = existing_opening_stocks[0]
                         opening_stock.quantity = row['quantity_value']
                         opening_stock.estimated_unit_cost = row['estimated_unit_cost_value']
-                        opening_stock.stock_date = row['stock_date_value']
                         opening_stock.save()
                         for extra_stock in existing_opening_stocks[1:]:
                             extra_stock.delete()
@@ -618,7 +625,6 @@ def setup_products_view(request):
                             product=product,
                             quantity=row['quantity_value'],
                             estimated_unit_cost=row['estimated_unit_cost_value'],
-                            stock_date=row['stock_date_value'],
                             note='Hàng ban đầu khai báo khi thiết lập sản phẩm.',
                         )
 
@@ -635,7 +641,6 @@ def setup_products_view(request):
                 'price_sell': product.price_sell,
                 'quantity': opening_stock.quantity,
                 'estimated_unit_cost': opening_stock.estimated_unit_cost,
-                'stock_date': opening_stock.stock_date.isoformat() if opening_stock.stock_date else '',
                 'alert_threshold': product.alert_threshold,
                 'has_product_transactions': has_transactions,
                 'has_opening_stock': True,
@@ -653,7 +658,6 @@ def setup_products_view(request):
                 'price_sell': '',
                 'quantity': '',
                 'estimated_unit_cost': '',
-                'stock_date': '',
                 'alert_threshold': '',
                 'has_product_transactions': False,
                 'has_opening_stock': False,
@@ -734,7 +738,6 @@ def inventory_view(request):
         .annotate(total_value=Sum('total_amount'), purchase_count=Count('id'))
         .order_by('-total_value')
     )
-    recent_lots = for_user(Purchase, request.user).select_related('product').order_by('-date', '-created_at')[:5]
     today = timezone.now().date()
     alerts = build_payment_alerts(payment_warning_days(request), limit=4, user=request.user)
     customer_payment_alerts = alerts['customer_payment_alerts']
@@ -788,7 +791,7 @@ def inventory_view(request):
         margin = None
         if product.price_buy_latest and product.price_sell and product.price_buy_latest > 0 and product.price_sell > 0:
             margin = round(((product.price_sell - product.price_buy_latest) / product.price_buy_latest) * 100)
-        recent_product_lots = list(product.purchases.order_by('-date', '-created_at')[:3])
+        recent_product_purchases = list(product.purchases.order_by('-date', '-created_at')[:3])
         payment_summary = purchase_payment_summary(
             product.purchases.order_by('-date', '-created_at'),
             today,
@@ -803,7 +806,7 @@ def inventory_view(request):
             'category_path': category_path,
             'sale_price_state': sale_price_state,
             'margin': margin,
-            'recent_lots': recent_product_lots,
+            'recent_purchases': recent_product_purchases,
             'payment_summary': payment_summary,
             'stock_bar_percent': stock_bar_percent,
         })
@@ -847,17 +850,10 @@ def inventory_view(request):
 
     supplier_rows = []
     for supplier in supplier_stats:
-        latest_lot = (
-            for_user(Purchase, request.user).select_related('product')
-            .filter(supplier_name=supplier['supplier_name'])
-            .order_by('-date', '-created_at')
-            .first()
-        )
         supplier_rows.append({
             'name': supplier['supplier_name'],
             'purchase_count': supplier['purchase_count'],
             'total_value': supplier['total_value'] or Decimal('0'),
-            'latest_lot': latest_lot,
             'payment_summary': purchase_payment_summary(
                 for_user(Purchase, request.user).select_related('product')
                 .filter(supplier_name=supplier['supplier_name'])
@@ -936,7 +932,7 @@ def inventory_view(request):
         {
             'id': str(row['product'].id),
             'name': row['product'].name,
-            'sku': f"SP-{row['product'].id:03d}",
+            'sku': row['product'].sku,
             'category': row['category_path'] if row['category_path'] != UNCATEGORIZED_CATEGORY_LABEL else '',
             'category_parts': row['category_parts'],
             'unit': row['product'].unit,
@@ -947,23 +943,21 @@ def inventory_view(request):
             'price_sell': int(row['product'].price_sell or 0),
             'has_purchase_transactions': row['product'].id in purchase_product_ids,
             'can_edit_price_buy_latest': row['product'].id not in purchase_product_ids,
-            'purchase_history_url': f"/transactions/history/?type=purchase&q={quote(row['product'].name)}",
             'sale_price_state': row['sale_price_state'],
             'margin': row['margin'],
             'status': row['product'].stock_status_label,
             'purchase_url': f"/expenses/create/?mode=purchase&product_id={row['product'].id}",
             'edit_url': f"/products/create/?product_id={row['product'].id}",
-            'recent_lots': [
+            'recent_purchases': [
                 {
-                    'code': f"LOT-{lot.date.year}-{lot.id:03d}",
-                    'date': lot.date.strftime('%d/%m/%Y'),
-                    'quantity': lot.quantity,
-                    'supplier': lot.supplier_name or '---',
-                    'payment_label': purchase_payment_summary([lot], today)['label'],
-                    'payment_key': purchase_payment_summary([lot], today)['key'],
-                    'payment_due_date': lot.payment_due_date.strftime('%d/%m/%Y') if lot.payment_due_date else '',
+                    'date': purchase.date.strftime('%d/%m/%Y'),
+                    'quantity': purchase.quantity,
+                    'supplier': purchase.supplier_name or '---',
+                    'payment_label': purchase_payment_summary([purchase], today)['label'],
+                    'payment_key': purchase_payment_summary([purchase], today)['key'],
+                    'payment_due_date': purchase.payment_due_date.strftime('%d/%m/%Y') if purchase.payment_due_date else '',
                 }
-                for lot in row['recent_lots']
+                for purchase in row['recent_purchases']
             ],
         }
         for row in product_rows
@@ -974,6 +968,8 @@ def inventory_view(request):
         'product_rows': product_rows,
         'product_details': product_details,
         'total_products': active_products.count(),
+        'total_stock': total_stock,
+        'inventory_value': inventory_value,
         'alert_count': alert_count,
         'products_missing_stock': products_missing_stock,
         'products_missing_stock_count': products_missing_stock.count(),
@@ -992,7 +988,6 @@ def inventory_view(request):
         'equipment_remaining_value': total_equipment_remaining,
         'top_supplier': top_supplier,
         'top_profit_categories': top_profit_categories,
-        'recent_lots': recent_lots,
         'customer_payment_alerts': customer_payment_alerts,
         'supplier_payment_alerts': supplier_payment_alerts,
         'supplier_debt_count': supplier_debt_count,
@@ -1428,7 +1423,13 @@ def sale_new_product_ajax_view(request):
     if category_path:
         message += f" Danh mục: {category_path}."
 
-    return JsonResponse({'ok': True, 'product_id': product.id, 'message': message})
+    return JsonResponse({
+        'ok': True,
+        'product_id': product.id,
+        'product_name': product.name,
+        'sku': product.sku,
+        'message': f"{message} Mã: {product.sku}.",
+    })
 
 
 
@@ -1499,7 +1500,8 @@ def expense_new_product_ajax_view(request):
         'ok': True,
         'product_id': product.id,
         'product_name': product.name,
-        'message': f"Đã {action} '{product.name}' cho dòng nhập hàng.",
+        'sku': product.sku,
+        'message': f"Đã {action} '{product.name}' · Mã: {product.sku}.",
     })
 
 
@@ -1635,7 +1637,7 @@ def product_create_view(request):
             if next_target == 'expense_purchase':
                 return redirect(f'/expenses/create/?mode=purchase&product_id={product.id}')
             product.refresh_from_db()
-            if product_needs_followup(product):
+            if not product_instance:
                 return redirect(f'/inventory/?created={product.id}')
             return redirect('/inventory/')
     else:
@@ -2241,16 +2243,20 @@ def expense_create_view(request):
                     expense_errors.append(f"{row_label}: Số tiền không hợp lệ.")
                     continue
                 lifetime_months = None
-                if row['expense_type'] == Expense.EXPENSE_TYPE_EQUIPMENT:
+                if row['estimated_lifetime_months']:
                     try:
-                        lifetime_months = int(row['estimated_lifetime_months'] or '0')
+                        lifetime_months = int(row['estimated_lifetime_months'])
                     except ValueError:
                         lifetime_months = 0
+                    if lifetime_months <= 0:
+                        expense_errors.append(f"{row_label}: Thời gian sử dụng phải lớn hơn 0 tháng.")
+                        continue
+                if row['expense_type'] == Expense.EXPENSE_TYPE_EQUIPMENT:
                     if not row['note'].strip():
                         expense_errors.append(f"{row_label}: Nhập tên thiết bị.")
                         continue
-                    if lifetime_months <= 0:
-                        expense_errors.append(f"{row_label}: Nhập estimated lifetime của thiết bị theo số tháng.")
+                    if not lifetime_months:
+                        expense_errors.append(f"{row_label}: Nhập vòng đời của thiết bị theo số tháng.")
                         continue
                     expense_note = row['note'].strip()
                     if row['equipment_memo'].strip():
@@ -2644,7 +2650,7 @@ def bulk_transaction_create_view(request):
                         if not row['note'].strip():
                             errors.append("Nhập tên thiết bị.")
                         if lifetime_months <= 0:
-                            errors.append("Nhập estimated lifetime của thiết bị theo số tháng.")
+                            errors.append("Nhập vòng đời của thiết bị theo số tháng.")
                     record = Expense(
                         user=request.user,
                         date=row_date,
@@ -2807,11 +2813,10 @@ def transaction_history_view(request):
                 'saved_at': sale.updated_at or sale.created_at,
                 'partner': sale.customer_name or 'Khách lẻ',
                 'description': sale.product.name,
-                'code': f'SP-{sale.product_id:03d}',
+                'code': sale.product.sku,
                 'quantity': sale.quantity,
                 'amount': sale.total_amount,
                 'payment_status': transaction_payment_status(sale.payment_method, sale.payment_due_date, today),
-                'lot_code': '',
                 'edit_url': f'/transactions/sales/{sale.id}/edit/',
                 'delete_url': f'/transactions/sales/{sale.id}/delete/',
                 'raw': json.dumps({
@@ -2828,7 +2833,6 @@ def transaction_history_view(request):
 
     if tx_type in ('all', 'purchase'):
         for purchase in user_purchases.select_related('product'):
-            lot_code = f'LOT-{purchase.date.year}-{purchase.id:03d}'
             transactions.append({
                 'id': purchase.id,
                 'kind': 'purchase',
@@ -2839,8 +2843,7 @@ def transaction_history_view(request):
                 'saved_at': purchase.updated_at or purchase.created_at,
                 'partner': purchase.supplier_name or 'Nhà cung cấp',
                 'description': purchase.product.name,
-                'code': lot_code,
-                'lot_code': lot_code,
+                'code': purchase.product.sku,
                 'quantity': purchase.quantity,
                 'amount': -purchase.total_amount,
                 'payment_status': transaction_payment_status(purchase.payment_method, purchase.payment_due_date, today),
@@ -2874,7 +2877,6 @@ def transaction_history_view(request):
                 'quantity': 1,
                 'amount': -expense.amount,
                 'payment_status': transaction_payment_status(expense.payment_method, expense.payment_due_date, today),
-                'lot_code': '',
                 'edit_url': f'/transactions/expenses/{expense.id}/edit/',
                 'delete_url': f'/transactions/expenses/{expense.id}/delete/',
                 'raw': json.dumps({
@@ -2895,7 +2897,6 @@ def transaction_history_view(request):
             or query_normalized in item['partner'].lower()
             or query_normalized in item['label'].lower()
             or query_normalized in item['code'].lower()
-            or query_normalized in item.get('lot_code', '').lower()
             or query_normalized in item['payment_status']['label'].lower()
             or query_normalized in item['payment_status']['key'].lower()
             or query_normalized in str(abs(item['amount']))
@@ -3679,7 +3680,7 @@ def report_view(request):
     user_products = for_user(Product, request.user)
     user_sales = for_user(Sale, request.user)
     user_purchases = for_user(Purchase, request.user)
-    user_expenses = for_user(Expense, request.user)
+    user_expenses = expenses_for_user(request.user)
 
     purchases = user_purchases
     sales = user_sales
@@ -3782,7 +3783,7 @@ def report_view(request):
 
     for expense in all_expenses:
         amount = Decimal(expense.amount or 0)
-        if expense.expense_type == Expense.EXPENSE_TYPE_EQUIPMENT and expense.estimated_lifetime_months:
+        if expense.estimated_lifetime_months:
             depreciation_start = month_start(expense.date)
             depreciation_end = add_months(depreciation_start, expense.estimated_lifetime_months - 1)
             period_start = month_start(report_start_date) if report_start_date else depreciation_start
@@ -4643,7 +4644,7 @@ def report_view(request):
     for expense in all_expenses:
         amount = Decimal(expense.amount or 0)
         label = expense_labels.get(expense.expense_type, expense.expense_type)
-        if expense.expense_type == Expense.EXPENSE_TYPE_EQUIPMENT and expense.estimated_lifetime_months:
+        if expense.estimated_lifetime_months:
             depreciation_start = month_start(expense.date)
             depreciation_end = add_months(depreciation_start, expense.estimated_lifetime_months - 1)
             period_start = month_start(report_start_date) if report_start_date else depreciation_start
@@ -4695,7 +4696,12 @@ def report_view(request):
     expense_depreciation_total = expense_period_summary['by_type'].get(Expense.EXPENSE_TYPE_EQUIPMENT, Decimal('0'))
     previous_cogs = cogs_summary(expense_previous_start, expense_previous_end, request.user)['total']
     previous_expense_summary = recognized_expense_summary(expense_previous_start, expense_previous_end, request.user)
-    expense_total_change = report_percent_change(expense_period_total, previous_cogs + previous_expense_summary['total'])
+    expense_previous_total = previous_cogs + previous_expense_summary['total']
+    expense_total_change = report_percent_change(expense_period_total, expense_previous_total)
+    expense_total_change_display = (
+        str(round(expense_total_change, 1)).replace('.', ',')
+        if expense_total_change is not None else None
+    )
     previous_expense_by_key = {'cogs': previous_cogs, **previous_expense_summary['by_type']}
     current_expense_by_key = {'cogs': expense_period_cogs, **expense_period_summary['by_type']}
     comparison_keys = sorted(
@@ -4715,19 +4721,39 @@ def report_view(request):
         if not current_total and not previous_total:
             continue
         row_change = report_percent_change(current_total, previous_total)
+        is_allocated = key == Expense.EXPENSE_TYPE_EQUIPMENT
+        if is_allocated:
+            badge_label = 'Phân bổ'
+            badge_tone = 'neutral'
+        elif previous_total == 0 and current_total > 0:
+            badge_label = 'Mới phát sinh'
+            badge_tone = 'warning'
+        elif current_total == 0 and previous_total > 0:
+            badge_label = 'Đã dừng'
+            badge_tone = 'neutral'
+        elif row_change is not None and row_change >= float(EXPENSE_DELTA_HIGH_THRESHOLD):
+            badge_label = f"+{str(round(row_change, 1)).replace('.', ',')}%"
+            badge_tone = 'bad'
+        elif row_change is not None and row_change > 0:
+            badge_label = f"+{str(round(row_change, 1)).replace('.', ',')}%"
+            badge_tone = 'muted'
+        elif row_change is not None and row_change < 0:
+            badge_label = f"{str(round(row_change, 1)).replace('.', ',')}%"
+            badge_tone = 'good'
+        else:
+            badge_label = '0%'
+            badge_tone = 'muted'
         expense_comparison_rows.append({
+            'key': key,
             'name': 'Giá vốn hàng bán' if key == 'cogs' else expense_labels.get(key, key),
             'current_total': current_total,
             'previous_total': previous_total,
             'current_width': round(float(current_total / comparison_max * 100), 1) if comparison_max else 0,
             'previous_width': round(float(previous_total / comparison_max * 100), 1) if comparison_max else 0,
             'change': row_change,
-            'badge_label': 'Phân bổ' if key == Expense.EXPENSE_TYPE_EQUIPMENT else (
-                'Mới' if previous_total == 0 and current_total else (
-                    f"{'+' if row_change and row_change > 0 else ''}{row_change}%" if row_change is not None else '--'
-                )
-            ),
-            'badge_tone': 'neutral' if key == Expense.EXPENSE_TYPE_EQUIPMENT else ('bad' if row_change and row_change > 0 else 'good'),
+            'is_allocated': is_allocated,
+            'badge_label': badge_label,
+            'badge_tone': badge_tone,
         })
 
     expense_period_breakdown = []
@@ -4746,45 +4772,81 @@ def report_view(request):
             'share': round((total / expense_period_total * 100), 1) if expense_period_total else 0,
         })
 
-    expense_mix_rows = []
-    for index, item in enumerate(expense_period_breakdown):
-        expense_mix_rows.append({
-            **item,
-            'color_index': index + 1,
-            'gauge_width': max(2, item['share']) if item['share'] else 0,
-        })
-
     if expense_to_revenue_pct is None:
-        expense_to_revenue_note = "Cần có doanh thu trong kỳ này để tính chi phí/doanh thu."
-    elif expense_to_revenue_pct < 75:
-        expense_to_revenue_note = f"Tốt vì {expense_to_revenue_pct}% < 75%; cửa hàng còn dư địa để trả chi phí khác và tạo lợi nhuận."
+        expense_to_revenue_display = '—'
+        expense_to_revenue_note = 'Chưa có doanh thu kỳ này'
+        expense_to_revenue_tone = 'neutral'
+    elif Decimal(str(expense_to_revenue_pct)) < EXPENSE_RATIO_ATTENTION_THRESHOLD:
+        expense_to_revenue_display = f"{str(expense_to_revenue_pct).replace('.', ',')}%"
+        expense_to_revenue_note = 'Đang kiểm soát tốt'
+        expense_to_revenue_tone = 'neutral'
+    elif Decimal(str(expense_to_revenue_pct)) <= EXPENSE_RATIO_LOSS_THRESHOLD:
+        expense_to_revenue_display = f"{str(expense_to_revenue_pct).replace('.', ',')}%"
+        expense_to_revenue_note = 'Cần chú ý'
+        expense_to_revenue_tone = 'danger'
     else:
-        expense_to_revenue_note = f"Xấu vì {expense_to_revenue_pct}% >= 75%; nên rà nhóm chi lớn nhất, giảm chi không bắt buộc hoặc tăng doanh thu kỳ tới."
+        expense_to_revenue_display = f"{str(expense_to_revenue_pct).replace('.', ',')}%"
+        expense_to_revenue_note = 'Đang lỗ — chi vượt doanh thu'
+        expense_to_revenue_tone = 'danger'
 
-    expense_palette = ['#c0392b', '#ef8745', '#f4c879', '#d8b990', '#8f4a33', '#d45d4c', '#b97745']
-    expense_donut_cursor = 0
-    expense_donut_stops = []
-    for index, item in enumerate(expense_mix_rows):
-        start = expense_donut_cursor
-        expense_donut_cursor += float(item['share'] or 0)
-        color = expense_palette[index % len(expense_palette)]
-        expense_donut_stops.append(f"{color} {start}% {expense_donut_cursor}%")
-    expense_donut_style = f"background-image: conic-gradient({', '.join(expense_donut_stops)})" if expense_donut_stops else ""
+    expense_alert = None
+    if (
+        expense_to_revenue_pct is not None
+        and Decimal(str(expense_to_revenue_pct)) >= EXPENSE_RATIO_LOSS_THRESHOLD
+    ):
+        expense_alert = (
+            f"Chi phí đang vượt doanh thu ({expense_to_revenue_display}) — "
+            "Rà nhóm chi lớn nhất hoặc tăng doanh thu kỳ tới."
+        )
+    elif (
+        expense_previous_total > 0
+        and expense_period_total > expense_previous_total * EXPENSE_SPIKE_MULTIPLIER
+    ):
+        expense_alert = (
+            f"Chi phí kỳ này tăng +{expense_total_change_display}% "
+            "so với kỳ trước — Kiểm tra các khoản phát sinh mới."
+        )
 
     expense_insight = None
-    if expense_chart_points:
-        latest_period = expense_chart_points[-1]
-        top_part = max(latest_period.get('breakdown') or [], key=lambda item: item.get('share') or 0, default=None)
-        if top_part and top_part.get('share', 0) >= 50:
-            expense_insight = f"{latest_period['label']}: {top_part['label']} chiếm {top_part['share']}% - cao bất thường. Kiểm tra đơn hoặc thiết bị liên quan."
-        elif len(expense_chart_points) >= 2:
-            previous_total = Decimal(str(expense_chart_points[-2].get('total') or 0))
-            latest_total = Decimal(str(latest_period.get('total') or 0))
-            latest_change = report_percent_change(latest_total, previous_total)
-            if latest_change and latest_change > 20:
-                expense_insight = f"{latest_period['label']}: tổng chi phí tăng {latest_change}% so với kỳ trước. Nên xem nhóm chi lớn nhất trong tooltip."
-        if not expense_insight:
-            expense_insight = "Cơ cấu chi phí kỳ này chưa có điểm tăng bất thường rõ rệt."
+    dominant_group = max(expense_period_breakdown, key=lambda item: item['share'], default=None)
+    if (
+        dominant_group
+        and Decimal(str(dominant_group['share'])) >= EXPENSE_CATEGORY_DOMINANCE_THRESHOLD
+    ):
+        expense_insight = (
+            f"{dominant_group['name']} chiếm {str(dominant_group['share']).replace('.', ',')}% "
+            f"tổng chi phí kỳ này — cao bất thường. Kiểm tra {dominant_group['name'].lower()} liên quan."
+        )
+    else:
+        new_groups = [
+            row for row in expense_comparison_rows
+            if row['previous_total'] == 0 and row['current_total'] > 0
+        ]
+        if new_groups:
+            new_group_details = ', '.join(
+                f"{row['name']} ({row['current_total']:,.0f} đ)".replace(',', '.')
+                for row in new_groups
+            )
+            if len(new_groups) == 1:
+                expense_insight = (
+                    f"{new_group_details} mới phát sinh kỳ này "
+                    "— chưa có dữ liệu kỳ trước để so sánh."
+                )
+            else:
+                expense_insight = (
+                    f"Các nhóm chi phí mới phát sinh kỳ này: {new_group_details} "
+                    "— chưa có dữ liệu kỳ trước để so sánh."
+                )
+        else:
+            comparable_groups = [
+                row for row in expense_comparison_rows
+                if row['previous_total'] > 0 and row['current_total'] > 0
+            ]
+            if comparable_groups and all(row['current_total'] > row['previous_total'] for row in comparable_groups):
+                expense_insight = (
+                    "Tất cả nhóm chi phí đều tăng so với kỳ trước — "
+                    "Xem lại cơ cấu chi phí tổng thể."
+                )
 
     equipment_depreciation_rows = []
     for expense in all_expenses.filter(expense_type=Expense.EXPENSE_TYPE_EQUIPMENT).order_by('-date', '-created_at'):
@@ -4818,9 +4880,7 @@ def report_view(request):
         })
 
     expense_period_caption = expense_period_label
-    expense_period_day_note = (
-        f"Tính theo {expense_period_days} ngày của {expense_period_label}; kỳ trước là {expense_previous_label}."
-    )
+    expense_period_day_note = f"Tính theo {expense_period_days} ngày · {expense_period_label}"
 
     category_option_tree = []
     category_nodes = {}
@@ -5462,13 +5522,15 @@ def report_view(request):
         'expense_period_days': expense_period_days,
         'expense_period_day_note': expense_period_day_note,
         'expense_total_change': expense_total_change,
+        'expense_total_change_display': expense_total_change_display,
         'expense_per_day': expense_per_day,
         'expense_depreciation_total': expense_depreciation_total,
         'expense_to_revenue_pct': expense_to_revenue_pct,
+        'expense_to_revenue_display': expense_to_revenue_display,
         'expense_to_revenue_note': expense_to_revenue_note,
+        'expense_to_revenue_tone': expense_to_revenue_tone,
+        'expense_alert': expense_alert,
         'expense_comparison_rows': expense_comparison_rows,
-        'expense_mix_rows': expense_mix_rows,
-        'expense_donut_style': expense_donut_style,
         'expense_insight': expense_insight,
         'equipment_depreciation_rows': equipment_depreciation_rows,
         'expense_period_caption': expense_period_caption,

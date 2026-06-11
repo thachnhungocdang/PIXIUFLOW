@@ -82,7 +82,7 @@
                     <div class="category-level-row" data-category-level="{{ level.level }}" {% if level.level > 1 and not level.selected %}hidden{% endif %}>
                         <label>
                             <span>Danh mục cấp {{ level.level }}</span>
-                            <select name="category_level_{{ level.level }}" class="category-select">
+                            <select name="category_level_{{ level.level }}" class="category-select" {% if level.level == 1 %}id="categoryLevel1Select"{% endif %}>
                                 <option value="">Chọn danh mục đã có</option>
                                 {% for option in level.options %}
                                 <option value="{{ option }}" {% if level.selected == option %}selected{% endif %}>{{ option }}</option>
@@ -91,7 +91,7 @@
                         </label>
                         <label>
                             <span>Hoặc thêm danh mục cấp {{ level.level }}</span>
-                            <input type="text" name="category_level_{{ level.level }}_new" class="category-new" value="{% if level.selected and not level.selected_is_option %}{{ level.selected }}{% endif %}" placeholder="Nhập danh mục mới">
+                            <input type="text" name="category_level_{{ level.level }}_new" class="category-new" {% if level.level == 1 %}id="categoryLevel1New"{% endif %} value="{% if level.selected and not level.selected_is_option %}{{ level.selected }}{% endif %}" placeholder="Nhập danh mục mới">
                         </label>
                         <div class="category-level-actions">
                             {% if level.level < 4 %}
@@ -106,6 +106,11 @@
                             {% endif %}
                         </div>
                     </div>
+                    {% if level.level == 1 and not product_instance %}
+                    <p class="sku-preview" id="skuPreview" hidden>
+                        Mã sản phẩm dự kiến: <strong id="skuPreviewValue">—</strong>
+                    </p>
+                    {% endif %}
                     {% endfor %}
                     {{ form.category.errors }}
                 </div>
@@ -189,6 +194,12 @@
 (function () {
     const form = document.getElementById('productForm');
     const categoryValue = document.getElementById('categoryValue');
+    const categoryLevel1Select = document.getElementById('categoryLevel1Select');
+    const categoryLevel1New = document.getElementById('categoryLevel1New');
+    const skuPreview = document.getElementById('skuPreview');
+    const skuPreviewValue = document.getElementById('skuPreviewValue');
+    let skuPreviewRequest = 0;
+    let skuPreviewTimer = null;
 
     function parseMoney(value) {
         return Number(String(value || '').replace(/[^\d]/g, '') || 0);
@@ -208,6 +219,35 @@
             if (newValue || selectedValue) values.push(newValue || selectedValue);
         });
         categoryValue.value = values.length ? values.join(' / ') : categoryValue.dataset.initial;
+    }
+
+    async function updateSkuPreview(categoryName) {
+        if (!skuPreview || !skuPreviewValue) return;
+        const category = String(categoryName || '').trim();
+        if (!category || category === '__new__') {
+            skuPreview.hidden = true;
+            return;
+        }
+
+        const requestId = ++skuPreviewRequest;
+        try {
+            const response = await fetch(`/products/preview-sku/?category=${encodeURIComponent(category)}`);
+            if (!response.ok) throw new Error('preview failed');
+            const data = await response.json();
+            if (requestId !== skuPreviewRequest) return;
+            skuPreviewValue.textContent = data.sku;
+            skuPreview.hidden = false;
+        } catch (error) {
+            if (requestId === skuPreviewRequest) skuPreview.hidden = true;
+        }
+    }
+
+    function scheduleSkuPreview() {
+        if (!skuPreview) return;
+        window.clearTimeout(skuPreviewTimer);
+        skuPreviewTimer = window.setTimeout(() => {
+            updateSkuPreview(categoryLevel1New?.value.trim() || categoryLevel1Select?.value);
+        }, 180);
     }
 
     function restoreInitialCategory() {
@@ -280,6 +320,8 @@
             syncCategoryRowsFrom(Number(row.dataset.categoryLevel));
         });
     });
+    categoryLevel1Select?.addEventListener('change', scheduleSkuPreview);
+    categoryLevel1New?.addEventListener('input', scheduleSkuPreview);
 
     document.querySelectorAll('.category-level-add').forEach(button => {
         button.addEventListener('click', () => {
@@ -311,6 +353,7 @@
     });
 
     updateCategoryValue();
+    scheduleSkuPreview();
     updateStockOrigin();
 })();
 </script>

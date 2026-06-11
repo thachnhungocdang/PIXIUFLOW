@@ -89,6 +89,18 @@
     gap: 14px;
 }
 
+.product-form-section .sku-preview {
+    margin: -6px 0 0;
+    color: var(--color-text-muted, #9a6a3a);
+    font-size: 12px;
+}
+
+.product-form-section .sku-preview strong {
+    color: var(--color-primary, #7a1a00);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-weight: 700;
+}
+
 .category-level-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(280px, 1fr)) auto;

@@ -15,6 +15,7 @@ urlpatterns = [
     path('transactions/bulk-create/', views.bulk_transaction_create_view, name='bulk_transaction_create'),
 
     path('products/create/', views.product_create_view, name='product_create'),
+    path('products/preview-sku/', views.preview_product_sku, name='preview_product_sku'),
     path('products/delete/<int:pk>/', views.product_delete_view, name='product_delete'),
 
     path('inventory/', views.inventory_view, name='inventory'),

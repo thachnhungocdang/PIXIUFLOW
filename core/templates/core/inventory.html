@@ -61,6 +61,7 @@
             {% endif %}
 
             <div class="inventory-status-strip" aria-label="Lọc nhanh trạng thái tồn kho">
+                {% if products_missing_stock_count %}
                 <button type="button" class="inventory-status-card inventory-status-card--setup" data-stock-filter="chua_nhap_hang">
                     <div class="inventory-status-card__top">
                         <span class="inventory-status-card__icon"><i data-lucide="clipboard-list"></i></span>
@@ -69,6 +70,7 @@
                     <strong>{{ products_missing_stock_count }}</strong>
                     <small>Sản phẩm cần nhập hàng trước khi bán</small>
                 </button>
+                {% endif %}
                 <button type="button" class="inventory-status-card inventory-status-card--danger" data-stock-filter="het_hang">
                     <div class="inventory-status-card__top">
                         <span class="inventory-status-card__icon"><i data-lucide="package-x"></i></span>
@@ -258,7 +260,7 @@
                                     data-stock-quantity="{{ p.stock_quantity }}"
                                     data-alert-threshold="{{ p.alert_threshold }}"
                                     data-name="{{ p.name|lower }}"
-                                    data-sku="sp-{{ p.id|stringformat:'03d' }}"
+                                    data-sku="{{ p.sku|lower }}"
                                     data-unit="{{ p.unit|fix_mojibake|lower }}"
                                     data-created="{{ p.created_at|date:'Y-m-d' }}"
                                     data-category-path="{{ row.category_path }}"
@@ -266,15 +268,16 @@
                                     data-cost="{{ p.price_buy_latest|default:0 }}"
                                     data-price="{{ p.price_sell|default:0 }}"
                                     data-margin="{% if row.margin != None %}{{ row.margin }}{% else %}-999999{% endif %}"
-                                    data-search="{{ p.name|lower }} sp-{{ p.id|stringformat:'03d' }} {{ row.category_path|lower }} {{ p.supplier_name|lower }}"
+                                    data-search="{{ p.name|lower }} {{ p.sku|lower }} {{ row.category_path|lower }} {{ p.supplier_name|lower }}"
                                 >
                                     <td class="inventory-select-col">
                                         <input type="checkbox" class="inventory-row-check" value="{{ p.id }}" aria-label="Chọn {{ p.name }}">
                                     </td>
                                     <td class="inventory-col-name">
                                         <button type="button" class="inventory-product-name" data-open-product="{{ p.id }}">{{ p.name }}</button>
+                                        <span class="product-sku-badge">{{ p.sku }}</span>
                                     </td>
-                                    <td class="muted inventory-col-sku is-optional-column" hidden>SP-{{ p.id|stringformat:"03d" }}</td>
+                                    <td class="muted inventory-col-sku is-optional-column" hidden>{{ p.sku }}</td>
                                     <td class="muted inventory-col-unit is-optional-column" hidden>{{ p.unit|fix_mojibake }}</td>
                                     <td class="muted inventory-col-created is-optional-column" hidden>{{ p.created_at|date:"d/m/Y" }}</td>
                                     <td class="inventory-col-category">
@@ -510,7 +513,6 @@
                                 <th>Nhà cung cấp</th>
                                 <th>Số lần nhập</th>
                                 <th>Tổng giá trị</th>
-                                <th>Lô gần nhất</th>
                                 <th>Thanh toán</th>
                                 <th>Hành động</th>
                             </tr>
@@ -522,11 +524,6 @@
                                 <td><b>{{ supplier.purchase_count }}</b></td>
                                 <td class="money">{{ supplier.total_value|vnd }}</td>
                                 <td>
-                                    {% if supplier.latest_lot %}
-                                    LOT-{{ supplier.latest_lot.date|date:"Y" }}-{{ supplier.latest_lot.id|stringformat:"03d" }}
-                                    {% else %}Chưa nhập{% endif %}
-                                </td>
-                                <td>
                                     <span class="supplier-payment-badge supplier-payment-badge--{{ supplier.payment_summary.key }}">{{ supplier.payment_summary.label }}</span>
                                     {% if supplier.payment_summary.due_date %}
                                     <small class="payment-due-text">Hạn {{ supplier.payment_summary.due_date|date:"d/m/Y" }}</small>
@@ -537,49 +534,10 @@
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="6" class="inventory-empty">Chưa có nhà cung cấp.</td></tr>
+                            <tr><td colspan="5" class="inventory-empty">Chưa có nhà cung cấp.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
-
-                    <div class="inventory-recent-lots">
-                        <h3>Lô hàng gần đây</h3>
-                        <table class="inventory-mini-table">
-                            <thead>
-                                <tr>
-                                    <th>Mã lô</th>
-                                    <th>Sản phẩm</th>
-                                    <th>Số lượng</th>
-                                    <th>Nhà cung cấp</th>
-                                    <th>Ngày nhập</th>
-                                    <th>Thanh toán</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for lot in recent_lots %}
-                                <tr>
-                                    <td>
-                                        <a href="/transactions/history/?type=purchase&q=LOT-{{ lot.date|date:'Y' }}-{{ lot.id|stringformat:'03d' }}" class="lot-link">
-                                            LOT-{{ lot.date|date:"Y" }}-{{ lot.id|stringformat:"03d" }}
-                                        </a>
-                                    </td>
-                                    <td>{{ lot.product.name }}</td>
-                                    <td><b>{{ lot.quantity }}</b></td>
-                                    <td>{{ lot.supplier_name|default:"---" }}</td>
-                                    <td>{{ lot.date|date:"d/m/Y" }}</td>
-                                    <td>
-                                        <span class="supplier-payment-badge supplier-payment-badge--{{ lot.payment_method }}">{{ lot.get_payment_method_display }}</span>
-                                        {% if lot.payment_due_date %}
-                                        <small class="payment-due-text">Hạn {{ lot.payment_due_date|date:"d/m/Y" }}</small>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="6" class="inventory-empty">Chưa có lô hàng nhập.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
 
                 {# ── TAB: THIẾT BỊ ── #}
@@ -854,7 +812,7 @@
         </section>
         <section>
             <h3>Lịch sử nhập kho</h3>
-            <div id="detailLots" class="inventory-detail-lots"></div>
+            <div id="detailPurchases" class="inventory-detail-purchases"></div>
         </section>
     </div>
     <div class="inventory-detail-panel__footer">
@@ -1329,7 +1287,7 @@
         toolbar.innerHTML = `
             <label class="inventory-search inventory-search--compact">
                 <i data-lucide="search"></i>
-                <input type="search" id="inventorySupplierSearch" placeholder="Tìm nhà cung cấp hoặc lô hàng...">
+                <input type="search" id="inventorySupplierSearch" placeholder="Tìm nhà cung cấp...">
             </label>
             <select id="inventorySupplierSort" class="inventory-sort-select" aria-label="Sắp xếp nhà cung cấp">
                 <option value="name-asc">Nhà cung cấp A-Z</option>
@@ -1657,9 +1615,9 @@
         document.getElementById('detailEditLink').dataset.openProductEdit = detail.id;
         const category = document.getElementById('detailCategory');
         category.innerHTML = detail.category_parts.map((part, i) => `<span class="category-chip category-chip--level-${i + 1}">${part}</span>`).join('<b>›</b>');
-        const lots = document.getElementById('detailLots');
-        lots.innerHTML = detail.recent_lots.length
-            ? detail.recent_lots.map(lot => `<div><span>${lot.date}</span><strong>+${lot.quantity}</strong><b>${lot.code} - ${lot.payment_label}${lot.payment_due_date ? ` - hạn ${lot.payment_due_date}` : ''}</b></div>`).join('')
+        const purchases = document.getElementById('detailPurchases');
+        purchases.innerHTML = detail.recent_purchases?.length
+            ? detail.recent_purchases.map(purchase => `<div><span>${purchase.date}</span><strong>+${purchase.quantity}</strong><b>${purchase.payment_label}${purchase.payment_due_date ? ` - hạn ${purchase.payment_due_date}` : ''}</b></div>`).join('')
             : '<p class="inventory-empty">Chưa có lịch sử nhập kho.</p>';
         detailPanel.hidden = false;
     }
@@ -1676,7 +1634,8 @@
             row.classList.add('is-just-created');
         }
         openDetail(createdProductId);
-        showToast('Đã lưu sản phẩm thành công. Đang mở chi tiết sản phẩm vừa lưu.', 'confirm');
+        const createdProduct = detailById.get(String(createdProductId));
+        showToast(`Đã tạo "${createdProduct?.name || 'sản phẩm'}" · Mã: ${createdProduct?.sku || ''}`, 'confirm');
     }
 
     function applyUrlFilters() {
@@ -1714,6 +1673,15 @@
         columnTrigger.addEventListener('click', event => { event.stopPropagation(); columnPanel.hidden = !columnPanel.hidden; });
         columnPanel.addEventListener('click', event => event.stopPropagation());
         const columnToggles = Array.from(document.querySelectorAll('[data-column-toggle]'));
+        const skuToggle = columnToggles.find(toggle => toggle.dataset.columnToggle === 'sku');
+
+        function syncSkuDisplay() {
+            const showSkuColumn = Boolean(skuToggle?.checked);
+            document.querySelectorAll('.product-sku-badge').forEach(badge => {
+                badge.hidden = showSkuColumn;
+            });
+        }
+
         function applyColumnToggle(toggle) {
             const key = toggle.dataset.columnToggle;
             if ((key === 'name' || key === 'sku') && !toggle.checked) {
@@ -1726,6 +1694,7 @@
                 }
             }
             document.querySelectorAll(`.inventory-col-${key}`).forEach(cell => { cell.hidden = !toggle.checked; });
+            syncSkuDisplay();
         }
         columnToggles.forEach(toggle => { applyColumnToggle(toggle); toggle.addEventListener('change', () => applyColumnToggle(toggle)); });
     }

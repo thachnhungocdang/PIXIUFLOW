@@ -61,7 +61,7 @@
                         Nhập nhiều cùng lúc
                         <i data-lucide="arrow-up-right"></i>
                     </a>
-                    <span>Mã GD: #TXN-1203</span>
+
                 </div>
 
                 {% if sale_errors %}
@@ -419,6 +419,14 @@
             if (key === name) return decodeURIComponent(value || '');
         }
         return '';
+    }
+
+    function showProductToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'pixiu-toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        window.setTimeout(() => toast.remove(), 4000);
     }
 
     function updateNotificationUi() {
@@ -916,9 +924,11 @@
             note: stockOrigin === 'purchase' ? modalStockNote.value.trim() : '',
         });
 
+        const priceInput = activeProductRow.querySelector('.sale-unit-price');
         addNotification(result.message);
         closeProductModal();
-        activeProductRow.querySelector('.sale-unit-price').focus();
+        showProductToast(result.message);
+        priceInput.focus();
     }
 
     function bindRow(row) {
