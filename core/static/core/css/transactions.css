@@ -776,6 +776,72 @@
     outline: none;
 }
 
+.customer-name-combobox {
+    position: relative;
+}
+
+.customer-name-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 75;
+    max-height: 270px;
+    overflow: auto;
+    border: 1px solid #d7dde7;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14);
+}
+
+.customer-name-menu[hidden] {
+    display: none;
+}
+
+.customer-name-option {
+    width: 100%;
+    min-height: 46px;
+    border: 0;
+    background: #ffffff;
+    color: #172033;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 0 14px;
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.customer-name-option:hover,
+.customer-name-option.is-active {
+    background: #fff6da;
+}
+
+.customer-name-option__name {
+    min-width: 0;
+    overflow: hidden;
+    color: #172033;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.customer-name-option__name mark {
+    border-radius: 3px;
+    background: #ffe08a;
+    color: inherit;
+    padding: 0 1px;
+}
+
+.customer-name-option__count {
+    color: #667085;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
 .sale-bottom-grid textarea {
     padding: 14px 16px;
     resize: vertical;

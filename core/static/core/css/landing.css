@@ -292,6 +292,11 @@ h1 {
     box-shadow: 0 36px 84px rgba(51, 43, 43, 0.18);
 }
 
+.laptop-screen--video {
+    cursor: pointer;
+    background: #151515;
+}
+
 .laptop-screen::before {
     content: "";
     position: absolute;
@@ -304,6 +309,52 @@ h1 {
         linear-gradient(90deg, #ffdca0 0 27%, transparent 27% 31%, #ffdca0 31% 58%, transparent 58% 62%, #ffdca0 62% 89%, transparent 89%),
         linear-gradient(180deg, transparent 0 28%, #fff1d2 28% 48%, transparent 48% 55%, #fff1d2 55% 100%);
     background-color: #fffbf0;
+}
+
+.laptop-screen--video::before {
+    content: none;
+}
+
+.landing-demo-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #151515;
+}
+
+.laptop-demo-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    z-index: 2;
+    width: 70px;
+    height: 70px;
+    border: 2px solid rgba(255, 244, 218, 0.75);
+    border-radius: 999px;
+    background: rgba(124, 2, 2, 0.82);
+    color: transparent;
+    font-size: 0;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.24);
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.laptop-demo-play::before {
+    content: "";
+    position: absolute;
+    left: 28px;
+    top: 21px;
+    width: 0;
+    height: 0;
+    border-top: 14px solid transparent;
+    border-bottom: 14px solid transparent;
+    border-left: 20px solid #fff4da;
+}
+
+.laptop-screen--video:hover .laptop-demo-play {
+    transform: translate(-50%, -50%) scale(1.06);
 }
 
 .camera {
@@ -339,6 +390,65 @@ h1 {
     height: 16px;
     border-radius: 0 0 8px 8px;
     background: linear-gradient(180deg, #aaa 0%, #777 100%);
+}
+
+.demo-modal-open {
+    overflow: hidden;
+}
+
+.demo-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.demo-modal.is-open {
+    display: flex;
+}
+
+.demo-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 9, 4, 0.72);
+    backdrop-filter: blur(3px);
+}
+
+.demo-modal__dialog {
+    position: relative;
+    z-index: 1;
+    width: min(1080px, 94vw);
+    border: 1px solid rgba(255, 210, 128, 0.55);
+    border-radius: 18px;
+    background: #120807;
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+
+.demo-modal__video {
+    display: block;
+    width: 100%;
+    max-height: 82vh;
+    background: #120807;
+}
+
+.demo-modal__close {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    z-index: 2;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(255, 244, 218, 0.7);
+    border-radius: 999px;
+    background: rgba(124, 2, 2, 0.9);
+    color: #fff4da;
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
 }
 
 /* Audience and feature grid */

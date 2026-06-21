@@ -62,6 +62,16 @@ def set_user(instance, user):
     return instance
 
 
+def top_sale_customers(user, limit=5):
+    return list(
+        for_user(Sale, user)
+        .exclude(customer_name='')
+        .values('customer_name')
+        .annotate(order_count=Count('id'))
+        .order_by('-order_count', 'customer_name')[:limit]
+    )
+
+
 def save_business_profile_from_request(request):
     owner_name = (request.POST.get('owner_name') or '').strip()
     if owner_name and owner_name != 'Tên chủ doanh nghiệp':
@@ -1749,6 +1759,7 @@ def sale_edit_view(request, pk):
         }],
         'sale_errors': [],
         'payment_method_choices': Sale.PAYMENT_METHOD_CHOICES,
+        'customer_suggestions': top_sale_customers(request.user),
         'category_levels': product_category_levels(request.user),
         'category_tree': product_category_tree(request.user),
     })
@@ -2016,6 +2027,7 @@ def sale_create_view(request):
         'sale_rows': sale_rows,
         'sale_errors': sale_errors,
         'payment_method_choices': Sale.PAYMENT_METHOD_CHOICES,
+        'customer_suggestions': top_sale_customers(request.user),
         'category_levels': product_category_levels(request.user),
         'category_tree': product_category_tree(request.user),
     })
@@ -3346,6 +3358,155 @@ def transaction_page_context(user=None):
     }
 
 
+def build_action_checklist(user, warning_days=None, report_viewed=False):
+    today = timezone.now().date()
+    recent_sale_start = today - timedelta(days=3)
+    items = []
+
+    def add_item(title, description, priority, action_url='', action_label='', deadline=None, **extra):
+        items.append({
+            'title': title,
+            'description': description,
+            'priority': priority,
+            'action_url': action_url,
+            'action_label': action_label,
+            'deadline': deadline or datetime.max.date(),
+            'sort_group': extra.pop('sort_group', priority * 10),
+            **extra,
+        })
+
+    payment_alerts = build_payment_alerts(warning_days=warning_days, user=user)
+    for alert in payment_alerts['customer_payment_alerts']:
+        priority = 1 if alert['status']['key'] == 'overdue' else 2
+        due_label = alert['due_date'].strftime('%d/%m/%Y') if alert['due_date'] else 'chưa có hạn'
+        amount_label = f"{int(alert['amount'] or 0):,}".replace(',', '.')
+        add_item(
+            f"Thu nợ: {alert['title']}",
+            f"{alert['detail']} · Hạn {due_label} · {amount_label} đ",
+            priority,
+            alert['url'],
+            'Xem giao dịch',
+            alert['due_date'],
+            item_type='payment',
+            kind=alert['kind'],
+            record_id=alert['id'],
+            amount=alert['amount'],
+            amount_display=alert['amount'],
+            due_date=alert['due_date'],
+            paid_label='Đã thu',
+            sort_group=1 if priority == 1 else 3,
+        )
+
+    for alert in payment_alerts['supplier_payment_alerts']:
+        priority = 1 if alert['status']['key'] == 'overdue' else 2
+        due_label = alert['due_date'].strftime('%d/%m/%Y') if alert['due_date'] else 'chưa có hạn'
+        amount_label = f"{int(alert['amount'] or 0):,}".replace(',', '.')
+        add_item(
+            f"Trả nợ: {alert['title']}",
+            f"{alert['detail']} · Hạn {due_label} · {amount_label} đ",
+            priority,
+            alert['url'],
+            'Xem giao dịch',
+            alert['due_date'],
+            item_type='payment',
+            kind=alert['kind'],
+            record_id=alert['id'],
+            amount=alert['amount'],
+            amount_display=alert['amount'],
+            due_date=alert['due_date'],
+            paid_label='Đã trả',
+            sort_group=1 if priority == 1 else 3,
+        )
+
+    out_of_stock_products = for_user(Product, user).filter(is_active=True, stock_quantity=0).order_by('name')
+    for product in out_of_stock_products:
+        add_item(
+            f'Hết hàng: {product.name}',
+            'Tồn kho hiện tại bằng 0, cần nhập thêm trước khi bán.',
+            1,
+            f'/expenses/create/?mode=purchase&product_id={product.id}',
+            'Nhập hàng',
+            today,
+            item_type='stock',
+            sort_group=2,
+        )
+
+    low_stock_products = (
+        for_user(Product, user)
+        .filter(is_active=True, alert_threshold__gt=0, stock_quantity__gt=0, stock_quantity__lte=F('alert_threshold'))
+        .order_by('stock_quantity', 'name')
+    )
+    for product in low_stock_products:
+        add_item(
+            f'Sắp hết hàng: {product.name}',
+            f'Còn {product.stock_quantity} {product.unit}, ngưỡng cảnh báo {product.alert_threshold}.',
+            2,
+            f'/expenses/create/?mode=purchase&product_id={product.id}',
+            'Nhập hàng',
+            today + timedelta(days=max(product.stock_quantity, 0)),
+            item_type='stock',
+            sort_group=4,
+        )
+
+    missing_stock_products = (
+        for_user(Product, user)
+        .filter(is_active=True, opening_stocks__isnull=True, purchases__isnull=True)
+        .distinct()
+        .order_by('name')
+    )
+    for product in missing_stock_products:
+        add_item(
+            f'Chưa có tồn kho: {product.name}',
+            'Sản phẩm chưa có tồn kho ban đầu hoặc giao dịch nhập hàng.',
+            2,
+            f'/expenses/create/?mode=purchase&product_id={product.id}',
+            'Nhập hàng',
+            item_type='stock',
+            sort_group=4,
+        )
+
+    has_recent_sales = for_user(Sale, user).filter(date__gte=recent_sale_start).exists()
+    if not has_recent_sales:
+        add_item(
+            'Chưa ghi nhận doanh thu 3 ngày qua',
+            'Kiểm tra lại nếu cửa hàng có phát sinh bán hàng gần đây.',
+            3,
+            '/sales/create/',
+            'Ghi doanh thu',
+            item_type='link',
+            sort_group=5,
+        )
+
+    if not report_viewed:
+        add_item(
+            'Chưa xem báo cáo tuần này',
+            'Mở báo cáo để kiểm tra doanh thu, lợi nhuận, chi phí và dòng tiền.',
+            3,
+            '/report/',
+            'Xem báo cáo',
+            item_type='link',
+            sort_group=5,
+        )
+
+    sorted_items = sorted(items, key=lambda item: (item['sort_group'], item['deadline'], item['title']))
+    return [
+        {
+            'title': item['title'],
+            'description': item['description'],
+            'priority': item['priority'],
+            'action_url': item['action_url'],
+            'action_label': item['action_label'],
+            'item_type': item.get('item_type', 'link'),
+            'kind': item.get('kind', ''),
+            'record_id': item.get('record_id', ''),
+            'amount': item.get('amount'),
+            'due_date': item.get('due_date'),
+            'paid_label': item.get('paid_label', ''),
+        }
+        for item in sorted_items
+    ]
+
+
 def dashboard_view(request):
     if request.method == 'POST' and request.POST.get('action') == 'update_payment_warning':
         try:
@@ -3561,7 +3722,7 @@ def dashboard_view(request):
     onboarding_complete = has_products and has_transactions and has_viewed_report
     show_inventory_tip = bool(request.session.get('show_inventory_tip'))
     warning_days = payment_warning_days(request)
-    payment_alerts = build_payment_alerts(warning_days, limit=5, user=request.user)
+    action_checklist = build_action_checklist(request.user, warning_days=warning_days, report_viewed=has_viewed_report)
 
     if previous_start == previous_end:
         prev_dates = previous_start.strftime('%d/%m/%Y')
@@ -3666,9 +3827,8 @@ def dashboard_view(request):
         'dashboard_empty': not has_products and not has_transactions,
         'show_inventory_tip': show_inventory_tip,
         'payment_warning_days': warning_days,
-        'customer_payment_alerts': payment_alerts['customer_payment_alerts'],
-        'supplier_payment_alerts': payment_alerts['supplier_payment_alerts'],
-        'supplier_debt_count': payment_alerts['supplier_debt_count'],
+        'action_checklist': action_checklist,
+        'has_payment_checklist': any(item.get('item_type') == 'payment' for item in action_checklist),
     }
     return render(request, 'core/dashboard.html', context)
 

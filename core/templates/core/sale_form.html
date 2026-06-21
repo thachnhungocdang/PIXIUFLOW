@@ -75,7 +75,10 @@
                 <div class="sale-top-grid">
                     <label>
                         <span>Khách hàng (tuỳ chọn)</span>
-                        <input type="text" name="customer_name" value="{{ sale_values.customer_name }}" placeholder="Chọn khách hàng hoặc đối tác">
+                        <div class="customer-name-combobox">
+                            <input type="text" name="customer_name" id="customerNameInput" value="{{ sale_values.customer_name }}" placeholder="Chọn khách hàng hoặc đối tác" autocomplete="off" aria-autocomplete="list" aria-controls="customerNameMenu" aria-expanded="false">
+                            <div class="customer-name-menu" id="customerNameMenu" role="listbox" hidden></div>
+                        </div>
                     </label>
                     <label>
                         <span>Ngày giao dịch</span>
@@ -365,6 +368,7 @@
 {{ category_tree|json_script:"categoryTreeData" }}
 {{ product_prices|json_script:"productPriceData" }}
 {{ product_options|json_script:"productNameData" }}
+{{ customer_suggestions|json_script:"customerSuggestionData" }}
 
 <script>
 (function () {
@@ -375,6 +379,8 @@
     const salePaymentMethod = document.getElementById('salePaymentMethod');
     const saleDebtField = document.getElementById('saleDebtField');
     const salePaymentDueDate = document.getElementById('salePaymentDueDate');
+    const customerNameInput = document.getElementById('customerNameInput');
+    const customerNameMenu = document.getElementById('customerNameMenu');
     const productModal = document.getElementById('productModal');
     const productModalError = document.getElementById('productModalError');
     const modalProductName = document.getElementById('modalProductName');
@@ -398,11 +404,14 @@
     let pendingNotifications = [];
     const categoryTree = JSON.parse(document.getElementById('categoryTreeData').textContent || '{}');
     const productList = JSON.parse(document.getElementById('productNameData').textContent || '[]');
+    const customerSuggestions = JSON.parse(document.getElementById('customerSuggestionData').textContent || '[]');
     const categoryControls = [1, 2, 3, 4].map(level => ({
         select: document.getElementById(`modalCategory${level}Select`),
         input: document.getElementById(`modalCategory${level}New`)
     }));
     let activeProductRow = null;
+    let activeCustomerIndex = -1;
+    let visibleCustomers = [];
 
     function formatVnd(value) {
         return `${Math.round(value || 0).toLocaleString('vi-VN')} VND`;
@@ -482,6 +491,92 @@
             .replace(/đ/g, 'd')
             .replace(/[^a-z0-9]/g, '')
             .trim();
+    }
+
+    function normalizeCustomerText(value) {
+        return String(value || '').toLocaleLowerCase('vi-VN');
+    }
+
+    function customerMatchIndex(name, query) {
+        if (!query) return -1;
+        return normalizeCustomerText(name).indexOf(normalizeCustomerText(query));
+    }
+
+    function appendHighlightedCustomerName(target, name, query) {
+        const matchIndex = customerMatchIndex(name, query);
+        if (matchIndex < 0) {
+            target.textContent = name;
+            return;
+        }
+        target.appendChild(document.createTextNode(name.slice(0, matchIndex)));
+        const mark = document.createElement('mark');
+        mark.textContent = name.slice(matchIndex, matchIndex + query.length);
+        target.appendChild(mark);
+        target.appendChild(document.createTextNode(name.slice(matchIndex + query.length)));
+    }
+
+    function closeCustomerMenu() {
+        if (!customerNameMenu || !customerNameInput) return;
+        customerNameMenu.hidden = true;
+        customerNameInput.setAttribute('aria-expanded', 'false');
+        activeCustomerIndex = -1;
+    }
+
+    function setActiveCustomer(index) {
+        activeCustomerIndex = index;
+        customerNameMenu.querySelectorAll('.customer-name-option').forEach((button, buttonIndex) => {
+            const isActive = buttonIndex === activeCustomerIndex;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            if (isActive) button.scrollIntoView({ block: 'nearest' });
+        });
+    }
+
+    function selectCustomer(customer) {
+        if (!customer || !customerNameInput) return;
+        customerNameInput.value = customer.customer_name;
+        closeCustomerMenu();
+        customerNameInput.focus();
+    }
+
+    function renderCustomerMenu(showAll = false) {
+        if (!customerNameInput || !customerNameMenu) return;
+        const query = showAll ? '' : customerNameInput.value.trim();
+        visibleCustomers = customerSuggestions.filter(customer => {
+            const name = customer.customer_name || '';
+            return !query || customerMatchIndex(name, query) >= 0;
+        });
+        customerNameMenu.innerHTML = '';
+
+        if (!visibleCustomers.length) {
+            closeCustomerMenu();
+            return;
+        }
+
+        visibleCustomers.forEach((customer, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'customer-name-option';
+            button.setAttribute('role', 'option');
+            button.setAttribute('aria-selected', 'false');
+            const name = document.createElement('span');
+            name.className = 'customer-name-option__name';
+            appendHighlightedCustomerName(name, customer.customer_name, query);
+            const count = document.createElement('span');
+            count.className = 'customer-name-option__count';
+            count.textContent = `${customer.order_count} \u0111\u01a1n`;
+            button.append(name, count);
+            button.addEventListener('mousedown', event => event.preventDefault());
+            button.addEventListener('click', () => selectCustomer(customer));
+            customerNameMenu.appendChild(button);
+            if (index === activeCustomerIndex) button.classList.add('is-active');
+        });
+
+        customerNameMenu.hidden = false;
+        customerNameInput.setAttribute('aria-expanded', 'true');
+        if (activeCustomerIndex >= visibleCustomers.length) {
+            setActiveCustomer(visibleCustomers.length - 1);
+        }
     }
 
     function updateTotals() {
@@ -968,7 +1063,45 @@
 
     document.addEventListener('click', event => {
         if (!event.target.closest('.sale-product-cell')) closeProductMenus();
+        if (!event.target.closest('.customer-name-combobox')) closeCustomerMenu();
     });
+
+    if (customerNameInput && customerNameMenu) {
+        customerNameInput.addEventListener('focus', () => {
+            activeCustomerIndex = -1;
+            renderCustomerMenu(true);
+        });
+        customerNameInput.addEventListener('click', () => {
+            activeCustomerIndex = -1;
+            renderCustomerMenu(true);
+        });
+        customerNameInput.addEventListener('input', () => {
+            activeCustomerIndex = -1;
+            renderCustomerMenu();
+        });
+        customerNameInput.addEventListener('keydown', event => {
+            if (customerNameMenu.hidden && ['ArrowDown', 'ArrowUp'].includes(event.key)) {
+                renderCustomerMenu();
+            }
+            if (customerNameMenu.hidden) return;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                setActiveCustomer((activeCustomerIndex + 1) % visibleCustomers.length);
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                setActiveCustomer((activeCustomerIndex <= 0 ? visibleCustomers.length : activeCustomerIndex) - 1);
+            } else if (event.key === 'Enter') {
+                if (activeCustomerIndex >= 0 && visibleCustomers[activeCustomerIndex]) {
+                    event.preventDefault();
+                    selectCustomer(visibleCustomers[activeCustomerIndex]);
+                }
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                closeCustomerMenu();
+            }
+        });
+    }
 
     categoryControls.forEach((control, index) => {
         const level = index + 1;

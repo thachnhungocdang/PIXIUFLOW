@@ -47,10 +47,10 @@
 
                     <div class="hero-buttons">
                         <a href="{% url 'signup' %}" class="primary-btn">Dùng thử miễn phí</a>
-                        <a href="{% url 'dashboard' %}" class="secondary-btn">
+                        <button type="button" class="secondary-btn" data-demo-open>
                             <span>▻</span>
                             Xem demo
-                        </a>
+                        </button>
                     </div>
 
                     <div class="mini-feature-row">
@@ -75,7 +75,11 @@
 
                 <div class="hero-right">
                     <div class="laptop">
-                        <div class="laptop-screen">
+                        <div class="laptop-screen laptop-screen--video" role="button" tabindex="0" aria-label="Xem demo Pixiu Flow" data-demo-open>
+                            <video class="landing-demo-video" muted autoplay loop playsinline preload="metadata">
+                                <source src="{% static 'core/images/0620.mp4' %}" type="video/mp4">
+                            </video>
+                            <div class="laptop-demo-play" aria-hidden="true">Play</div>
                             <div class="camera"></div>
                         </div>
                         <div class="laptop-base">
@@ -239,5 +243,71 @@
         </div>
     </section>
 
+    <div class="demo-modal" id="demoModal" aria-hidden="true">
+        <div class="demo-modal__backdrop" data-demo-close></div>
+        <div class="demo-modal__dialog" role="dialog" aria-modal="true" aria-label="Demo Pixiu Flow">
+            <button type="button" class="demo-modal__close" aria-label="Dong demo" data-demo-close>&times;</button>
+            <video class="demo-modal__video" controls playsinline preload="metadata">
+                <source src="{% static 'core/images/0620.mp4' %}" type="video/mp4">
+            </video>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var modal = document.getElementById('demoModal');
+            if (!modal) {
+                return;
+            }
+
+            var previewVideo = document.querySelector('.landing-demo-video');
+            var modalVideo = modal.querySelector('.demo-modal__video');
+            var openers = document.querySelectorAll('[data-demo-open]');
+            var closers = modal.querySelectorAll('[data-demo-close]');
+
+            if (previewVideo) {
+                previewVideo.play().catch(function () {});
+            }
+
+            function openDemo() {
+                modal.classList.add('is-open');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('demo-modal-open');
+                if (modalVideo) {
+                    modalVideo.currentTime = 0;
+                    modalVideo.play().catch(function () {});
+                }
+            }
+
+            function closeDemo() {
+                modal.classList.remove('is-open');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('demo-modal-open');
+                if (modalVideo) {
+                    modalVideo.pause();
+                }
+            }
+
+            openers.forEach(function (opener) {
+                opener.addEventListener('click', openDemo);
+                opener.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openDemo();
+                    }
+                });
+            });
+
+            closers.forEach(function (closer) {
+                closer.addEventListener('click', closeDemo);
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape' && modal.classList.contains('is-open')) {
+                    closeDemo();
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
